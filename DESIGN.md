@@ -662,7 +662,81 @@ parseCredential(token) -> { claims, scope, expires } (no underlying data)
 
 ---
 
-## 10. What We're NOT Building
+## 10. Signet as an AI Connector
+
+Signet's primary integration surface is as a **connector** for AI agents — the same way Google Drive, Slack, or GitHub appear as data sources in Claude, ChatGPT, or other AI platforms.
+
+### How It Works
+
+The user connects their Signet vault to Claude (or any MCP-compatible agent) through the platform's connector/integration settings. From the AI's perspective, Signet is just another MCP tool server. From the vault's perspective, the AI is just another agent — trusted within the scope the user defined.
+
+### Connector Setup Flow
+
+```
+1. User clicks "Add Signet" in Claude settings (or equivalent)
+2. Claude redirects to vault's OAuth 2.1 authorization endpoint
+   (MCP Nov 2025 spec uses OAuth 2.1 for auth)
+3. User authenticates to their vault (Ed25519 device key / FIDO2)
+4. Vault displays: "Claude wants to connect as your personal agent"
+   with the requested permission scope
+5. User approves → vault issues a Trusted Agent credential (PASETO v4)
+   scoped to Claude's session, with the permissions the user granted
+6. Claude receives the credential, stores it, and can now call Signet MCP tools
+7. Vault policy engine classifies Claude as trust level 6 (Trusted Agent)
+```
+
+### What Claude Sees (MCP Tool Interface)
+
+After connection, Claude's tool list includes:
+
+```
+signet_get_proof(claim, domain)
+  → "Is the user over 21?" → returns proof token
+signet_query(question)
+  → "What size shelves does the user prefer?" → returns answer (not raw data)
+signet_request_capability(spec)
+  → "Need payment auth for $150 at amazon.com" → returns capability token or pending
+signet_check_status(request_id)
+  → Check if a pending Tier 3 authorization was approved
+```
+
+Claude doesn't need to understand BBS+ or Bulletproofs. It calls a tool, gets a result. The hard stuff happens in the vault.
+
+### Hosted Vault: The Connector Endpoint
+
+For hosted vaults, the Signet MCP server is the publicly reachable endpoint:
+
+```
+User's Vault (encrypted, dark)
+  └── Signet MCP Server (public, authenticated)
+        ├── OAuth 2.1 authorization endpoint
+        ├── MCP tool endpoint (authenticated sessions)
+        ├── /.well-known/signet.json (discovery)
+        └── Webhook endpoint (for delivering proofs to external agents)
+```
+
+The MCP server is reachable. The vault behind it is not. All data flows through the policy engine.
+
+For self-hosted vaults, the user runs the MCP server alongside the vault (same machine or same network). If the user wants Claude to access their self-hosted vault, they need the MCP server to be reachable — via tunneling (Cloudflare Tunnel, ngrok) or by hosting the MCP server component on a reachable endpoint that authenticates back to the local vault.
+
+### Registry Listing
+
+Signet should be listed in:
+- Anthropic's MCP connector marketplace (when it exists)
+- Any emerging MCP server registries
+- As a standard MCP server configuration users can add manually (URL + auth)
+
+### Multi-Agent Support
+
+The same vault can be connected to multiple AI platforms simultaneously:
+- Claude gets a Trusted Agent credential scoped to Claude's session
+- ChatGPT gets a separate Trusted Agent credential scoped to ChatGPT's session
+- Each session has independent permissions, audit trails, and revocation
+- The user manages all connected agents through Protocol 0 (their UI)
+
+---
+
+## 11. What We're NOT Building
 
 Explicit exclusions to prevent scope creep:
 
@@ -679,7 +753,7 @@ Explicit exclusions to prevent scope creep:
 
 ---
 
-## 11. Threat Model
+## 12. Threat Model
 
 ### What We Protect Against
 
@@ -707,7 +781,7 @@ Explicit exclusions to prevent scope creep:
 
 ---
 
-## 12. Language and Build
+## 13. Language and Build
 
 **Primary language**: Rust
 
@@ -744,7 +818,7 @@ signet/
 
 ---
 
-## 13. Pact Shape
+## 14. Pact Shape
 
 For Pact's Shape step, the pitch:
 
@@ -770,7 +844,7 @@ For Pact's Shape step, the pitch:
 
 ---
 
-## 14. Pact Interview Preparation
+## 15. Pact Interview Preparation
 
 Questions Pact will ask and our answers:
 
