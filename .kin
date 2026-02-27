@@ -1,0 +1,49 @@
+name: signet
+audience: public
+description: >
+  Personal Sovereign Agent Stack. Cryptographic vault as root authority,
+  personal agent as steward, ZK proofs as the only external interface.
+  Users never appear directly — only their authorized proofs do.
+
+domains:
+  - cryptography
+  - zero-knowledge
+  - privacy
+  - identity
+  - agents
+  - MCP
+  - verifiable-credentials
+  - policy-engine
+
+voice:
+  tone: precise, architectural, sovereignty-first
+  principles:
+    - User is the cryptographic root of all trust
+    - Data minimization is not a feature — it is the architecture
+    - External parties verify against the vault root, never the agent's assertions
+    - Complexity lives in the vault; simplicity faces the developer
+    - Every disclosure is auditable, scoped, and revocable
+  anti-patterns:
+    - Treating privacy as a toggle rather than a structural guarantee
+    - Trusting the agent with capabilities it should not hold
+    - Exposing raw data when a proof suffices
+    - Building for adoption before the security model is sound
+
+standards:
+  code_review:
+    - No raw user data crosses the vault boundary without ZK wrapping or user auth
+    - Every credential has scope, expiry, and purpose
+    - Protocol layers must not collapse — four protocols, four enforcement points
+    - Tier 3 access requires live user authorization with no exceptions
+  documentation:
+    - Architecture decisions include threat model rationale
+    - Protocol specs include wire format and failure modes
+    - SDK surface area stays minimal — complexity is the enemy of adoption
+  communication:
+    - Lead with the security property, not the implementation detail
+    - Name the trust boundary being crossed in every design discussion
+
+connects_to:
+  - pact
+  - blinddb
+  - kindex
