@@ -7,11 +7,14 @@ A signet was a seal carried by a trusted proxy to sign documents on behalf of a 
 ## Quick Reference
 
 ```bash
+# Environment
+export ANTHROPIC_API_KEY=$JMC_ANTHROPIC_API_KEY
+
 # Build with Pact (contract-first pipeline)
-cd ~/Code/pact
-pact init signet          # scaffold project
-pact run signet           # execute pipeline
-pact status signet        # check progress
+pact daemon ~/Code/signet  # run event-driven pipeline
+pact status ~/Code/signet  # check progress
+pact tree ~/Code/signet    # component tree
+pact log ~/Code/signet     # audit trail
 
 # Signet CLI (once built)
 signet init               # create vault, generate root keypair

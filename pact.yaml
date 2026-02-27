@@ -1,0 +1,5 @@
+budget: 50.0
+parallel_components: true
+competitive_implementations: false
+shaping: true
+build_mode: hierarchy
