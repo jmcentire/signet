@@ -24,13 +24,13 @@ signet audit              # review disclosure log
 ## Trust Hierarchy
 
 ```
-User (Root Authority — cryptographic root, DID owner)
-  └── Signet Vault (BlindDB — encrypted local store, never externally reachable)
+User (Root Authority — cryptographic root, Ed25519 keypair)
+  └── Signet Vault (encrypted local store, never externally reachable)
         └── Personal Agent (trusted steward, credentialed by vault)
               └── External Agents / Services (petitioners, minimally disclosed)
 ```
 
-The user's vault keypair is the anchor for everything downstream. Any proof that reaches an external service traces its chain of trust back to the vault root. External parties verify against the public DID document — the vault itself stays dark.
+The user's vault keypair is the anchor for everything downstream. Any proof that reaches an external service traces its chain of trust back to the vault root. External parties verify against the embedded public key — the vault itself stays dark. No DID. Identity is a public key fingerprint.
 
 ## Three Tiers of Data
 
@@ -128,25 +128,25 @@ Closer to a scoped OAuth token than a password, but derived from vault root and 
 ## Components to Build
 
 ### 1. Signet Vault (`signet-vault`)
-BlindDB-derived encrypted local store. Schema: facts, credentials, preferences, history. User UI for managing tiers. Runs locally or on user-controlled infra. Generates ZK proofs on demand. Publishes DID document. Root keypair management.
+Encrypted local store. Schema: facts, credentials, preferences, history. User UI for managing tiers. Runs locally or on user-controlled infra (or hosted multi-tenant). Generates proofs on demand. Root keypair management. Same binary self-hosted or hosted.
 
 ### 2. Agent Trust Bridge (`signet-mcp`)
 MCP server connecting personal agent to vault (authenticated) and exposing tool interfaces to external agents. Enforces tier logic. Routes Tier 3 requests through authorization flow. Implements Steward Negotiation Protocol.
 
 ### 3. Credential Issuer (`signet-cred`)
-On user approval, issues signed, scoped capability credentials. PASETO v4 tokens for capability constraints. W3C Verifiable Credentials for composed proofs. One-time tokens for payments. Reusable tokens for low-sensitivity proofs.
+On user approval, issues signed, scoped capability credentials. PASETO v4 tokens for capability constraints. SD-JWT VCs for interop. BBS+ signed attribute sets for unlinkable proofs. One-time tokens for payments. Reusable tokens for low-sensitivity proofs.
 
 ### 4. Policy Engine (`signet-policy`)
 RBAC with actor/predicate/context legitimacy checking. Role hierarchy (user-curated, sensible defaults). Anomaly detection for role/predicate mismatches. Policy learning through real interactions. Pluggable execution handlers for authorization flow.
 
 ### 5. ZK Circuit Library (`signet-circuits`)
-Pre-built circuits: age gates, balance thresholds, location (country not address), identity ownership, capability scope. Pluggable. User inspects proofs before authorizing novel ones.
+Three-layer proof system: SD-JWT (baseline interop), BBS+ (unlinkable selective disclosure with pre-computed booleans), Bulletproofs (dynamic range proofs). No circuit compilation toolchain. No trusted setup.
 
 ### 6. Developer SDK (`signet-sdk`)
 Minimal surface area — four primitives:
 - `verify(proof, claim)` — validate a ZK proof
 - `requestCapability(spec)` — ask for a scoped credential
-- `checkAuthority(did)` — confirm root authority is valid
+- `checkAuthority(signet_id)` — confirm root authority is valid
 - `parseCredential(token)` — decode credential claims (not underlying data)
 
 ### 7. Notification/Authorization Channel (`signet-notify`)
@@ -159,17 +159,21 @@ Intercepts checkout flows, injects agent credentials into standard form fields. 
 
 | Layer | Standard | Why |
 |-------|----------|-----|
-| Identity | W3C DID | Universal, tooling everywhere |
-| Credentials | W3C VC + SD-JWT | IETF ratified, browser vendors engaged |
-| ZK Proofs | Noir or Circom | Developer-friendly, active ecosystems |
-| Agent Protocol | MCP | Native integration surface |
-| Capability Tokens | PASETO v4 | Simpler than JWT, cryptographically cleaner |
+| Identity | Ed25519 public key fingerprint | Self-certifying, no DID, no resolution protocol |
+| Key discovery | `/.well-known/signet.json` | HTTP, simple, optional |
+| Credentials (interop) | SD-JWT VC (RFC 9901) | IETF standard, EU wallet compatible |
+| Credentials (privacy) | BBS+ Signatures (IRTF draft) | Unlinkability, selective disclosure |
+| Range proofs | Bulletproofs | No trusted setup, audited, fast |
+| Agent Protocol | MCP | Native integration surface — Signet is a Claude connector |
+| Capability Tokens | PASETO v4 | Misuse-resistant, no algorithm confusion |
+| Crypto backend | aws-lc-rs | FIPS 140-3 validated |
 
 ## Portability
 
-- **DID as root identifier**: vault publishes DID document — resolvable pointer to root authority public keys and proof endpoints. Services can verify without contacting the vault.
-- **Well-Known endpoint**: `/.well-known/signet` — auto-discovery of supported claims, proof formats, root authority DID.
-- **Proof format compatibility**: SD-JWT for selective disclosure, W3C Verifiable Presentations for composed proofs. Services with existing VC support accept Signet proofs with no code change.
+- **Public key fingerprint as identity**: `Base58(SHA-256(Ed25519_pubkey)[0:20])`. Self-certifying. No registry.
+- **Well-Known endpoint**: `/.well-known/signet.json` — auto-discovery of supported claims, proof formats, public key.
+- **Key rotation**: New key signed by old key. Rotation proof published at well-known endpoint.
+- **Proof format compatibility**: SD-JWT for interop, BBS+ for privacy, Bulletproofs for range proofs.
 
 ## SDK Integration Profiles
 
@@ -225,7 +229,7 @@ Each component above maps to a Pact decomposition node. Contracts define the int
 
 These are non-negotiable and must hold across all components:
 
-1. **Vault never externally reachable** — issues proofs, agent carries them, external parties verify against public DID
+1. **Vault never externally reachable** — issues proofs, agent carries them, external parties verify against embedded public key
 2. **Tier 3 requires live user auth** — no exceptions, no caching, no delegation
 3. **One-way data flow** — vault -> agent -> service, never reverse
 4. **Every disclosure is auditable** — signed, timestamped, on the provenance chain
@@ -276,16 +280,24 @@ These are non-negotiable and must hold across all components:
 - Proof caching for repeated claims (Tier 1 age proofs)?
 - Circuit compilation time for novel proof types
 
+## Detailed Design
+
+See [DESIGN.md](./DESIGN.md) for the comprehensive design document including:
+- Proof architecture (three layers, no circuits)
+- Vault encryption model (envelope encryption, key hierarchy)
+- Multi-tenant hosted architecture
+- All edge cases resolved
+- Threat model
+- Pact shape and interview preparation
+- Acceptance criteria for every component
+
 ## Key References
 
-- W3C DID Core: https://www.w3.org/TR/did-core/
-- W3C Verifiable Credentials: https://www.w3.org/TR/vc-data-model/
-- SD-JWT (IETF): https://datatracker.ietf.org/doc/draft-ietf-oauth-selective-disclosure-jwt/
-- PASETO: https://paseto.io/
-- Noir (ZK circuits): https://noir-lang.org/
-- Circom: https://docs.circom.io/
-- BBS+ Signatures: https://www.w3.org/TR/vc-di-bbs/
-- XACML (conceptual ancestor): https://docs.oasis-open.org/xacml/3.0/xacml-3.0-core-spec-os-en.html
+- SD-JWT: RFC 9901 — https://datatracker.ietf.org/doc/rfc9901/
+- BBS+ Signatures: https://identity.foundation/bbs-signature/draft-irtf-cfrg-bbs-signatures.html
+- Bulletproofs (dalek): https://github.com/dalek-cryptography/bulletproofs
+- aws-lc-rs FIPS: https://aws.amazon.com/blogs/security/aws-lc-fips-3-0-first-cryptographic-library-to-include-ml-kem-in-fips-140-3-validation/
+- PASETO v4: https://paseto.io/
 - MCP: https://modelcontextprotocol.io/
 - "The Ephemeral Internet" (McEntire, 2026) — BlindDB concepts
 
