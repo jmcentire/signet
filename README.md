@@ -41,16 +41,16 @@ User (Root Authority -- Ed25519 keypair)
 | Crate | Lines | Description |
 |-------|-------|-------------|
 | `signet-core` | 713 | Shared types, traits (`Signer`, `StorageBackend`, `AuditChainWriter`) |
-| `signet-vault` | 2,686 | Root of trust, BlindDB storage, BIP39/SLIP-0010, envelope encryption |
+| `signet-vault` | 2,890 | Root of trust, BlindDB storage, BIP39/SLIP-0010, envelope encryption, passkey/FIDO2 support |
 | `signet-policy` | 4,265 | XACML-for-individuals, PERMIT/DENY/ANOMALY decisions, role hierarchy |
 | `signet-notify` | 4,290 | Webhook authorization channel, HMAC-SHA256, circuit breaker |
-| `signet-cred` | 4,452 | Credential issuance (SD-JWT VC + BBS+), Pedersen commitments |
-| `signet-proof` | 4,955 | Typestate proof pipeline, selective disclosure, range proofs |
-| `signet-sdk` | 2,780 | Developer SDK: `verify`, `requestCapability`, `checkAuthority`, `parseCredential` |
-| `signet-mcp` | 4,264 | MCP server, middleware pipeline, JSON-RPC 2.0 dispatcher |
-| `signet` | 1,458 | CLI binary and root orchestrator |
+| `signet-cred` | 6,778 | Credential issuance (SD-JWT VC + BBS+), authority protocol, composable decay model, revocation |
+| `signet-proof` | 5,135 | Typestate proof pipeline, selective disclosure, range proofs |
+| `signet-sdk` | 3,055 | Developer SDK: `verify`, `requestCapability`, `checkAuthority`, `parseCredential` |
+| `signet-mcp` | 4,903 | MCP server, middleware pipeline, JSON-RPC 2.0 dispatcher |
+| `signet` | 3,766 | CLI binary, HTTP server, authority credential endpoints |
 
-**~30,000 lines of Rust. 967 tests. 9 crates.**
+**~38,000 lines of Rust. 1,050 tests. 9 crates.**
 
 ## Quickstart
 

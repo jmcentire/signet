@@ -102,6 +102,13 @@ pub struct VerifyResult {
     pub domain: Option<String>,
     /// The proof format that was detected.
     pub proof_format: Option<ProofFormat>,
+    /// Whether the Ed25519 signature was verified against the issuer's public key.
+    /// `false` if the envelope was unsigned (backward compatible).
+    #[serde(default)]
+    pub signature_verified: bool,
+    /// The issuer's public key (hex-encoded Ed25519), if present in the envelope.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub issuer_public_key: Option<String>,
 }
 
 impl VerifyResult {
@@ -112,6 +119,8 @@ impl VerifyResult {
             error: None,
             domain,
             proof_format: Some(proof_format),
+            signature_verified: false,
+            issuer_public_key: None,
         }
     }
 
@@ -122,6 +131,8 @@ impl VerifyResult {
             error: Some(error),
             domain: None,
             proof_format: None,
+            signature_verified: false,
+            issuer_public_key: None,
         }
     }
 }
@@ -307,6 +318,14 @@ pub(crate) struct ProofEnvelope {
     /// HMAC-SHA256 binding of (attribute || value || domain || payload) using
     /// a key derived from the payload itself (self-binding integrity check).
     pub binding: String,
+    /// Optional Ed25519 signature over the binding hash, hex-encoded.
+    /// When present, enables cryptographic verification against issuer_public_key.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub signature: Option<String>,
+    /// Optional issuer public key (Ed25519), hex-encoded.
+    /// Required for signature verification.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub issuer_public_key: Option<String>,
 }
 
 /// Internal structure representing a credential token body.

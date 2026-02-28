@@ -1,3 +1,4 @@
+use crate::decay::{DecayConfig, DecayState};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -353,6 +354,9 @@ pub struct CredentialMetadata {
     pub domain: Domain,
     pub one_time: bool,
     pub issuer_public_key_id: String,
+    /// Optional decay configuration. If present, the credential decays over time.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub decay: Option<DecayConfig>,
 }
 
 // ---------------------------------------------------------------------------
@@ -575,6 +579,30 @@ impl std::fmt::Display for CredentialStatus {
 }
 
 // ---------------------------------------------------------------------------
+// RevocationInfo — who revoked and why
+// ---------------------------------------------------------------------------
+
+/// Who revoked a credential.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum RevokedBy {
+    /// Revoked by the credential owner.
+    User,
+    /// Revoked by the issuing authority. Carries the authority's hex Ed25519 public key.
+    Authority(String),
+}
+
+/// Information about a credential revocation.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RevocationInfo {
+    /// Who initiated the revocation.
+    pub revoked_by: RevokedBy,
+    /// When the revocation occurred (RFC 3339).
+    pub revoked_at: String,
+    /// Optional human-readable reason.
+    pub reason: Option<String>,
+}
+
+// ---------------------------------------------------------------------------
 // PresentationRecord
 // ---------------------------------------------------------------------------
 
@@ -596,6 +624,12 @@ pub struct CredentialRecord {
     pub presentation_history: Vec<PresentationRecord>,
     pub sd_jwt: SdJwtCredential,
     pub bbs: BbsCredential,
+    /// Runtime decay state. Present when metadata.decay is Some.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub decay_state: Option<DecayState>,
+    /// Revocation information. Present when status is Revoked.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub revocation: Option<RevocationInfo>,
 }
 
 // ---------------------------------------------------------------------------
@@ -748,7 +782,7 @@ mod tests {
             Some("hello")
         );
         assert_eq!(ClaimValue::BoolVal(true).as_bool(), Some(true));
-        assert_eq!(ClaimValue::FloatVal(3.14).as_int(), None);
+        assert_eq!(ClaimValue::FloatVal(1.23).as_int(), None);
     }
 
     #[test]

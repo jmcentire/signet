@@ -37,6 +37,7 @@ pub mod server;
 pub mod session;
 pub mod tools;
 pub mod types;
+pub mod vault_access;
 pub mod wire;
 
 // Re-export primary types and functions for convenience
@@ -58,6 +59,7 @@ pub use types::{
     RequestCapabilityResponse, Session, SessionRegistry, Tier1QueryResponse, Tier2QueryResponse,
     Tier3QueryResponse, TransportConfig, TransportKind,
 };
+pub use vault_access::{VaultAccess, VaultEntry};
 pub use wire::{
     WireCheckStatusRequest, WireGetProofRequest, WireNegotiateContextRequest, WireQueryRequest,
     WireRequestCapabilityRequest,

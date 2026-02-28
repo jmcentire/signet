@@ -16,5 +16,6 @@ base64 = { workspace = true }
 tracing = { workspace = true }
 hex = { workspace = true }
 bs58 = { workspace = true }
+ed25519-dalek = { workspace = true }
 
 [dev-dependencies]

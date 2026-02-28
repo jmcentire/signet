@@ -41,6 +41,12 @@ impl VaultSigner {
         signet_core::signet_id_from_pubkey(&self.verifying_key)
     }
 
+    /// Get the raw signing key bytes for operations that need them
+    /// (e.g., agent-safe SPL token minting).
+    pub fn signing_key_bytes(&self) -> &[u8; 32] {
+        &self.signing_key
+    }
+
     /// Verify a signature against this signer's public key.
     pub fn verify(&self, message: &[u8], signature: &[u8; 64]) -> bool {
         let vk = VerifyingKey::from_bytes(&self.verifying_key);

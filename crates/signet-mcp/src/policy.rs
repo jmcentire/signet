@@ -18,6 +18,8 @@ pub fn classify_tier(tool: &McpTool, params: &serde_json::Value) -> McpResult<Ti
     match tool {
         McpTool::GetProof => Ok(Tier::Tier1),
         McpTool::CheckStatus => Ok(Tier::Tier1),
+        McpTool::StoreData => Ok(Tier::Tier1),
+        McpTool::ListData => Ok(Tier::Tier1),
         McpTool::NegotiateContext => Ok(Tier::Tier2),
         McpTool::Query => classify_query_tier(params),
         McpTool::RequestCapability => classify_capability_tier(params),

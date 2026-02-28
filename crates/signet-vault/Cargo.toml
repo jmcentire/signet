@@ -8,6 +8,7 @@ description = "Encrypted local vault with BlindDB storage for the Signet soverei
 [features]
 default = ["sqlite"]
 sqlite = ["rusqlite"]
+passkey = []
 # postgres = ["tokio-postgres", "aws-sdk-s3"]
 
 [dependencies]

@@ -13,12 +13,15 @@
 //! engine never touches raw key material.
 
 pub mod attribute;
+pub mod authority;
 pub mod capability;
 pub mod consumption;
+pub mod decay;
 pub mod disclosure;
 pub mod error;
 pub mod issuance;
 pub mod schema;
+pub mod spl_capability;
 pub mod status;
 pub mod types;
 

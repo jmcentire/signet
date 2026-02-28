@@ -18,6 +18,7 @@
     <div class="nav-links">
       <a href="#for-everyone">Why</a>
       <a href="#for-builders">How</a>
+      <a href="#get-started">Start</a>
       <a href="#for-security">Proof</a>
       <a href="https://github.com/jmcentire/signet" class="nav-github">GitHub</a>
     </div>
@@ -39,6 +40,7 @@
       <a href="#for-everyone" class="btn btn-secondary">Learn more</a>
     </div>
     <p class="hero-install"><code>cargo install --git https://github.com/jmcentire/signet.git signet</code></p>
+    <p class="hero-install"><a href="claude-desktop-setup.html">Set up with Claude Desktop &rarr;</a></p>
   </div>
 
   <div class="scroll-hint" aria-hidden="true">
@@ -120,12 +122,12 @@
 
     <div class="architecture">
       <div class="arch-text">
-        <p>Signet is a Rust workspace &mdash; 30,000 lines, 967 tests, nine crates that compose into a complete personal sovereignty stack. It integrates with AI agents via the <strong>Model Context Protocol (MCP)</strong>, meaning it works with Claude today.</p>
+        <p>Signet is a Rust workspace &mdash; nine crates, 1,050 tests, clippy clean. It integrates with AI agents via the <strong>Model Context Protocol (MCP)</strong>, meaning it works with Claude today.</p>
 
         <p>The trust hierarchy is simple:</p>
         <ol>
           <li><strong>User</strong> holds an Ed25519 root keypair</li>
-          <li><strong>Vault</strong> encrypts and stores everything locally</li>
+          <li><strong>Vault</strong> encrypts and stores everything (locally or hosted)</li>
           <li><strong>Agent</strong> is credentialed by the vault to act on the user's behalf</li>
           <li><strong>External services</strong> receive proofs, never raw data</li>
         </ol>
@@ -148,11 +150,11 @@ User (Ed25519 root)
       </div>
       <div class="crate-item">
         <code>signet-vault</code>
-        <p>Root of trust. BlindDB storage, BIP39 mnemonics, SLIP-0010 Ed25519 derivation, AES-256-GCM envelope encryption, hash-chained audit log.</p>
+        <p>Root of trust. BlindDB storage, Ed25519 root keypair, HKDF key hierarchy, AES-256-GCM envelope encryption, hash-chained audit log, passkey/FIDO2 hardware-backed keys. No recovery by design.</p>
       </div>
       <div class="crate-item">
         <code>signet-cred</code>
-        <p>Credential issuance. SD-JWT VCs for interop, BBS+ for unlinkable selective disclosure, Pedersen commitments for numeric proofs, PASETO v4 capability tokens.</p>
+        <p>Credential issuance with authority protocol. SD-JWT VCs for interop, BBS+ for unlinkable selective disclosure, composable decay model (TTL, use count, rate limits, multi-phasic transitions), authority push/accept flow with Ed25519 double-signing, multi-authority chains, revocation.</p>
       </div>
       <div class="crate-item">
         <code>signet-proof</code>
@@ -168,7 +170,7 @@ User (Ed25519 root)
       </div>
       <div class="crate-item">
         <code>signet-mcp</code>
-        <p>MCP server with middleware pipeline. Session validation, tier classification, policy evaluation, tool execution, audit recording. Five MCP tools out of the box.</p>
+        <p>MCP server with middleware pipeline. Session validation, tier classification, policy evaluation, tool execution, audit recording. Seven MCP tools out of the box.</p>
       </div>
       <div class="crate-item">
         <code>signet-sdk</code>
@@ -214,9 +216,92 @@ User (Ed25519 root)
         <tr><td>Range proofs</td><td>Bulletproofs</td><td>No trusted setup required</td></tr>
         <tr><td>Agent protocol</td><td>MCP</td><td>Native Claude integration</td></tr>
         <tr><td>Tokens</td><td>PASETO v4</td><td>Misuse-resistant, no algorithm confusion</td></tr>
-        <tr><td>Key derivation</td><td>BIP39 + SLIP-0010</td><td>Deterministic, recoverable</td></tr>
+        <tr><td>Key generation</td><td>Ed25519 + HKDF</td><td>256-bit OsRng entropy. No seed phrase. No recovery.</td></tr>
       </tbody>
     </table>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- GET STARTED                                                              -->
+<!-- ====================================================================== -->
+<section id="get-started" class="section section-start">
+  <div class="container">
+    <p class="section-label">Get Started</p>
+    <h2>Three commands to sovereignty.</h2>
+
+    <div class="code-examples">
+      <div class="code-example">
+        <h4>1. Install &amp; Initialize</h4>
+<pre class="code-block">
+<span class="comment"># Install from source</span>
+cargo install --git https://github.com/jmcentire/signet.git signet
+
+<span class="comment"># Create your vault (generates root keypair)</span>
+signet init
+<span class="comment"># Your signet_id: 283iRafkBsTcE1yFuvG4a3WYg3PE</span>
+<span class="comment"># This is your identity. There is no recovery. Guard the key.</span>
+</pre>
+      </div>
+      <div class="code-example">
+        <h4>2. Import Authority-Issued Credentials</h4>
+<pre class="code-block">
+<span class="comment"># Accept a credential pushed by a trusted authority</span>
+<span class="comment"># Key = (authority, account) -- you see who attested what</span>
+signet credential accept \
+  --authority <span class="str">"dmv.ca.gov"</span> \
+  --review               <span class="comment"># inspect before accepting</span>
+
+<span class="comment"># Or import a signed token directly</span>
+signet credential import &lt; signed_credential.jwt
+
+<span class="comment"># The credential is signed by the DMV's Ed25519 key.</span>
+<span class="comment"># When you prove "age > 21", the verifier checks the DMV's</span>
+<span class="comment"># signature -- not your word for it.</span>
+</pre>
+      </div>
+      <div class="code-example">
+        <h4>3. Connect to Claude Desktop</h4>
+<pre class="code-block">
+<span class="comment"># Add to ~/Library/Application Support/Claude/claude_desktop_config.json</span>
+{
+  <span class="str">"mcpServers"</span>: {
+    <span class="str">"signet"</span>: {
+      <span class="str">"command"</span>: <span class="str">"signet"</span>,
+      <span class="str">"args"</span>: [<span class="str">"serve"</span>]
+    }
+  }
+}
+</pre>
+        <p><a href="claude-desktop-setup.html">Full setup guide &rarr;</a></p>
+      </div>
+    </div>
+
+    <div class="code-examples">
+      <div class="code-example">
+        <h4>Issue Capability Tokens</h4>
+<pre class="code-block">
+<span class="comment"># Scoped, one-time capability derived from vault root</span>
+signet capability \
+  --domain <span class="str">"amazon.com"</span> \
+  --max-amount <span class="num">150</span> \
+  --purpose <span class="str">"purchase"</span> \
+  --one-time
+</pre>
+      </div>
+      <div class="code-example">
+        <h4>HTTP Server for Verification</h4>
+<pre class="code-block">
+<span class="comment"># Start the verification server</span>
+signet serve --transport http --port <span class="num">3000</span>
+
+<span class="comment"># Verify a proof against the issuing authority</span>
+curl -X POST http://localhost:<span class="num">3000</span>/verify \
+  -H <span class="str">"Content-Type: application/json"</span> \
+  -d <span class="str">'{"proof": "...", "claim": {"attribute": "age_over_21"}}'</span>
+</pre>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -311,17 +396,17 @@ User (Ed25519 root)
       <p class="try-it">Run it yourself: <code>cargo test --package signet-vault --test show_db -- --nocapture</code></p>
     </div>
 
-    <h3>Key Derivation</h3>
+    <h3>Key Hierarchy</h3>
     <div class="key-derivation">
 <pre class="code-block">
-BIP39 Mnemonic (24 words, 256 bits entropy)
- +-- SLIP-0010 Ed25519 master key
-      +-- VaultSealingKey  (HKDF: master + "vault-seal")
-      |    +-- Per-record DEKs (HKDF: VSK + record_id)
-      +-- CompartmentKeys  (HKDF: master + compartment_id)
-      |    +-- Tier 3 DEKs  <span class="highlight-inline">(NOT derivable from VSK -- structural isolation)</span>
-      +-- DeviceKeys        (HKDF: master + device_id)
+Ed25519 root keypair  <span class="highlight-inline">(generated once from 256 bits entropy. No mnemonic. No recovery.)</span>
+ +-- VaultSealingKey  (HKDF: root + "vault-seal")
+ |    +-- Per-record DEKs (HKDF: VSK + record_id)
+ +-- CompartmentKeys  (HKDF: root + compartment_id)
+ |    +-- Tier 3 DEKs  <span class="highlight-inline">(NOT derivable from VSK -- structural isolation)</span>
+ +-- DeviceKeys        (HKDF: root + device_id)
 </pre>
+      <p>There is no recovery mechanism. Lose the root key and everything is crypto-erased. That's the point &mdash; if it's recoverable, it's stealable. You know your own birthday. Your bank will re-issue credentials. GDPR compliance by mathematics, not by policy.</p>
       <p>Tier 3 compartment keys are structurally isolated from the vault sealing key. An agent session that holds the VSK <em>cannot derive</em> compartment keys. This is enforced by the key hierarchy, not by access control.</p>
     </div>
 
@@ -329,15 +414,15 @@ BIP39 Mnemonic (24 words, 256 bits entropy)
     <div class="tier-keys">
       <table class="standards-table">
         <thead>
-          <tr><th>Tier</th><th>Key Input</th><th>Survives Password Reset</th><th>Use Case</th></tr>
+          <tr><th>Tier</th><th>Key Derivation</th><th>Loss Consequence</th><th>Use Case</th></tr>
         </thead>
         <tbody>
-          <tr><td>1</td><td><code>SHA-256(username + server_salt)</code></td><td>Yes</td><td>Preferences, age proofs, public posts</td></tr>
-          <tr><td>2</td><td><code>SHA-256(username + password + "master")</code></td><td>No</td><td>Agent reasoning context, session data</td></tr>
-          <tr><td>3</td><td><code>random_key()</code> (OsRng, 256-bit)</td><td>N/A (unrecoverable)</td><td>Payment credentials, identity docs, medical</td></tr>
+          <tr><td>1</td><td><code>HKDF(root + "tier1" + label)</code></td><td>Re-derive from root</td><td>Authority-attested proofs, preferences</td></tr>
+          <tr><td>2</td><td><code>HKDF(root + "tier2" + label)</code></td><td>Re-derive from root</td><td>Agent reasoning context, session data</td></tr>
+          <tr><td>3</td><td><code>HKDF(root + compartment_id)</code></td><td>Gone with root</td><td>Payment credentials, identity docs, medical</td></tr>
         </tbody>
       </table>
-      <p>Crypto-erasure: discard the master secret and all record IDs become uncomputable. GDPR compliance by mathematics, not by policy.</p>
+      <p>Lose the root key and all tiers are crypto-erased simultaneously. You know your own birthday &mdash; the DMV will re-issue the credential. Your credit card is in your wallet. Recovery is the enemy: if it's recoverable, it's stealable.</p>
     </div>
 
     <h3>Implementation Rigor</h3>
@@ -369,7 +454,7 @@ BIP39 Mnemonic (24 words, 256 bits entropy)
     </div>
 
     <div class="cta-final">
-      <h3>967 tests. Zero <code>unwrap()</code> in library code. Clippy clean.</h3>
+      <h3>1,050 tests. Zero <code>unwrap()</code> in library code. Clippy clean.</h3>
       <p>Read the code. Run the tests. Break the assumptions.</p>
       <div class="hero-cta">
         <a href="https://github.com/jmcentire/signet" class="btn btn-primary">View Source</a>

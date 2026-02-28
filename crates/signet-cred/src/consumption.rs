@@ -18,6 +18,9 @@ const RECORD_KEY_PREFIX: &str = "cred:record:";
 /// Storage key prefix for witness data.
 const WITNESS_KEY_PREFIX: &str = "cred:witness:";
 
+/// Storage key prefix for revocation data.
+const REVOCATION_KEY_PREFIX: &str = "cred:revocation:";
+
 /// Derive the storage record ID for a credential's status.
 pub fn status_record_id(cred_id: &CredentialId) -> RecordId {
     RecordId::new(format!("{}{}", STATUS_KEY_PREFIX, cred_id.as_str()))
@@ -203,6 +206,60 @@ pub fn witness_exists(storage: &dyn StorageBackend, cred_id: &CredentialId) -> C
     let record_id = witness_record_id(cred_id);
     storage.exists(&record_id).map_err(|_| {
         CredErrorDetail::new(CredError::VaultError, "failed to check witness existence")
+    })
+}
+
+/// Derive the storage record ID for a credential's revocation info.
+pub fn revocation_record_id(cred_id: &CredentialId) -> RecordId {
+    RecordId::new(format!("{}{}", REVOCATION_KEY_PREFIX, cred_id.as_str()))
+}
+
+/// Store revocation information for a credential.
+pub fn store_revocation(
+    storage: &dyn StorageBackend,
+    cred_id: &CredentialId,
+    info: &crate::types::RevocationInfo,
+) -> CredResult<()> {
+    let record_id = revocation_record_id(cred_id);
+    let data = serde_json::to_vec(info).map_err(|_| {
+        CredErrorDetail::new(CredError::EncodingFailed, "failed to encode revocation info")
+    })?;
+    storage.put(&record_id, &data).map_err(|_| {
+        CredErrorDetail::new(CredError::VaultError, "failed to store revocation info")
+    })
+}
+
+/// Load revocation information for a credential.
+pub fn load_revocation(
+    storage: &dyn StorageBackend,
+    cred_id: &CredentialId,
+) -> CredResult<Option<crate::types::RevocationInfo>> {
+    let record_id = revocation_record_id(cred_id);
+    let data = storage.get(&record_id).map_err(|_| {
+        CredErrorDetail::new(CredError::VaultError, "failed to load revocation info")
+    })?;
+    match data {
+        Some(bytes) => {
+            let info = serde_json::from_slice(&bytes).map_err(|_| {
+                CredErrorDetail::new(
+                    CredError::DecodingFailed,
+                    "failed to decode revocation info",
+                )
+            })?;
+            Ok(Some(info))
+        }
+        None => Ok(None),
+    }
+}
+
+/// Check if a credential is revoked.
+pub fn is_revoked(
+    storage: &dyn StorageBackend,
+    cred_id: &CredentialId,
+) -> CredResult<bool> {
+    let record_id = revocation_record_id(cred_id);
+    storage.exists(&record_id).map_err(|_| {
+        CredErrorDetail::new(CredError::VaultError, "failed to check revocation status")
     })
 }
 
@@ -488,6 +545,7 @@ mod tests {
                 domain: Domain::new("example.com").unwrap(),
                 one_time: false,
                 issuer_public_key_id: "key-1".into(),
+                decay: None,
             },
             status: CredentialStatus::Active,
             presentation_history: vec![],
@@ -505,6 +563,8 @@ mod tests {
                 attributes: vec![],
                 message_count: 0,
             },
+            decay_state: None,
+            revocation: None,
         };
 
         store_credential_record(&storage, &cred_id, &record).unwrap();

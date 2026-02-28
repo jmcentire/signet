@@ -3,6 +3,46 @@ use std::path::{Path, PathBuf};
 
 use crate::error::{RootError, RootResult};
 
+/// Hosting mode for the Signet server.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum HostingMode {
+    /// Self-hosted: single user, local SQLite vault.
+    #[default]
+    SelfHosted,
+    /// Multi-tenant: hosted vault service, opaque blob storage.
+    MultiTenant,
+}
+
+/// Configuration for multi-tenant Postgres-backed hosting.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PostgresConfig {
+    /// Postgres connection string.
+    #[serde(default = "default_pg_connection")]
+    pub connection_string: String,
+
+    /// Maximum connection pool size.
+    #[serde(default = "default_pg_pool_size")]
+    pub pool_size: u32,
+}
+
+fn default_pg_connection() -> String {
+    "postgresql://localhost/signet".to_string()
+}
+
+fn default_pg_pool_size() -> u32 {
+    10
+}
+
+impl Default for PostgresConfig {
+    fn default() -> Self {
+        Self {
+            connection_string: default_pg_connection(),
+            pool_size: default_pg_pool_size(),
+        }
+    }
+}
+
 /// Transport protocol for the MCP server.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
@@ -106,6 +146,14 @@ pub struct RootConfig {
     /// Policy engine configuration.
     #[serde(default)]
     pub policy: PolicyEngineConfig,
+
+    /// Hosting mode: self-hosted (single user) or multi-tenant.
+    #[serde(default)]
+    pub hosting_mode: HostingMode,
+
+    /// Postgres configuration (only used in multi-tenant mode).
+    #[serde(default)]
+    pub postgres: PostgresConfig,
 }
 
 fn default_vault_path() -> PathBuf {
@@ -130,6 +178,8 @@ impl Default for RootConfig {
             data_dir: default_data_dir(),
             mcp: McpConfig::default(),
             policy: PolicyEngineConfig::default(),
+            hosting_mode: HostingMode::default(),
+            postgres: PostgresConfig::default(),
         }
     }
 }
@@ -306,6 +356,8 @@ escalation_timeout_secs = 120
                 anomaly_threshold: 0.3,
                 escalation_timeout_secs: 60,
             },
+            hosting_mode: HostingMode::default(),
+            postgres: PostgresConfig::default(),
         };
 
         config.save(&path).unwrap();

@@ -281,6 +281,8 @@ fn chapter_3_mcp_proof_request_flow() {
     assert_eq!(
         tool_names,
         vec![
+            "store_data",
+            "list_data",
             "get_proof",
             "query",
             "request_capability",

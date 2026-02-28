@@ -238,7 +238,7 @@ pub struct AuthenticatedRequest {
 // MCP Tool types
 // ---------------------------------------------------------------------------
 
-/// The five MCP tools.
+/// MCP tools exposed by the Signet server.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum McpTool {
     GetProof,
@@ -246,6 +246,8 @@ pub enum McpTool {
     RequestCapability,
     NegotiateContext,
     CheckStatus,
+    StoreData,
+    ListData,
 }
 
 impl McpTool {
@@ -257,6 +259,8 @@ impl McpTool {
             "request_capability" => Some(McpTool::RequestCapability),
             "negotiate_context" => Some(McpTool::NegotiateContext),
             "check_status" => Some(McpTool::CheckStatus),
+            "store_data" => Some(McpTool::StoreData),
+            "list_data" => Some(McpTool::ListData),
             _ => None,
         }
     }

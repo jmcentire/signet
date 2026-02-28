@@ -12,4 +12,7 @@ pub mod tier;
 #[cfg(feature = "sqlite")]
 pub mod storage;
 
+#[cfg(feature = "passkey")]
+pub mod passkey;
+
 pub use error::*;

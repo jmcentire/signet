@@ -13,6 +13,7 @@
 
 use base64::engine::general_purpose::STANDARD as BASE64;
 use base64::Engine;
+use ed25519_dalek::{Signature, VerifyingKey};
 use sha2::{Digest, Sha256};
 use tracing;
 
@@ -118,16 +119,21 @@ fn verify_envelope(envelope: &ProofEnvelope, claim: &Claim) -> SdkResult<VerifyR
         }
     }
 
+    // Ed25519 signature verification (if signature + public key are present)
+    let (signature_verified, issuer_public_key) =
+        verify_envelope_signature(envelope, &expected_binding);
+
     tracing::info!(
         attribute = %claim.attribute,
         format = %envelope.format,
+        signature_verified = signature_verified,
         "proof verified successfully"
     );
 
-    Ok(VerifyResult::success(
-        envelope.format,
-        envelope.domain.clone(),
-    ))
+    let mut result = VerifyResult::success(envelope.format, envelope.domain.clone());
+    result.signature_verified = signature_verified;
+    result.issuer_public_key = issuer_public_key;
+    Ok(result)
 }
 
 /// Compute the HMAC-SHA256 self-binding for a proof envelope.
@@ -180,11 +186,123 @@ pub(crate) fn detect_format_from_bytes(data: &[u8]) -> ProofFormat {
 
     // Bulletproof range proofs have a recognizable structure:
     // 32-byte commitments repeated. Typical sizes: 672+ bytes for single range proof.
-    if data.len() >= 672 && data.len().is_multiple_of(32) {
+    if data.len() >= 672 && data.len() % 32 == 0 {
         return ProofFormat::Bulletproof;
     }
 
     ProofFormat::Unknown
+}
+
+/// Verify the Ed25519 signature on a proof envelope.
+///
+/// Returns (signature_verified, issuer_public_key_hex).
+/// If no signature or public key is present, returns (false, None) — backward compatible.
+/// If signature verification fails, returns (false, Some(key)) so the caller
+/// can distinguish "unsigned" from "signed but invalid".
+fn verify_envelope_signature(
+    envelope: &ProofEnvelope,
+    binding: &str,
+) -> (bool, Option<String>) {
+    let (sig_hex, pk_hex) = match (&envelope.signature, &envelope.issuer_public_key) {
+        (Some(sig), Some(pk)) => (sig, pk),
+        _ => return (false, None), // unsigned envelope — backward compatible
+    };
+
+    let sig_bytes = match hex::decode(sig_hex) {
+        Ok(b) => b,
+        Err(_) => {
+            tracing::warn!("invalid hex in envelope signature");
+            return (false, Some(pk_hex.clone()));
+        }
+    };
+
+    let pk_bytes = match hex::decode(pk_hex) {
+        Ok(b) => b,
+        Err(_) => {
+            tracing::warn!("invalid hex in envelope issuer_public_key");
+            return (false, Some(pk_hex.clone()));
+        }
+    };
+
+    let pk_array: [u8; 32] = match pk_bytes.try_into() {
+        Ok(a) => a,
+        Err(_) => {
+            tracing::warn!("issuer_public_key is not 32 bytes");
+            return (false, Some(pk_hex.clone()));
+        }
+    };
+
+    let verifying_key = match VerifyingKey::from_bytes(&pk_array) {
+        Ok(k) => k,
+        Err(_) => {
+            tracing::warn!("invalid Ed25519 public key");
+            return (false, Some(pk_hex.clone()));
+        }
+    };
+
+    let signature = match Signature::from_slice(&sig_bytes) {
+        Ok(s) => s,
+        Err(_) => {
+            tracing::warn!("invalid Ed25519 signature bytes");
+            return (false, Some(pk_hex.clone()));
+        }
+    };
+
+    // Verify signature over the binding hash bytes (not the hex string)
+    let binding_bytes = match hex::decode(binding) {
+        Ok(b) => b,
+        Err(_) => binding.as_bytes().to_vec(),
+    };
+
+    match verifying_key.verify_strict(&binding_bytes, &signature) {
+        Ok(()) => {
+            tracing::debug!("Ed25519 signature verified");
+            (true, Some(pk_hex.clone()))
+        }
+        Err(_) => {
+            tracing::warn!("Ed25519 signature verification failed");
+            (false, Some(pk_hex.clone()))
+        }
+    }
+}
+
+/// Create a signed proof envelope from components.
+///
+/// Signs the binding hash with the provided Ed25519 signing key bytes (32 bytes).
+/// The resulting envelope includes `signature` and `issuer_public_key` fields.
+pub fn create_signed_proof_envelope(
+    format: ProofFormat,
+    attribute: &str,
+    value: &serde_json::Value,
+    domain: Option<&str>,
+    raw_payload: &[u8],
+    signing_key_bytes: &[u8; 32],
+) -> Vec<u8> {
+    use ed25519_dalek::{Signer, SigningKey};
+
+    let payload_b64 = BASE64.encode(raw_payload);
+    let binding = compute_binding(attribute, value, domain, &payload_b64);
+
+    let signing_key = SigningKey::from_bytes(signing_key_bytes);
+    let verifying_key = signing_key.verifying_key();
+
+    // Sign the binding hash bytes
+    let binding_bytes = hex::decode(&binding).expect("binding is valid hex");
+    let signature = signing_key.sign(&binding_bytes);
+
+    let envelope = ProofEnvelope {
+        version: 1,
+        format,
+        attribute: attribute.to_string(),
+        value: value.clone(),
+        domain: domain.map(|s| s.to_string()),
+        payload: payload_b64,
+        binding,
+        signature: Some(hex::encode(signature.to_bytes())),
+        issuer_public_key: Some(hex::encode(verifying_key.to_bytes())),
+    };
+
+    serde_json::to_vec(&envelope).expect("envelope serialization should not fail")
 }
 
 /// Create a proof envelope from components. This is used to produce proofs
@@ -207,6 +325,8 @@ pub fn create_proof_envelope(
         domain: domain.map(|s| s.to_string()),
         payload: payload_b64,
         binding,
+        signature: None,
+        issuer_public_key: None,
     };
 
     serde_json::to_vec(&envelope).expect("envelope serialization should not fail")
@@ -449,6 +569,142 @@ mod tests {
             let result = verify(&proof, &claim).unwrap();
             assert!(result.valid, "should verify for format {:?}", fmt);
             assert_eq!(result.proof_format, Some(*fmt));
+        }
+    }
+
+    // --- Phase 4: Ed25519 signature verification tests ---
+
+    fn make_signing_key() -> [u8; 32] {
+        // Deterministic test key
+        let mut key = [0u8; 32];
+        key[0] = 0x42;
+        key[1] = 0x01;
+        key[31] = 0xFF;
+        key
+    }
+
+    fn make_different_signing_key() -> [u8; 32] {
+        let mut key = [0u8; 32];
+        key[0] = 0xAA;
+        key[1] = 0xBB;
+        key[31] = 0xCC;
+        key
+    }
+
+    #[test]
+    fn test_signed_envelope_verifies_with_correct_key() {
+        let key = make_signing_key();
+        let data = create_signed_proof_envelope(
+            ProofFormat::SdJwt,
+            "age_over_21",
+            &serde_json::Value::Bool(true),
+            Some("example.com"),
+            b"signed-payload-data",
+            &key,
+        );
+        let proof = Proof::new(data);
+        let claim = Claim::new("age_over_21", true);
+        let result = verify(&proof, &claim).unwrap();
+        assert!(result.valid);
+        assert!(result.signature_verified);
+        assert!(result.issuer_public_key.is_some());
+        assert_eq!(result.domain.as_deref(), Some("example.com"));
+    }
+
+    #[test]
+    fn test_signed_envelope_fails_with_wrong_key() {
+        let key = make_signing_key();
+        let wrong_key = make_different_signing_key();
+
+        // Create envelope signed with key
+        let data = create_signed_proof_envelope(
+            ProofFormat::SdJwt,
+            "age_over_21",
+            &serde_json::Value::Bool(true),
+            None,
+            b"payload",
+            &key,
+        );
+
+        // Tamper: replace issuer_public_key with wrong key's public key
+        let mut envelope: ProofEnvelope = serde_json::from_slice(&data).unwrap();
+        let wrong_signing = ed25519_dalek::SigningKey::from_bytes(&wrong_key);
+        let wrong_pk = wrong_signing.verifying_key();
+        envelope.issuer_public_key = Some(hex::encode(wrong_pk.to_bytes()));
+
+        let tampered = Proof::new(serde_json::to_vec(&envelope).unwrap());
+        let claim = Claim::new("age_over_21", true);
+        let result = verify(&tampered, &claim).unwrap();
+        assert!(result.valid); // binding still valid
+        assert!(!result.signature_verified); // signature doesn't match wrong key
+        assert!(result.issuer_public_key.is_some());
+    }
+
+    #[test]
+    fn test_tampered_envelope_fails_signature() {
+        let key = make_signing_key();
+        let data = create_signed_proof_envelope(
+            ProofFormat::SdJwt,
+            "age_over_21",
+            &serde_json::Value::Bool(true),
+            None,
+            b"original-payload",
+            &key,
+        );
+
+        // Tamper with the attribute but recompute binding (so binding check passes)
+        // but signature won't match the new binding
+        let mut envelope: ProofEnvelope = serde_json::from_slice(&data).unwrap();
+        envelope.attribute = "age_over_18".to_string();
+        envelope.binding = compute_binding(
+            &envelope.attribute,
+            &envelope.value,
+            envelope.domain.as_deref(),
+            &envelope.payload,
+        );
+
+        let tampered = Proof::new(serde_json::to_vec(&envelope).unwrap());
+        let claim = Claim::new("age_over_18", true);
+        let result = verify(&tampered, &claim).unwrap();
+        assert!(result.valid); // binding is correct for new attribute
+        assert!(!result.signature_verified); // but signature was over old binding
+    }
+
+    #[test]
+    fn test_unsigned_envelope_still_works() {
+        // Backward compatibility: unsigned envelopes still pass binding check
+        let data = create_proof_envelope(
+            ProofFormat::SdJwt,
+            "name",
+            &serde_json::json!("Alice"),
+            None,
+            b"payload",
+        );
+        let proof = Proof::new(data);
+        let claim = Claim::new("name", "Alice");
+        let result = verify(&proof, &claim).unwrap();
+        assert!(result.valid);
+        assert!(!result.signature_verified); // no signature
+        assert!(result.issuer_public_key.is_none());
+    }
+
+    #[test]
+    fn test_signed_envelope_roundtrip_all_formats() {
+        let key = make_signing_key();
+        for fmt in &[ProofFormat::SdJwt, ProofFormat::BbsPlus, ProofFormat::Bulletproof] {
+            let data = create_signed_proof_envelope(
+                *fmt,
+                "attr",
+                &serde_json::json!("val"),
+                Some("test.com"),
+                b"payload",
+                &key,
+            );
+            let proof = Proof::new(data);
+            let claim = Claim::new("attr", "val");
+            let result = verify(&proof, &claim).unwrap();
+            assert!(result.valid, "format {:?} should verify", fmt);
+            assert!(result.signature_verified, "format {:?} should have valid signature", fmt);
         }
     }
 }

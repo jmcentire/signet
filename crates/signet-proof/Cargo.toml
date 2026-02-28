@@ -5,7 +5,13 @@ edition.workspace = true
 license.workspace = true
 description = "Proof derivation with typestate pipeline for the Signet sovereign agent stack"
 
+[features]
+default = []
+real-crypto = ["curve25519-dalek", "merlin"]
+
 [dependencies]
+curve25519-dalek = { workspace = true, optional = true }
+merlin = { workspace = true, optional = true }
 signet-core = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

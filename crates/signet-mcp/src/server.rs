@@ -7,6 +7,9 @@ use crate::audit::AuditLog;
 use crate::error::{McpError, McpResult};
 use crate::session::SessionManager;
 use crate::types::{McpServerConfig, PipelineConfig};
+use crate::vault_access::VaultAccess;
+use signet_notify::ChallengeRegistry;
+use std::sync::Arc;
 
 /// The MCP server instance.
 ///
@@ -17,6 +20,8 @@ pub struct McpServer {
     session_manager: SessionManager,
     audit_log: AuditLog,
     pipeline_config: PipelineConfig,
+    vault: Option<Arc<dyn VaultAccess>>,
+    challenge_registry: ChallengeRegistry,
 }
 
 impl McpServer {
@@ -50,6 +55,8 @@ impl McpServer {
             session_manager,
             audit_log,
             pipeline_config,
+            vault: None,
+            challenge_registry: ChallengeRegistry::new(),
         })
     }
 
@@ -71,6 +78,21 @@ impl McpServer {
     /// Get a reference to the pipeline configuration.
     pub fn pipeline_config(&self) -> &PipelineConfig {
         &self.pipeline_config
+    }
+
+    /// Set the vault access implementation.
+    pub fn set_vault(&mut self, vault: Arc<dyn VaultAccess>) {
+        self.vault = Some(vault);
+    }
+
+    /// Get a reference to the vault access implementation.
+    pub fn vault(&self) -> Option<&Arc<dyn VaultAccess>> {
+        self.vault.as_ref()
+    }
+
+    /// Get a reference to the challenge registry for Tier 3 authorization flow.
+    pub fn challenge_registry(&self) -> &ChallengeRegistry {
+        &self.challenge_registry
     }
 }
 

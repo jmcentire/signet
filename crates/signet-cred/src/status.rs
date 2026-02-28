@@ -13,7 +13,7 @@
 //!   Presented -> Revoked
 
 use crate::error::{CredError, CredErrorDetail, CredResult};
-use crate::types::CredentialStatus;
+use crate::types::{CredentialStatus, RevocationInfo, RevokedBy};
 
 /// Check whether a status transition is valid.
 pub fn is_valid_transition(from: CredentialStatus, to: CredentialStatus) -> bool {
@@ -92,6 +92,54 @@ pub fn transition_to_revoked(current: CredentialStatus) -> CredResult<Credential
         ));
     }
     transition(current, CredentialStatus::Revoked)
+}
+
+/// Revoke a credential by the user. Returns the RevocationInfo and new status.
+/// Idempotent: if already Revoked, returns Ok with existing info.
+pub fn revoke_by_user(
+    current: CredentialStatus,
+    reason: Option<String>,
+) -> CredResult<(CredentialStatus, RevocationInfo)> {
+    if current == CredentialStatus::Revoked {
+        // Idempotent: already revoked
+        let info = RevocationInfo {
+            revoked_by: RevokedBy::User,
+            revoked_at: chrono::Utc::now().to_rfc3339(),
+            reason,
+        };
+        return Ok((CredentialStatus::Revoked, info));
+    }
+    let new_status = transition_to_revoked(current)?;
+    let info = RevocationInfo {
+        revoked_by: RevokedBy::User,
+        revoked_at: chrono::Utc::now().to_rfc3339(),
+        reason,
+    };
+    Ok((new_status, info))
+}
+
+/// Revoke a credential by an authority. Returns the RevocationInfo and new status.
+/// Idempotent: if already Revoked, returns Ok with existing info.
+pub fn revoke_by_authority(
+    current: CredentialStatus,
+    authority_pubkey: String,
+    reason: Option<String>,
+) -> CredResult<(CredentialStatus, RevocationInfo)> {
+    if current == CredentialStatus::Revoked {
+        let info = RevocationInfo {
+            revoked_by: RevokedBy::Authority(authority_pubkey),
+            revoked_at: chrono::Utc::now().to_rfc3339(),
+            reason,
+        };
+        return Ok((CredentialStatus::Revoked, info));
+    }
+    let new_status = transition_to_revoked(current)?;
+    let info = RevocationInfo {
+        revoked_by: RevokedBy::Authority(authority_pubkey),
+        revoked_at: chrono::Utc::now().to_rfc3339(),
+        reason,
+    };
+    Ok((new_status, info))
 }
 
 #[cfg(test)]
@@ -360,5 +408,72 @@ mod tests {
     fn test_transition_to_revoked_already_revoked_fails() {
         let result = transition_to_revoked(CredentialStatus::Revoked);
         assert!(result.is_err());
+    }
+
+    // --- revoke_by_user ---
+
+    #[test]
+    fn test_revoke_by_user_active() {
+        let (status, info) =
+            revoke_by_user(CredentialStatus::Active, Some("no longer needed".into())).unwrap();
+        assert_eq!(status, CredentialStatus::Revoked);
+        assert_eq!(info.revoked_by, RevokedBy::User);
+        assert_eq!(info.reason.as_deref(), Some("no longer needed"));
+    }
+
+    #[test]
+    fn test_revoke_by_user_presented() {
+        let (status, _info) = revoke_by_user(CredentialStatus::Presented, None).unwrap();
+        assert_eq!(status, CredentialStatus::Revoked);
+    }
+
+    #[test]
+    fn test_revoke_by_user_consumed_fails() {
+        let result = revoke_by_user(CredentialStatus::Consumed, None);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_revoke_by_user_already_revoked_idempotent() {
+        let (status, info) = revoke_by_user(CredentialStatus::Revoked, None).unwrap();
+        assert_eq!(status, CredentialStatus::Revoked);
+        assert_eq!(info.revoked_by, RevokedBy::User);
+    }
+
+    // --- revoke_by_authority ---
+
+    #[test]
+    fn test_revoke_by_authority_active() {
+        let (status, info) = revoke_by_authority(
+            CredentialStatus::Active,
+            "abcd1234".into(),
+            Some("credential superseded".into()),
+        )
+        .unwrap();
+        assert_eq!(status, CredentialStatus::Revoked);
+        assert_eq!(
+            info.revoked_by,
+            RevokedBy::Authority("abcd1234".into())
+        );
+        assert_eq!(info.reason.as_deref(), Some("credential superseded"));
+    }
+
+    #[test]
+    fn test_revoke_by_authority_consumed_fails() {
+        let result = revoke_by_authority(CredentialStatus::Consumed, "pk".into(), None);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_revoke_by_authority_already_revoked_idempotent() {
+        let (status, info) =
+            revoke_by_authority(CredentialStatus::Revoked, "pk".into(), None).unwrap();
+        assert_eq!(status, CredentialStatus::Revoked);
+        assert_eq!(info.revoked_by, RevokedBy::Authority("pk".into()));
+    }
+
+    #[test]
+    fn test_revoked_credential_cannot_be_presented() {
+        assert!(!can_present(CredentialStatus::Revoked));
     }
 }

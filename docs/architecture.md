@@ -52,8 +52,8 @@ The user teaches the system through real interactions, not configuration screens
 
 | Component | Purpose |
 |-----------|---------|
-| `signet-vault` | Encrypted store, key management, tier enforcement |
-| `signet-cred` | SD-JWT + BBS+ credential issuance |
+| `signet-vault` | Encrypted store, key management, tier enforcement, passkey/FIDO2 |
+| `signet-cred` | Authority credential protocol, composable decay, revocation, SD-JWT + BBS+ issuance |
 | `signet-proof` | Proof derivation (SD-JWT, BBS+, Bulletproofs) |
 | `signet-policy` | Role/predicate evaluation, anomaly detection |
 | `signet-mcp` | MCP server — trust bridge to AI agents |

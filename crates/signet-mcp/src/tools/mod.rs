@@ -7,6 +7,7 @@ pub mod get_proof;
 pub mod negotiate;
 pub mod query;
 pub mod status;
+pub mod store;
 
 use crate::error::{McpError, McpResult};
 use crate::types::{
@@ -62,6 +63,12 @@ pub fn dispatch_tool(
                 })?;
             let response = status::execute_check_status(&request)?;
             serde_json::to_value(response).map_err(|e| McpError::SerializationError(e.to_string()))
+        }
+        McpTool::StoreData | McpTool::ListData => {
+            // Handled directly in the dispatcher with vault access
+            Err(McpError::ToolExecutionFailed(
+                "store/list tools must be dispatched with vault access".into(),
+            ))
         }
     }
 }

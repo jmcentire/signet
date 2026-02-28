@@ -51,6 +51,18 @@ pub enum CredError {
     #[error("vault error")]
     VaultError,
 
+    #[error("credential decayed: {0}")]
+    CredentialDecayed(String),
+
+    #[error("invalid authority signature")]
+    InvalidAuthoritySignature,
+
+    #[error("authority offer expired")]
+    OfferExpired,
+
+    #[error("chain verification failed")]
+    ChainVerificationFailed,
+
     #[error("internal error")]
     InternalError,
 }
@@ -186,6 +198,10 @@ mod tests {
             CredError::InvalidDisclosurePolicy("test".into()),
             CredError::WitnessNotFound,
             CredError::StatusTransitionDenied("test".into()),
+            CredError::CredentialDecayed("test".into()),
+            CredError::InvalidAuthoritySignature,
+            CredError::OfferExpired,
+            CredError::ChainVerificationFailed,
             CredError::VaultError,
             CredError::InternalError,
         ];

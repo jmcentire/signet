@@ -216,8 +216,12 @@ pub fn build_committed_attribute(
     Ok((committed, blinding))
 }
 
-/// Compute a Pedersen commitment using hash-based construction.
+/// Compute a Pedersen commitment using hash-based simulation.
 /// C = SHA-256("signet-cred-pedersen-v1" || value_le || blinding_factor)
+///
+/// This is the simulated (default) backend. For real Ristretto Pedersen
+/// commitments, build with `--features real-crypto`.
+#[cfg(not(feature = "real-crypto"))]
 fn compute_pedersen_commitment(value: i64, blinding: &[u8]) -> [u8; 32] {
     let mut hasher = Sha256::new();
     hasher.update(PedersenCommitment::DOMAIN_TAG.as_bytes());
@@ -227,6 +231,44 @@ fn compute_pedersen_commitment(value: i64, blinding: &[u8]) -> [u8; 32] {
     let mut result = [0u8; 32];
     result.copy_from_slice(&hash);
     result
+}
+
+/// Compute a Pedersen commitment using real Ristretto point arithmetic.
+/// C = v*G + r*H where G and H are independent Ristretto basepoints.
+#[cfg(feature = "real-crypto")]
+fn compute_pedersen_commitment(value: i64, blinding: &[u8]) -> [u8; 32] {
+    use curve25519_dalek::constants::RISTRETTO_BASEPOINT_POINT;
+    use curve25519_dalek::ristretto::RistrettoPoint;
+    use curve25519_dalek::scalar::Scalar;
+
+    // G = standard Ristretto basepoint
+    let g = RISTRETTO_BASEPOINT_POINT;
+
+    // H = independently derived basepoint via hash-to-point
+    // (nothing-up-my-sleeve: double SHA-256 of domain tag -> 64 bytes -> Ristretto)
+    let h = {
+        use sha2::{Digest, Sha256};
+        let hash1 = Sha256::digest(PedersenCommitment::DOMAIN_TAG.as_bytes());
+        let hash2 = Sha256::digest(hash1);
+        let mut uniform = [0u8; 64];
+        uniform[..32].copy_from_slice(&hash1);
+        uniform[32..].copy_from_slice(&hash2);
+        RistrettoPoint::from_uniform_bytes(&uniform)
+    };
+
+    // Convert value to scalar (handle negative values via wrapping)
+    let v_scalar = Scalar::from(value as u64);
+
+    // Convert blinding factor to scalar (reduce mod order)
+    let mut blinding_bytes = [0u8; 32];
+    let copy_len = blinding.len().min(32);
+    blinding_bytes[..copy_len].copy_from_slice(&blinding[..copy_len]);
+    let r_scalar = Scalar::from_bytes_mod_order(blinding_bytes);
+
+    // C = v*G + r*H
+    let commitment = v_scalar * g + r_scalar * h;
+
+    commitment.compress().to_bytes()
 }
 
 /// Verify that a Pedersen commitment matches the given value and blinding factor.
