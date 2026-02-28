@@ -1,0 +1,10 @@
+version: 2
+
+secret:
+  ignored-matches:
+    - name: "JWT test header - base64url of {\"alg\":\"ES256\"}"
+      match: "eyJhbGciOiJFUzI1NiJ9"
+    - name: "JWT test header - base64url of {\"alg\":\"RS256\"}"
+      match: "eyJhbGciOiJSUzI1NiJ9"
+    - name: "JWT test header - base64url of {\"typ\":\"JWT\"}"
+      match: "eyJ0eXAiOiJKV1QifQ"
