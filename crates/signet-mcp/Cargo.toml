@@ -1,0 +1,29 @@
+[package]
+name = "signet-mcp"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "MCP server and trust bridge for the Signet sovereign agent stack"
+
+[dependencies]
+signet-core = { workspace = true }
+signet-vault = { workspace = true }
+signet-policy = { workspace = true }
+signet-cred = { workspace = true }
+signet-proof = { workspace = true }
+signet-notify = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+sha2 = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+ed25519-dalek = { workspace = true }
+base64 = { workspace = true }
+rand = { workspace = true }
+zeroize = { workspace = true }
+hex = { workspace = true }
+
+[dev-dependencies]

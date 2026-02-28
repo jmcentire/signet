@@ -1,0 +1,20 @@
+[package]
+name = "signet-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Shared types and traits for the Signet sovereign agent stack"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+zeroize = { workspace = true }
+sha2 = { workspace = true }
+bs58 = { workspace = true }
+chrono = { workspace = true }
+hex = { workspace = true }
+uuid = { workspace = true }
+rand = { workspace = true }
+
+[dev-dependencies]

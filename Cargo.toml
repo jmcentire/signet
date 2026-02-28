@@ -1,0 +1,82 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/signet-core",
+    "crates/signet-vault",
+    "crates/signet-policy",
+    "crates/signet-notify",
+    "crates/signet-cred",
+    "crates/signet-proof",
+    "crates/signet-sdk",
+    "crates/signet-mcp",
+    "crates/signet",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+rust-version = "1.75"
+repository = "https://github.com/jmcentire/signet"
+homepage = "https://github.com/jmcentire/signet"
+authors = ["Jeremy McEntire <jmc@kindex.tools>"]
+categories = ["cryptography", "authentication"]
+keywords = ["privacy", "credentials", "zero-knowledge", "mcp", "vault"]
+
+[workspace.dependencies]
+# Internal crates
+signet-core = { path = "crates/signet-core" }
+signet-vault = { path = "crates/signet-vault" }
+signet-policy = { path = "crates/signet-policy" }
+signet-notify = { path = "crates/signet-notify" }
+signet-cred = { path = "crates/signet-cred" }
+signet-proof = { path = "crates/signet-proof" }
+signet-sdk = { path = "crates/signet-sdk" }
+signet-mcp = { path = "crates/signet-mcp" }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Error handling
+thiserror = "2"
+
+# Crypto
+zeroize = { version = "1.8", features = ["derive"] }
+sha2 = "0.10"
+hmac = "0.12"
+hkdf = "0.12"
+aes-gcm = "0.10"
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+x25519-dalek = { version = "2", features = ["static_secrets"] }
+rand = "0.8"
+rand_core = "0.6"
+subtle = "2.6"
+bs58 = "0.5"
+bip39 = "2"
+
+# Async
+tokio = { version = "1", features = ["full"] }
+
+# Time
+chrono = { version = "0.4", features = ["serde"] }
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# CLI
+clap = { version = "4", features = ["derive"] }
+toml = "0.8"
+
+# Storage
+rusqlite = { version = "0.32", features = ["bundled"] }
+
+# Hex encoding
+hex = "0.4"
+
+# Base64
+base64 = "0.22"
+
+# UUID
+uuid = { version = "1", features = ["v4", "serde"] }

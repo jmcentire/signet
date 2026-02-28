@@ -3,3 +3,30 @@ parallel_components: true
 competitive_implementations: false
 shaping: true
 build_mode: hierarchy
+
+# Multi-backend configuration
+# API keys sourced from environment: ANTHROPIC_API_KEY, GEMINI_API_KEY, OPENAI_API_KEY
+# Decomposer uses OpenAI (Gemini rejects additionalProperties in schemas)
+# Contract/test authoring uses Gemini (fast, available)
+# Code implementation uses OpenAI/Codex
+
+role_models:
+  decomposer: gpt-4o
+  shaper: gpt-4o
+  contract_author: gpt-4o
+  test_author: gpt-4o
+  code_author: gpt-4o
+  trace_analyst: gpt-4o
+
+role_backends:
+  decomposer: openai
+  shaper: openai
+  contract_author: openai
+  test_author: openai
+  code_author: openai
+  trace_analyst: openai
+
+# Relax health thresholds — planning phases produce no generation artifacts by design
+health_thresholds:
+  output_planning_ratio_warning: 0.0
+  rejection_rate_critical: 0.9

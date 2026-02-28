@@ -1,0 +1,37 @@
+[package]
+name = "signet-vault"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Encrypted local vault with BlindDB storage for the Signet sovereign agent stack"
+
+[features]
+default = ["sqlite"]
+sqlite = ["rusqlite"]
+# postgres = ["tokio-postgres", "aws-sdk-s3"]
+
+[dependencies]
+signet-core = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+zeroize = { workspace = true }
+sha2 = { workspace = true }
+hmac = { workspace = true }
+hkdf = { workspace = true }
+aes-gcm = { workspace = true }
+ed25519-dalek = { workspace = true }
+x25519-dalek = { workspace = true }
+rand = { workspace = true }
+rand_core = { workspace = true }
+bip39 = { workspace = true }
+chrono = { workspace = true }
+hex = { workspace = true }
+base64 = { workspace = true }
+uuid = { workspace = true }
+tracing = { workspace = true }
+subtle = { workspace = true }
+rusqlite = { workspace = true, optional = true }
+
+[dev-dependencies]
+tempfile = "3"

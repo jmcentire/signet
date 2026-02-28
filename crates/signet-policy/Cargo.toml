@@ -1,0 +1,20 @@
+[package]
+name = "signet-policy"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "XACML-for-individuals policy engine for the Signet sovereign agent stack"
+
+[dependencies]
+signet-core = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+hmac = { workspace = true }
+sha2 = { workspace = true }
+tracing = { workspace = true }
+rand = { workspace = true }
+
+[dev-dependencies]

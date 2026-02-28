@@ -1,0 +1,21 @@
+[package]
+name = "signet-proof"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Proof derivation with typestate pipeline for the Signet sovereign agent stack"
+
+[dependencies]
+signet-core = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+sha2 = { workspace = true }
+zeroize = { workspace = true }
+rand = { workspace = true }
+base64 = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]

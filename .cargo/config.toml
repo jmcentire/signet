@@ -1,0 +1,6 @@
+[build]
+# Fail on warnings in CI
+# rustflags = ["-D", "warnings"]
+
+[target.'cfg(target_os = "macos")']
+rustflags = ["-C", "link-arg=-framework", "-C", "link-arg=Security"]
