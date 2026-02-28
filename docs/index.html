@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Signet - Personal Sovereign Agent Stack</title>
+<meta name="description" content="Your AI agent knows everything about you. Signet makes sure only you control what it shares.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ====================================================================== -->
+<!-- HERO                                                                    -->
+<!-- ====================================================================== -->
+<section class="hero">
+  <nav>
+    <a href="#" class="nav-brand">signet</a>
+    <div class="nav-links">
+      <a href="#for-everyone">Why</a>
+      <a href="#for-builders">How</a>
+      <a href="#for-security">Proof</a>
+      <a href="https://github.com/jmcentire/signet" class="nav-github">GitHub</a>
+    </div>
+  </nav>
+
+  <div class="hero-content">
+    <pre class="hero-ascii" aria-hidden="true">
+     _                  _
+ ___(_) __ _ _ __   ___| |_
+/ __| |/ _` | '_ \ / _ \ __|
+\__ \ | (_| | | | |  __/ |_
+|___/_|\__, |_| |_|\___|\__|
+       |___/
+    </pre>
+    <h1>Your AI agent knows everything about you.<br><span class="highlight">Who controls what it shares?</span></h1>
+    <p class="hero-sub">Signet is a cryptographic vault that sits between you and the world. Your agent proves things about you without revealing you. No passwords handed over. No data copied. No trust required.</p>
+    <div class="hero-cta">
+      <a href="https://github.com/jmcentire/signet" class="btn btn-primary">View on GitHub</a>
+      <a href="#for-everyone" class="btn btn-secondary">Learn more</a>
+    </div>
+    <p class="hero-install"><code>cargo install --git https://github.com/jmcentire/signet.git signet</code></p>
+  </div>
+
+  <div class="scroll-hint" aria-hidden="true">
+    <span></span>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- FOR EVERYONE                                                            -->
+<!-- ====================================================================== -->
+<section id="for-everyone" class="section section-people">
+  <div class="container">
+    <p class="section-label">For Everyone</p>
+    <h2>You shouldn't have to give away your secrets to use the internet.</h2>
+
+    <div class="problem-solution">
+      <div class="problem">
+        <h3>The Problem</h3>
+        <p>Every time you use an AI agent, buy something online, or prove your age, you hand over real data. Your name. Your address. Your card number. Your medical history. That data gets copied, stored, breached, sold, and correlated.</p>
+        <p>You are not the customer. You are the product. And your data outlives every company that collects it.</p>
+      </div>
+      <div class="solution">
+        <h3>The Signet Answer</h3>
+        <p>What if you could prove you're over 21 without showing your ID? Pay for something without giving a merchant your card number? Let your AI agent book a flight without it knowing your passport number?</p>
+        <p>Signet makes this real. Your vault holds your secrets. Your agent carries proofs. The outside world verifies the proof and never sees the original.</p>
+      </div>
+    </div>
+
+    <div class="tier-cards">
+      <div class="tier-card tier-1">
+        <div class="tier-num">Tier 1</div>
+        <h4>Freely Provable</h4>
+        <p>"Are you over 21?" Your agent answers instantly with a cryptographic proof. No data leaves the vault. The answer is yes or no, mathematically guaranteed, with no way to learn anything else.</p>
+        <p class="tier-example">Age verification, preferences, public profile</p>
+      </div>
+      <div class="tier-card tier-2">
+        <div class="tier-num">Tier 2</div>
+        <h4>Agent-Internal</h4>
+        <p>"What shelves did they order last time?" Your agent knows. It uses that knowledge to reason and act on your behalf. But it never exports the raw data. External services get conclusions, not facts.</p>
+        <p class="tier-example">Purchase history, browsing context, recommendations</p>
+      </div>
+      <div class="tier-card tier-3">
+        <div class="tier-num">Tier 3</div>
+        <h4>Capability-Gated</h4>
+        <p>Your credit card. Your passport. Your medical records. Your agent literally <em>cannot read them</em> without your explicit, one-time authorization. It knows they exist. It can ask. It cannot proceed without you.</p>
+        <p class="tier-example">Payment, identity documents, medical data</p>
+      </div>
+    </div>
+
+    <div class="analogy">
+      <blockquote>
+        A signet was a seal carried by a trusted proxy to sign documents on behalf of a lord &mdash; in their absence, with their full authority. The vault is the matrix (the original, never leaves you). The agent is the proxy carrying the seal. The proof is the impression &mdash; proves authority without revealing the ring.
+      </blockquote>
+    </div>
+
+    <div class="data-flow">
+      <h3>Data flows one direction. Always.</h3>
+      <div class="flow-diagram">
+        <div class="flow-step">
+          <div class="flow-icon">Vault</div>
+          <div class="flow-arrow">&rarr;</div>
+          <div class="flow-icon">Agent</div>
+          <div class="flow-arrow">&rarr;</div>
+          <div class="flow-icon">Service</div>
+        </div>
+        <p>Never reverse. The service cannot reach into your vault. Your agent cannot send data upstream. Every disclosure is logged, scoped, and revocable.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- FOR BUILDERS                                                            -->
+<!-- ====================================================================== -->
+<section id="for-builders" class="section section-builders">
+  <div class="container">
+    <p class="section-label">For Builders</p>
+    <h2>Nine crates. Four primitives. One install.</h2>
+
+    <div class="architecture">
+      <div class="arch-text">
+        <p>Signet is a Rust workspace &mdash; 30,000 lines, 967 tests, nine crates that compose into a complete personal sovereignty stack. It integrates with AI agents via the <strong>Model Context Protocol (MCP)</strong>, meaning it works with Claude today.</p>
+
+        <p>The trust hierarchy is simple:</p>
+        <ol>
+          <li><strong>User</strong> holds an Ed25519 root keypair</li>
+          <li><strong>Vault</strong> encrypts and stores everything locally</li>
+          <li><strong>Agent</strong> is credentialed by the vault to act on the user's behalf</li>
+          <li><strong>External services</strong> receive proofs, never raw data</li>
+        </ol>
+      </div>
+      <div class="arch-diagram">
+<pre class="code-block">
+User (Ed25519 root)
+ +-- Vault (encrypted, never reachable)
+      +-- Agent (credentialed steward)
+           +-- Services (petitioners)
+</pre>
+      </div>
+    </div>
+
+    <h3>The Crates</h3>
+    <div class="crate-grid">
+      <div class="crate-item">
+        <code>signet-core</code>
+        <p>Shared types and traits. <code>Signer</code>, <code>StorageBackend</code>, <code>AuditChainWriter</code>. The interfaces everything else implements.</p>
+      </div>
+      <div class="crate-item">
+        <code>signet-vault</code>
+        <p>Root of trust. BlindDB storage, BIP39 mnemonics, SLIP-0010 Ed25519 derivation, AES-256-GCM envelope encryption, hash-chained audit log.</p>
+      </div>
+      <div class="crate-item">
+        <code>signet-cred</code>
+        <p>Credential issuance. SD-JWT VCs for interop, BBS+ for unlinkable selective disclosure, Pedersen commitments for numeric proofs, PASETO v4 capability tokens.</p>
+      </div>
+      <div class="crate-item">
+        <code>signet-proof</code>
+        <p>Typestate proof pipeline. <code>ProofRequest &rarr; ProofPlan &rarr; ProofBundle &rarr; BoundPresentation</code>. Compile-time guarantees that you can't skip steps.</p>
+      </div>
+      <div class="crate-item">
+        <code>signet-policy</code>
+        <p>XACML-for-individuals. Three-way PERMIT / DENY / ANOMALY decisions. Role hierarchy with deny-override combining. Pattern detection with MAC protection.</p>
+      </div>
+      <div class="crate-item">
+        <code>signet-notify</code>
+        <p>Authorization channel. HMAC-SHA256 webhook signatures, challenge-response, circuit breaker, scope subset validation to prevent privilege escalation.</p>
+      </div>
+      <div class="crate-item">
+        <code>signet-mcp</code>
+        <p>MCP server with middleware pipeline. Session validation, tier classification, policy evaluation, tool execution, audit recording. Five MCP tools out of the box.</p>
+      </div>
+      <div class="crate-item">
+        <code>signet-sdk</code>
+        <p>Four primitives: <code>verify</code>, <code>requestCapability</code>, <code>checkAuthority</code>, <code>parseCredential</code>. Everything a service needs to accept Signet proofs.</p>
+      </div>
+    </div>
+
+    <h3>Integration is Four Lines</h3>
+    <div class="code-examples">
+      <div class="code-example">
+        <h4>Verify a proof</h4>
+<pre class="code-block">
+<span class="kw">use</span> signet_sdk::verify;
+
+<span class="kw">let</span> result = verify(proof_token, <span class="str">"age_over_21"</span>, <span class="str">"shop.example.com"</span>);
+<span class="comment">// result.valid, result.expires, result.scope</span>
+</pre>
+      </div>
+      <div class="code-example">
+        <h4>Request a capability</h4>
+<pre class="code-block">
+<span class="kw">use</span> signet_sdk::request_capability;
+
+<span class="kw">let</span> cap = request_capability(CapabilitySpec {
+    kind: <span class="str">"payment"</span>,
+    max_amount: <span class="num">150</span>,
+    domain: <span class="str">"amazon.com"</span>,
+    one_time: <span class="kw">true</span>,
+});
+</pre>
+      </div>
+    </div>
+
+    <h3>Standards, Not Inventions</h3>
+    <table class="standards-table">
+      <thead>
+        <tr><th>Layer</th><th>Standard</th><th>Why</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Identity</td><td>Ed25519 fingerprint</td><td>Self-certifying. No DID. No registry.</td></tr>
+        <tr><td>Credentials</td><td>SD-JWT VC (RFC 9901)</td><td>IETF standard, EU wallet compatible</td></tr>
+        <tr><td>Privacy</td><td>BBS+ Signatures</td><td>Unlinkable selective disclosure</td></tr>
+        <tr><td>Range proofs</td><td>Bulletproofs</td><td>No trusted setup required</td></tr>
+        <tr><td>Agent protocol</td><td>MCP</td><td>Native Claude integration</td></tr>
+        <tr><td>Tokens</td><td>PASETO v4</td><td>Misuse-resistant, no algorithm confusion</td></tr>
+        <tr><td>Key derivation</td><td>BIP39 + SLIP-0010</td><td>Deterministic, recoverable</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- FOR SECURITY                                                            -->
+<!-- ====================================================================== -->
+<section id="for-security" class="section section-security">
+  <div class="container">
+    <p class="section-label">For Security Engineers</p>
+    <h2>Information = records + relationships.<br>We destroy the relationships.</h2>
+
+    <div class="blinddb-intro">
+      <p>Signet's storage layer implements the <strong>BlindDB</strong> model from <em>The Ephemeral Internet</em> (McEntire, 2026). The core insight: in most breaches, the relationships between records are more valuable than the records themselves. A credit card number is dangerous. A credit card number linked to a name, address, email, and purchase history is an identity.</p>
+
+      <p>BlindDB doesn't just encrypt your data. It makes relationships between records <strong>uncomputable</strong> by anyone without the client-side master secret.</p>
+    </div>
+
+    <h3>Five Defense Layers</h3>
+    <div class="defense-layers">
+      <div class="defense-layer primary">
+        <div class="layer-num">1</div>
+        <div class="layer-content">
+          <h4>Relational Opacity <span class="badge">Primary</span></h4>
+          <p>Record IDs are <code>SHA-256(master_secret || label || index)</code>. The server stores a flat pile of opaque hashes. No user table. No foreign keys. No joins. No way to determine which records belong to the same user, which form a collection, or what any record represents.</p>
+          <p>This is the defense that matters most. Even if every other layer fails, an attacker with full database access sees a pile of unrelated blobs.</p>
+        </div>
+      </div>
+      <div class="defense-layer">
+        <div class="layer-num">2</div>
+        <div class="layer-content">
+          <h4>Tamper Evidence</h4>
+          <p>Hash-chained audit log. Every vault operation is signed and appended. Chain breaks are detectable. You know if someone modified the record store.</p>
+        </div>
+      </div>
+      <div class="defense-layer">
+        <div class="layer-num">3</div>
+        <div class="layer-content">
+          <h4>Provenance &amp; Ordering</h4>
+          <p>Hash chains provide causal ordering. You can prove a record existed before another. You can prove a sequence of operations happened in order. The server cannot reorder history.</p>
+        </div>
+      </div>
+      <div class="defense-layer">
+        <div class="layer-num">4</div>
+        <div class="layer-content">
+          <h4>Encryption</h4>
+          <p>AES-256-GCM per-record envelope encryption. Per-record DEKs derived from the master secret and record ID: <code>enc_key = SHA-256(master_secret || record_id || "encrypt")</code>. For data that has independent value (credit cards, SSNs), encryption is the last line.</p>
+        </div>
+      </div>
+      <div class="defense-layer">
+        <div class="layer-num">5</div>
+        <div class="layer-content">
+          <h4>Plausible Deniability</h4>
+          <p>Seed data is cryptographically indistinguishable from real data. An attacker cannot determine whether a record is genuine or injected noise. The total record count reveals nothing about the number of users or records per user.</p>
+        </div>
+      </div>
+    </div>
+
+    <h3>What the Attacker Sees</h3>
+    <div class="attacker-view">
+      <p>Three users store emails, addresses, payment cards, medical records, video watch histories, and credential statuses. Here is the server's complete database:</p>
+<pre class="code-block server-dump">
+<span class="comment">SELECT * FROM records;</span>
+
+ #  record_id                           data
+--- ----------------------------------- -------------------------
+ 1  0a3f8b2c...e771c921                 &lt;encrypted 44 bytes&gt;
+ 2  1b8e4d7a...f9823d44                 &lt;encrypted 68 bytes&gt;
+ 3  2c7a91e5...a4f08812                 &lt;encrypted 52 bytes&gt;
+ 4  3d1f6c88...b8e22a97                 &lt;encrypted 40 bytes&gt;
+ 5  4e2a7d99...c7f33b06                 &lt;encrypted 88 bytes&gt;
+ 6  5f3b8eaa...d6044c15                 &lt;encrypted 36 bytes&gt;
+ 7  6a4c9fbb...e5155d24                 &lt;encrypted 48 bytes&gt;
+ 8  7b5da0cc...f4266e33                 &lt;encrypted 72 bytes&gt;
+ 9  8c6eb1dd...03377f42                 &lt;encrypted 44 bytes&gt;
+10  9d7fc2ee...12488051                 &lt;encrypted 56 bytes&gt;
+11  ae80d3ff...21599160                 &lt;encrypted 40 bytes&gt;
+12  bf91e400...306aa27f                 &lt;encrypted 64 bytes&gt;
+13  c0a2f511...4f7bb38e                 &lt;encrypted 48 bytes&gt;
+</pre>
+      <div class="attacker-questions">
+        <h4>Questions the attacker cannot answer:</h4>
+        <ul>
+          <li>Which records belong to Alice? Bob? Carol?</li>
+          <li>Which email goes with which address?</li>
+          <li>Who has the credit card? The SSN? The medical record?</li>
+          <li>How many users are there? (3? 30? 300?)</li>
+          <li>Which records form a collection?</li>
+          <li>Is record #5 an email, an address, or a video title?</li>
+          <li>Are any of these records fake (seed data)?</li>
+        </ul>
+      </div>
+      <p class="try-it">Run it yourself: <code>cargo test --package signet-vault --test show_db -- --nocapture</code></p>
+    </div>
+
+    <h3>Key Derivation</h3>
+    <div class="key-derivation">
+<pre class="code-block">
+BIP39 Mnemonic (24 words, 256 bits entropy)
+ +-- SLIP-0010 Ed25519 master key
+      +-- VaultSealingKey  (HKDF: master + "vault-seal")
+      |    +-- Per-record DEKs (HKDF: VSK + record_id)
+      +-- CompartmentKeys  (HKDF: master + compartment_id)
+      |    +-- Tier 3 DEKs  <span class="highlight-inline">(NOT derivable from VSK -- structural isolation)</span>
+      +-- DeviceKeys        (HKDF: master + device_id)
+</pre>
+      <p>Tier 3 compartment keys are structurally isolated from the vault sealing key. An agent session that holds the VSK <em>cannot derive</em> compartment keys. This is enforced by the key hierarchy, not by access control.</p>
+    </div>
+
+    <h3>Tiered Key Inputs</h3>
+    <div class="tier-keys">
+      <table class="standards-table">
+        <thead>
+          <tr><th>Tier</th><th>Key Input</th><th>Survives Password Reset</th><th>Use Case</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td><code>SHA-256(username + server_salt)</code></td><td>Yes</td><td>Preferences, age proofs, public posts</td></tr>
+          <tr><td>2</td><td><code>SHA-256(username + password + "master")</code></td><td>No</td><td>Agent reasoning context, session data</td></tr>
+          <tr><td>3</td><td><code>random_key()</code> (OsRng, 256-bit)</td><td>N/A (unrecoverable)</td><td>Payment credentials, identity docs, medical</td></tr>
+        </tbody>
+      </table>
+      <p>Crypto-erasure: discard the master secret and all record IDs become uncomputable. GDPR compliance by mathematics, not by policy.</p>
+    </div>
+
+    <h3>Implementation Rigor</h3>
+    <div class="rigor-grid">
+      <div class="rigor-item">
+        <h4>Constant-Time Comparisons</h4>
+        <p>All CAS operations and authentication checks use <code>subtle::ConstantTimeEq</code>. No timing side-channels on secret-dependent branches.</p>
+      </div>
+      <div class="rigor-item">
+        <h4>OS-Level Entropy</h4>
+        <p><code>rand::rngs::OsRng</code> for every cryptographic operation. No userspace PRNGs in security paths. Verified across all 9 crates.</p>
+      </div>
+      <div class="rigor-item">
+        <h4>Memory Zeroization</h4>
+        <p>All secret key material wrapped in <code>Zeroizing&lt;&gt;</code>. Secrets are zeroed from memory on drop. No residual key material.</p>
+      </div>
+      <div class="rigor-item">
+        <h4>No Plaintext on Server</h4>
+        <p>The <code>BlindStorageWrapper</code> is a transparent layer that blinds record IDs (SHA-256) and encrypts data (AES-256-GCM) before any backend call. The server never sees labels, plaintext, or semantic content.</p>
+      </div>
+      <div class="rigor-item">
+        <h4>Audit Chain Integrity</h4>
+        <p>Hash-chained append-only log. Each entry includes the hash of the previous entry. Tampering breaks the chain. Independently verifiable.</p>
+      </div>
+      <div class="rigor-item">
+        <h4>Structural Tier Isolation</h4>
+        <p>Tier 3 keys are not derivable from the vault sealing key. This is a property of the key hierarchy, not a policy check. A compromised agent session cannot access Tier 3 data.</p>
+      </div>
+    </div>
+
+    <div class="cta-final">
+      <h3>967 tests. Zero <code>unwrap()</code> in library code. Clippy clean.</h3>
+      <p>Read the code. Run the tests. Break the assumptions.</p>
+      <div class="hero-cta">
+        <a href="https://github.com/jmcentire/signet" class="btn btn-primary">View Source</a>
+        <a href="https://github.com/jmcentire/signet/blob/main/SECURITY.md" class="btn btn-secondary">Security Policy</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- FOOTER                                                                  -->
+<!-- ====================================================================== -->
+<footer>
+  <div class="container">
+    <div class="footer-content">
+      <div class="footer-brand">
+        <span class="nav-brand">signet</span>
+        <p>Personal Sovereign Agent Stack</p>
+      </div>
+      <div class="footer-links">
+        <a href="https://github.com/jmcentire/signet">GitHub</a>
+        <a href="https://github.com/jmcentire/signet/blob/main/CONTRIBUTING.md">Contributing</a>
+        <a href="https://github.com/jmcentire/signet/blob/main/SECURITY.md">Security</a>
+        <a href="https://github.com/jmcentire/signet/blob/main/CHANGELOG.md">Changelog</a>
+      </div>
+    </div>
+    <p class="footer-license">MIT OR Apache-2.0</p>
+  </div>
+</footer>
+
+</body>
+</html>
