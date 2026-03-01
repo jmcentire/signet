@@ -199,6 +199,18 @@ Licensed under either of
 
 at your option.
 
+## Privacy Stack
+
+Signet is one layer of a larger privacy architecture. Each component addresses a different failure mode.
+
+| Component | What It Does | Link |
+|-----------|-------------|------|
+| **Signet** | Cryptographic vault. Three-tier data model, ZK proofs, Ed25519 root of trust. | *(this project)* |
+| **Agent-Safe (SPL)** | Authorization policy in the token. Local eval in ~2 us. No policy server. | [jmcentire.github.io/agent-safe](https://jmcentire.github.io/agent-safe/) |
+| **Tessera** | Self-validating documents. Hash chain, Ed25519 signatures, embedded validators. | [jmcentire.github.io/tessera](https://jmcentire.github.io/tessera/) |
+| **BlindDB** | Storage the operator can't read. Client-side encryption, opaque record IDs. | [jmcentire.github.io/BlindDB](https://jmcentire.github.io/BlindDB/) |
+| **HermesP2P** | Ephemeral P2P messaging. No servers, no metadata, no persistence. | [hp2p.net](https://hp2p.net) |
+
 ## Links
 
 - [Contributing Guide](CONTRIBUTING.md)
