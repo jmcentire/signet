@@ -186,7 +186,8 @@ pub(crate) fn detect_format_from_bytes(data: &[u8]) -> ProofFormat {
 
     // Bulletproof range proofs have a recognizable structure:
     // 32-byte commitments repeated. Typical sizes: 672+ bytes for single range proof.
-    if data.len() >= 672 && data.len().is_multiple_of(32) {
+    #[allow(clippy::manual_is_multiple_of)]
+    if data.len() >= 672 && data.len() % 32 == 0 {
         return ProofFormat::Bulletproof;
     }
 
