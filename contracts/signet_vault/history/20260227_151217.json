@@ -1,0 +1,317 @@
+{
+  "component_id": "signet_vault",
+  "name": "Signet Vault",
+  "description": "Encrypted local data store with key management. Implements BIP39 mnemonic generation and recovery, SLIP-0010 Ed25519 master key derivation, and a HKDF-based key hierarchy. It features a three-tier data model and an append-only hash-chained audit log.",
+  "version": 1,
+  "types": [
+    {
+      "name": "Tier",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "Tier1",
+        "Tier2",
+        "Tier3"
+      ],
+      "inner_types": [],
+      "description": "Data tiers defining access and sensitivity levels."
+    },
+    {
+      "name": "AuditLogEntry",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "timestamp",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Unix timestamp of the audit log entry.",
+          "validators": []
+        },
+        {
+          "name": "action",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Description of the action taken.",
+          "validators": []
+        },
+        {
+          "name": "previous_hash",
+          "type_ref": "bytes",
+          "required": true,
+          "default": "",
+          "description": "Hash of the previous log entry.",
+          "validators": []
+        },
+        {
+          "name": "current_hash",
+          "type_ref": "bytes",
+          "required": true,
+          "default": "",
+          "description": "Hash of the current log entry.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Struct representing an entry in the audit log."
+    },
+    {
+      "name": "KeyType",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "Ed25519",
+        "X25519"
+      ],
+      "inner_types": [],
+      "description": "Enumeration of supported key types."
+    },
+    {
+      "name": "Mnemonic",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "phrase",
+          "type_ref": "list",
+          "required": true,
+          "default": "",
+          "description": "List of words constituting the mnemonic.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Struct representing a BIP39 mnemonic phrase."
+    },
+    {
+      "name": "SignetVaultError",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "InvalidTier",
+        "EncryptionFailed",
+        "DecryptionFailed",
+        "KeyDerivationFailed",
+        "InvalidMnemonic",
+        "StorageError"
+      ],
+      "inner_types": [],
+      "description": "Enumeration of possible errors within the Signet Vault."
+    }
+  ],
+  "functions": [
+    {
+      "name": "generate_mnemonic",
+      "description": "Generates a new BIP39 mnemonic phrase.",
+      "inputs": [],
+      "output_type": "Mnemonic",
+      "error_cases": [
+        {
+          "name": "MnemonicGenerationFailed",
+          "condition": "If the mnemonic generation process fails.",
+          "error_type": "SignetVaultError",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [],
+      "postconditions": [
+        "A valid BIP39 mnemonic is generated."
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [],
+      "performance_budget": null
+    },
+    {
+      "name": "derive_key",
+      "description": "Derives a new key from the given mnemonic.",
+      "inputs": [
+        {
+          "name": "mnemonic",
+          "type_ref": "Mnemonic",
+          "required": true,
+          "default": "",
+          "description": "The BIP39 mnemonic to derive the key from.",
+          "validators": []
+        },
+        {
+          "name": "key_type",
+          "type_ref": "KeyType",
+          "required": true,
+          "default": "",
+          "description": "The type of key to derive.",
+          "validators": []
+        }
+      ],
+      "output_type": "bytes",
+      "error_cases": [
+        {
+          "name": "InvalidMnemonic",
+          "condition": "The input mnemonic is invalid.",
+          "error_type": "SignetVaultError",
+          "error_data": {}
+        },
+        {
+          "name": "KeyDerivationFailed",
+          "condition": "If the key derivation process fails.",
+          "error_type": "SignetVaultError",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "Input mnemonic must be a valid BIP39 mnemonic."
+      ],
+      "postconditions": [
+        "A newly derived key is returned based on the key type."
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [],
+      "performance_budget": null
+    },
+    {
+      "name": "store_data",
+      "description": "Stores the given data in a specified tier in encrypted form.",
+      "inputs": [
+        {
+          "name": "data",
+          "type_ref": "bytes",
+          "required": true,
+          "default": "",
+          "description": "The data to be encrypted and stored.",
+          "validators": []
+        },
+        {
+          "name": "tier",
+          "type_ref": "Tier",
+          "required": true,
+          "default": "",
+          "description": "The tier in which the data should be stored.",
+          "validators": []
+        }
+      ],
+      "output_type": "None",
+      "error_cases": [
+        {
+          "name": "EncryptionFailed",
+          "condition": "If encryption of the data fails.",
+          "error_type": "SignetVaultError",
+          "error_data": {}
+        },
+        {
+          "name": "StorageError",
+          "condition": "If there is an issue storing the encrypted data.",
+          "error_type": "SignetVaultError",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "Data must be non-empty."
+      ],
+      "postconditions": [
+        "Data is encrypted and securely stored in the specified tier."
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "mutates_state"
+      ],
+      "structured_side_effects": [],
+      "performance_budget": null
+    },
+    {
+      "name": "retrieve_data",
+      "description": "Retrieves and decrypts data from a specified tier.",
+      "inputs": [
+        {
+          "name": "identifier",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "The identifier for the data to retrieve.",
+          "validators": []
+        },
+        {
+          "name": "tier",
+          "type_ref": "Tier",
+          "required": true,
+          "default": "",
+          "description": "The tier from which to retrieve the data.",
+          "validators": []
+        }
+      ],
+      "output_type": "bytes",
+      "error_cases": [
+        {
+          "name": "DecryptionFailed",
+          "condition": "If decryption of the data fails.",
+          "error_type": "SignetVaultError",
+          "error_data": {}
+        },
+        {
+          "name": "StorageError",
+          "condition": "If the data cannot be found or there is an issue accessing storage.",
+          "error_type": "SignetVaultError",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "Identifier must correspond to existing stored data."
+      ],
+      "postconditions": [
+        "The data is successfully decrypted and returned."
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "reads_file"
+      ],
+      "structured_side_effects": [],
+      "performance_budget": null
+    },
+    {
+      "name": "log_action",
+      "description": "Logs an action into the audit log.",
+      "inputs": [
+        {
+          "name": "entry",
+          "type_ref": "AuditLogEntry",
+          "required": true,
+          "default": "",
+          "description": "The entry to add to the audit log.",
+          "validators": []
+        }
+      ],
+      "output_type": "None",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "Action is recorded in the audit log."
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "mutates_state"
+      ],
+      "structured_side_effects": [],
+      "performance_budget": null
+    }
+  ],
+  "dependencies": [],
+  "dependency_contracts": {},
+  "invariants": [
+    "Vault server never has access to plaintext",
+    "Tier 3 compartment keys are never held by the agent",
+    "All disclosures are on the audit chain",
+    "No algorithm negotiation in any protocol",
+    "Zero secrets in memory after use"
+  ],
+  "requires": [
+    "thiserror",
+    "aws-lc-rs"
+  ]
+}

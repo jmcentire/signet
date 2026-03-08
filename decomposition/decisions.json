@@ -1,0 +1,47 @@
+[
+  {
+    "ambiguity": "",
+    "decision": "Decomposition follows the 7-crate workspace structure from the spec",
+    "rationale": "The spec explicitly defines seven crates with clean interfaces, distinct cryptographic concerns, and independent testability. Each crate maps to a genuine subsystem with well-defined inputs/outputs. This is not artificial decomposition \u2014 these are natural domain boundaries (storage, credentials, proofs, policy, transport, notification, SDK)."
+  },
+  {
+    "ambiguity": "",
+    "decision": "signet_vault is the foundational dependency with no children",
+    "rationale": "The vault owns key management, encrypted storage, audit log, and the tier model. Every other component depends on it. Despite its internal complexity (key hierarchy, two storage backends, audit log), it is a single cohesive subsystem sharing one data model and should be implemented as one crate by one engineer who understands the full key derivation tree."
+  },
+  {
+    "ambiguity": "",
+    "decision": "signet_cred depends only on signet_vault, signet_proof depends on both vault and cred",
+    "rationale": "Credential issuance reads structured data from the vault and produces signed credentials. Proof derivation consumes cached credentials and vault keys. This creates a clean linear dependency: vault -> cred -> proof. The proof crate also needs direct vault access for key material used in domain binding."
+  },
+  {
+    "ambiguity": "",
+    "decision": "signet_sdk depends on signet_proof rather than being fully standalone",
+    "rationale": "The SDK's verify() function needs the same proof verification logic implemented in signet_proof. Rather than duplicating crypto verification code, the SDK wraps signet_proof's verification primitives. The 'zero transitive dependencies beyond crypto' constraint applies to what external service developers pull in \u2014 the Rust crate dependency on signet_proof is internal to the workspace."
+  },
+  {
+    "ambiguity": "",
+    "decision": "signet_mcp is the integration hub with the most dependencies",
+    "rationale": "The MCP server orchestrates vault access, proof derivation, policy evaluation, and notification escalation. It is the only component that touches all others, making it the natural integration point. It depends on vault (data access), proof (proof generation), policy (request evaluation), and notify (Tier 3 escalation). It does NOT depend on cred directly \u2014 credential operations are accessed through proof."
+  },
+  {
+    "ambiguity": "",
+    "decision": "Key hierarchy derivation path complexity is addressed by extensive test coverage, not by splitting the vault crate",
+    "rationale": "The rabbit hole on key hierarchy complexity (BIP39 -> SLIP-0010 -> HKDF -> multiple key types) is a correctness risk, not a decomposition concern. Known-answer tests against reference vectors and round-trip property tests are the mitigation. Splitting key management into a separate crate would create tight coupling without reducing risk."
+  },
+  {
+    "ambiguity": "",
+    "decision": "OAuth 2.1 implementation is scoped within signet_mcp, not a separate crate",
+    "rationale": "OAuth 2.1 with PKCE is used only for initial MCP agent setup. It is a protocol surface within the MCP server, not a reusable subsystem. Using an established OAuth library (e.g., oxide-auth or a minimal implementation) within the MCP crate avoids over-decomposition."
+  },
+  {
+    "ambiguity": "",
+    "decision": "Audit log is part of signet_vault, not a separate component",
+    "rationale": "The audit log is stored in the vault's encrypted storage, uses the vault's hash chain, and shares the vault's storage backend trait. It is a feature of the vault, not an independent subsystem. Other components (MCP, proof) write audit entries by calling vault APIs."
+  },
+  {
+    "ambiguity": "",
+    "decision": "No further sub-decomposition of any crate",
+    "rationale": "Each of the 7 crates is sized for one senior Rust engineer to implement in a focused sprint. The largest (signet_vault) might be ~2000 LOC but shares a unified data model. Further decomposition would create unnecessary interface boundaries and coordination overhead."
+  }
+]

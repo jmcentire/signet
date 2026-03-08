@@ -1,0 +1,1191 @@
+{
+  "component_id": "signet_notify",
+  "contract_version": 1,
+  "test_cases": [
+    {
+      "id": "notify_happy_path",
+      "description": "notify() returns a ChallengeHandle with correct deadline and scope when all preconditions are met",
+      "function": "notify",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Valid AuthorizationRequest with Tier3Access payload, future expiry, non-empty scope, valid endpoint config",
+      "expected_output_description": "ChallengeHandle with matching deadline, event_id, challenge_id, and original_scope",
+      "expected_error": "",
+      "assertions": [
+        "ChallengeHandle is returned",
+        "handle.challenge_id matches request.challenge_id",
+        "handle.event_id matches request.event_id",
+        "handle.deadline matches request.payload.expires_at",
+        "handle.original_scope matches request.payload.requested_scope",
+        "Challenge is registered in registry"
+      ]
+    },
+    {
+      "id": "notify_anomaly_escalation_happy_path",
+      "description": "notify() works for AnomalyEscalation variant with all severity levels",
+      "function": "notify",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Valid AuthorizationRequest with AnomalyEscalation payload, Critical severity",
+      "expected_output_description": "ChallengeHandle returned successfully",
+      "expected_error": "",
+      "assertions": [
+        "ChallengeHandle is returned",
+        "handle.challenge_id matches request.challenge_id"
+      ]
+    },
+    {
+      "id": "notify_error_endpoint_unavailable",
+      "description": "notify() returns endpoint_unavailable when no valid endpoint config exists",
+      "function": "notify",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Valid request but endpoint config is None/missing",
+      "expected_output_description": "",
+      "expected_error": "EndpointUnavailable",
+      "assertions": [
+        "NotifyError with EndpointUnavailable variant is raised"
+      ]
+    },
+    {
+      "id": "notify_error_circuit_breaker_open",
+      "description": "notify() returns circuit_breaker_open when endpoint circuit breaker is Open",
+      "function": "notify",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Valid request but circuit breaker in Open state with no half-open probe due",
+      "expected_output_description": "",
+      "expected_error": "CircuitBreakerOpen",
+      "assertions": [
+        "NotifyError with CircuitBreakerOpen variant is raised"
+      ]
+    },
+    {
+      "id": "notify_error_expired_request",
+      "description": "notify() returns expired_request when expires_at is in the past",
+      "function": "notify",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "AuthorizationRequest with expires_at set to a past timestamp",
+      "expected_output_description": "",
+      "expected_error": "ChallengeExpired",
+      "assertions": [
+        "NotifyError with ChallengeExpired variant is raised"
+      ]
+    },
+    {
+      "id": "notify_error_configuration_error",
+      "description": "notify() returns configuration_error for non-HTTPS URL",
+      "function": "notify",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Endpoint config with http:// URL instead of https://",
+      "expected_output_description": "",
+      "expected_error": "ConfigurationError",
+      "assertions": [
+        "NotifyError with ConfigurationError variant is raised"
+      ]
+    },
+    {
+      "id": "notify_error_internal_error",
+      "description": "notify() returns internal_error on unexpected channel creation failure",
+      "function": "notify",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Valid request but internal channel creation is mocked to fail",
+      "expected_output_description": "",
+      "expected_error": "InternalError",
+      "assertions": [
+        "NotifyError with InternalError variant is raised"
+      ]
+    },
+    {
+      "id": "resolve_happy_path_approve",
+      "description": "resolve() returns Approved AuthorizationDecision when user responds with Approve",
+      "function": "resolve",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "ChallengeHandle whose oneshot channel receives an Approve response before deadline",
+      "expected_output_description": "AuthorizationDecision with Approve variant, correct challenge_id, event_id, decided_at, no denial_reason",
+      "expected_error": "",
+      "assertions": [
+        "Decision is Approve variant",
+        "decision.challenge_id matches handle.challenge_id",
+        "decision.event_id matches handle.event_id",
+        "decision.denial_reason is None",
+        "decision.decided_at is a valid timestamp"
+      ]
+    },
+    {
+      "id": "resolve_happy_path_deny",
+      "description": "resolve() returns Denied AuthorizationDecision with ExplicitDeny when user responds with Deny",
+      "function": "resolve",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "ChallengeHandle whose oneshot channel receives a Deny response with reason",
+      "expected_output_description": "AuthorizationDecision with Deny variant and ExplicitDeny reason",
+      "expected_error": "",
+      "assertions": [
+        "Decision is Deny variant",
+        "decision.denial_reason is ExplicitDeny",
+        "decision.denial_message contains user's reason"
+      ]
+    },
+    {
+      "id": "resolve_happy_path_modify",
+      "description": "resolve() returns Modified AuthorizationDecision with validated adjusted_scope",
+      "function": "resolve",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "ChallengeHandle with scope [A,B,C]; user responds Modify with scope [A,B]",
+      "expected_output_description": "AuthorizationDecision with Modify variant and adjusted_scope [A,B]",
+      "expected_error": "",
+      "assertions": [
+        "Decision is Modify variant",
+        "decision.adjusted_scope is a strict subset of original_scope",
+        "decision.adjusted_scope matches the user's proposed scope"
+      ]
+    },
+    {
+      "id": "resolve_timeout_denied",
+      "description": "resolve() returns Denied with Timeout when deadline expires before response",
+      "function": "resolve",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "ChallengeHandle with deadline in the past (simulated expired)",
+      "expected_output_description": "AuthorizationDecision Denied with DenialReason::Timeout",
+      "expected_error": "",
+      "assertions": [
+        "Decision is Deny variant",
+        "decision.denial_reason is Timeout"
+      ]
+    },
+    {
+      "id": "resolve_delivery_failure_denied",
+      "description": "resolve() returns Denied with DeliveryFailure when sender is dropped",
+      "function": "resolve",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "ChallengeHandle whose oneshot sender has been dropped",
+      "expected_output_description": "AuthorizationDecision Denied with DenialReason::DeliveryFailure",
+      "expected_error": "",
+      "assertions": [
+        "Decision is Deny variant",
+        "decision.denial_reason is DeliveryFailure"
+      ]
+    },
+    {
+      "id": "resolve_removes_from_registry",
+      "description": "resolve() removes the challenge from ChallengeRegistry after resolution",
+      "function": "resolve",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "ChallengeHandle that receives a response",
+      "expected_output_description": "Challenge no longer in registry after resolve returns",
+      "expected_error": "",
+      "assertions": [
+        "Challenge is removed from registry after resolution",
+        "Registry active_challenges decremented"
+      ]
+    },
+    {
+      "id": "handle_callback_happy_path_approve",
+      "description": "handle_callback() processes valid Approve callback and unblocks resolve()",
+      "function": "handle_callback",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Valid challenge_id, valid PASETO token, Approve response",
+      "expected_output_description": "No error; the corresponding ChallengeHandle resolves with Approve",
+      "expected_error": "",
+      "assertions": [
+        "No error is raised",
+        "Corresponding resolve() returns Approve"
+      ]
+    },
+    {
+      "id": "handle_callback_happy_path_modify",
+      "description": "handle_callback() processes valid Modify callback with valid subset scope",
+      "function": "handle_callback",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Valid challenge_id, valid PASETO token, Modify response with strict subset scope",
+      "expected_output_description": "No error; the corresponding ChallengeHandle resolves with Modify",
+      "expected_error": "",
+      "assertions": [
+        "No error is raised",
+        "adjusted_scope is strict subset of original"
+      ]
+    },
+    {
+      "id": "handle_callback_error_challenge_not_found",
+      "description": "handle_callback() returns challenge_not_found for unknown challenge_id",
+      "function": "handle_callback",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "challenge_id that does not exist in registry",
+      "expected_output_description": "",
+      "expected_error": "ChallengeNotFound",
+      "assertions": [
+        "NotifyError with ChallengeNotFound variant is raised"
+      ]
+    },
+    {
+      "id": "handle_callback_error_challenge_expired",
+      "description": "handle_callback() returns challenge_expired for expired challenge",
+      "function": "handle_callback",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "challenge_id for a challenge whose deadline has passed",
+      "expected_output_description": "",
+      "expected_error": "ChallengeExpired",
+      "assertions": [
+        "NotifyError with ChallengeExpired variant is raised"
+      ]
+    },
+    {
+      "id": "handle_callback_error_already_resolved",
+      "description": "handle_callback() returns challenge_already_resolved on duplicate callback",
+      "function": "handle_callback",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "challenge_id that was already resolved by a prior callback",
+      "expected_output_description": "",
+      "expected_error": "ChallengeAlreadyResolved",
+      "assertions": [
+        "NotifyError with ChallengeAlreadyResolved variant is raised"
+      ]
+    },
+    {
+      "id": "handle_callback_error_invalid_token",
+      "description": "handle_callback() returns invalid_token for bad PASETO token",
+      "function": "handle_callback",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Valid challenge_id but garbled/invalid challenge_token",
+      "expected_output_description": "",
+      "expected_error": "InvalidCallbackToken",
+      "assertions": [
+        "NotifyError with InvalidCallbackToken variant is raised"
+      ]
+    },
+    {
+      "id": "handle_callback_error_invalid_response",
+      "description": "handle_callback() returns invalid_response for malformed AuthorizationResponse",
+      "function": "handle_callback",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Valid token but response has unknown fields or invalid variant",
+      "expected_output_description": "",
+      "expected_error": "InvalidResponse",
+      "assertions": [
+        "NotifyError with InvalidResponse variant is raised"
+      ]
+    },
+    {
+      "id": "handle_callback_error_scope_escalation",
+      "description": "handle_callback() returns scope_escalation when Modify scope is not a strict subset",
+      "function": "handle_callback",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Modify response with adjusted_scope equal to or superset of original_scope",
+      "expected_output_description": "",
+      "expected_error": "ScopeEscalation",
+      "assertions": [
+        "NotifyError with ScopeEscalation variant is raised"
+      ]
+    },
+    {
+      "id": "verify_signature_happy_path",
+      "description": "verify_webhook_signature() returns True for correctly signed payload",
+      "function": "verify_webhook_signature",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Headers and body signed with current_secret using HMAC-SHA256",
+      "expected_output_description": "Returns True",
+      "expected_error": "",
+      "assertions": [
+        "Returns True"
+      ]
+    },
+    {
+      "id": "verify_signature_previous_secret",
+      "description": "verify_webhook_signature() returns True when payload is signed with previous_secret during rotation",
+      "function": "verify_webhook_signature",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Headers signed with previous_secret, endpoint has both current and previous secrets",
+      "expected_output_description": "Returns True",
+      "expected_error": "",
+      "assertions": [
+        "Returns True for previous_secret signature"
+      ]
+    },
+    {
+      "id": "verify_signature_wrong_secret",
+      "description": "verify_webhook_signature() returns False for wrong secret",
+      "function": "verify_webhook_signature",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Headers signed with a different secret than either current or previous",
+      "expected_output_description": "Returns False",
+      "expected_error": "",
+      "assertions": [
+        "Returns False"
+      ]
+    },
+    {
+      "id": "verify_signature_stale_timestamp",
+      "description": "verify_webhook_signature() returns False for timestamp beyond ±5 minute tolerance",
+      "function": "verify_webhook_signature",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Valid signature but webhook_timestamp is 10 minutes in the past",
+      "expected_output_description": "Returns False even though signature is valid",
+      "expected_error": "",
+      "assertions": [
+        "Returns False"
+      ]
+    },
+    {
+      "id": "verify_signature_error_malformed",
+      "description": "verify_webhook_signature() errors on malformed signature header",
+      "function": "verify_webhook_signature",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "webhook_signature header missing v1 prefix or has invalid base64",
+      "expected_output_description": "",
+      "expected_error": "InvalidSignature",
+      "assertions": [
+        "NotifyError with InvalidSignature variant is raised"
+      ]
+    },
+    {
+      "id": "verify_signature_error_no_secrets",
+      "description": "verify_webhook_signature() errors when no valid secrets configured",
+      "function": "verify_webhook_signature",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Endpoint config with empty/invalid secret key_bytes",
+      "expected_output_description": "",
+      "expected_error": "ConfigurationError",
+      "assertions": [
+        "NotifyError with ConfigurationError variant is raised"
+      ]
+    },
+    {
+      "id": "sign_webhook_payload_happy_path",
+      "description": "sign_webhook_payload() produces valid signature headers",
+      "function": "sign_webhook_payload",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Valid JSON body and 32-byte WebhookSecret",
+      "expected_output_description": "WebhookSignatureHeaders with fresh DeliveryId, current timestamp, v1-prefixed base64 signature",
+      "expected_error": "",
+      "assertions": [
+        "Headers contain a DeliveryId",
+        "webhook_signature starts with 'v1,'",
+        "webhook_timestamp is recent"
+      ]
+    },
+    {
+      "id": "sign_verify_round_trip",
+      "description": "sign_webhook_payload output is verifiable by verify_webhook_signature",
+      "function": "sign_webhook_payload",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Sign a body then verify the resulting headers against same secret",
+      "expected_output_description": "verify_webhook_signature returns True",
+      "expected_error": "",
+      "assertions": [
+        "Round-trip sign→verify returns True"
+      ]
+    },
+    {
+      "id": "sign_webhook_error_short_key",
+      "description": "sign_webhook_payload() errors when secret key_bytes is less than 32 bytes",
+      "function": "sign_webhook_payload",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "WebhookSecret with 16-byte key",
+      "expected_output_description": "",
+      "expected_error": "InternalError",
+      "assertions": [
+        "Error is raised for insufficient key length"
+      ]
+    },
+    {
+      "id": "deliver_webhook_happy_path",
+      "description": "deliver_webhook() returns successful DeliveryReport with one attempt on first-try success",
+      "function": "deliver_webhook",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Valid payload, mock endpoint returns 200 on first attempt",
+      "expected_output_description": "DeliveryReport with final_outcome=Success, one attempt",
+      "expected_error": "",
+      "assertions": [
+        "final_outcome is Success",
+        "len(attempts) == 1",
+        "attempts[0].outcome is Success"
+      ]
+    },
+    {
+      "id": "deliver_webhook_retry_success",
+      "description": "deliver_webhook() retries and succeeds after transient failures",
+      "function": "deliver_webhook",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Mock endpoint fails first 2 attempts then succeeds",
+      "expected_output_description": "DeliveryReport with Success, 3 attempts",
+      "expected_error": "",
+      "assertions": [
+        "final_outcome is Success",
+        "len(attempts) == 3",
+        "First two attempts have non-Success outcome"
+      ]
+    },
+    {
+      "id": "deliver_webhook_all_retries_exhausted",
+      "description": "deliver_webhook() returns DeliveryFailed when all retries exhausted",
+      "function": "deliver_webhook",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Mock endpoint always returns 500, max_retries=3",
+      "expected_output_description": "",
+      "expected_error": "DeliveryFailed",
+      "assertions": [
+        "Error is DeliveryFailed",
+        "Report contains max_retries+1 attempts"
+      ]
+    },
+    {
+      "id": "deliver_webhook_deadline_enforcement",
+      "description": "deliver_webhook() stops retrying when deadline is reached",
+      "function": "deliver_webhook",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Mock endpoint always fails, deadline is very close to now",
+      "expected_output_description": "Delivery stops at deadline, does not exceed it",
+      "expected_error": "",
+      "assertions": [
+        "All attempts occurred before deadline",
+        "No attempt after deadline"
+      ]
+    },
+    {
+      "id": "deliver_webhook_circuit_breaker_open",
+      "description": "deliver_webhook() errors immediately when circuit breaker is Open",
+      "function": "deliver_webhook",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Endpoint with circuit breaker in Open state",
+      "expected_output_description": "",
+      "expected_error": "CircuitBreakerOpen",
+      "assertions": [
+        "NotifyError with CircuitBreakerOpen variant is raised",
+        "No delivery attempts made"
+      ]
+    },
+    {
+      "id": "deliver_webhook_fresh_delivery_ids",
+      "description": "Each delivery attempt uses a unique DeliveryId",
+      "function": "deliver_webhook",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Multiple retry attempts",
+      "expected_output_description": "All DeliveryIds in attempts list are unique",
+      "expected_error": "",
+      "assertions": [
+        "All delivery_id values are distinct"
+      ]
+    },
+    {
+      "id": "create_challenge_token_happy_path",
+      "description": "create_challenge_token() returns a valid PASETO v4.local token",
+      "function": "create_challenge_token",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Valid challenge_id, future expires_at, 32-byte symmetric key",
+      "expected_output_description": "String starting with 'v4.local.'",
+      "expected_error": "",
+      "assertions": [
+        "Token is a non-empty string",
+        "Token starts with v4.local prefix"
+      ]
+    },
+    {
+      "id": "create_challenge_token_error_short_key",
+      "description": "create_challenge_token() errors when key is not exactly 32 bytes",
+      "function": "create_challenge_token",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "16-byte symmetric key",
+      "expected_output_description": "",
+      "expected_error": "InternalError",
+      "assertions": [
+        "Error is raised for wrong key length"
+      ]
+    },
+    {
+      "id": "verify_challenge_token_happy_path",
+      "description": "verify_challenge_token() returns correct ChallengeId for valid token",
+      "function": "verify_challenge_token",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Token created by create_challenge_token with matching challenge_id and key",
+      "expected_output_description": "Returns the same ChallengeId",
+      "expected_error": "",
+      "assertions": [
+        "Returned ChallengeId matches expected"
+      ]
+    },
+    {
+      "id": "verify_challenge_token_round_trip",
+      "description": "create→verify challenge token round-trip succeeds",
+      "function": "verify_challenge_token",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Create token then verify with same key and challenge_id",
+      "expected_output_description": "Verification succeeds and returns correct ChallengeId",
+      "expected_error": "",
+      "assertions": [
+        "Round-trip succeeds",
+        "ChallengeId matches"
+      ]
+    },
+    {
+      "id": "verify_challenge_token_error_invalid",
+      "description": "verify_challenge_token() errors on invalid/garbled token",
+      "function": "verify_challenge_token",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Garbled token string",
+      "expected_output_description": "",
+      "expected_error": "InvalidCallbackToken",
+      "assertions": [
+        "NotifyError with InvalidCallbackToken variant is raised"
+      ]
+    },
+    {
+      "id": "verify_challenge_token_error_wrong_key",
+      "description": "verify_challenge_token() errors when key doesn't match",
+      "function": "verify_challenge_token",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Token created with key A, verified with key B",
+      "expected_output_description": "",
+      "expected_error": "InvalidCallbackToken",
+      "assertions": [
+        "NotifyError with InvalidCallbackToken variant is raised"
+      ]
+    },
+    {
+      "id": "verify_challenge_token_error_expired",
+      "description": "verify_challenge_token() errors when token has expired",
+      "function": "verify_challenge_token",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Token created with past expires_at (simulated)",
+      "expected_output_description": "",
+      "expected_error": "InvalidCallbackToken",
+      "assertions": [
+        "Error raised for expired token"
+      ]
+    },
+    {
+      "id": "verify_challenge_token_error_challenge_id_mismatch",
+      "description": "verify_challenge_token() errors when expected_challenge_id doesn't match token's",
+      "function": "verify_challenge_token",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Token for challenge_id A, verified with expected challenge_id B",
+      "expected_output_description": "",
+      "expected_error": "InvalidCallbackToken",
+      "assertions": [
+        "Error raised for challenge_id mismatch"
+      ]
+    },
+    {
+      "id": "validate_scope_subset_happy_path",
+      "description": "validate_scope_subset() returns True for strict subset",
+      "function": "validate_scope_subset",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "original=[A,B,C], adjusted=[A,B]",
+      "expected_output_description": "Returns True",
+      "expected_error": "",
+      "assertions": [
+        "Returns True"
+      ]
+    },
+    {
+      "id": "validate_scope_subset_equal_sets_false",
+      "description": "validate_scope_subset() returns False for equal sets (not strictly less)",
+      "function": "validate_scope_subset",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "original=[A,B], adjusted=[A,B]",
+      "expected_output_description": "Returns False",
+      "expected_error": "",
+      "assertions": [
+        "Returns False — equal sets are not a strict subset"
+      ]
+    },
+    {
+      "id": "validate_scope_subset_superset_false",
+      "description": "validate_scope_subset() returns False when adjusted is a superset",
+      "function": "validate_scope_subset",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "original=[A,B], adjusted=[A,B,C]",
+      "expected_output_description": "Returns False",
+      "expected_error": "",
+      "assertions": [
+        "Returns False — superset is rejected"
+      ]
+    },
+    {
+      "id": "validate_scope_subset_disjoint_false",
+      "description": "validate_scope_subset() returns False when adjusted has entries not in original",
+      "function": "validate_scope_subset",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "original=[A,B], adjusted=[C]",
+      "expected_output_description": "Returns False",
+      "expected_error": "",
+      "assertions": [
+        "Returns False — disjoint sets"
+      ]
+    },
+    {
+      "id": "validate_scope_subset_single_element_subset",
+      "description": "validate_scope_subset() returns True for single entry from multi-entry original",
+      "function": "validate_scope_subset",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "original=[A,B,C], adjusted=[B]",
+      "expected_output_description": "Returns True",
+      "expected_error": "",
+      "assertions": [
+        "Returns True"
+      ]
+    },
+    {
+      "id": "register_challenge_happy_path",
+      "description": "register_challenge() returns ChallengeHandle and registers in registry",
+      "function": "register_challenge",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Unique challenge_id, future deadline, non-empty scope",
+      "expected_output_description": "ChallengeHandle with matching fields, registry incremented",
+      "expected_error": "",
+      "assertions": [
+        "ChallengeHandle returned",
+        "handle.challenge_id matches input",
+        "handle.deadline matches input",
+        "handle.original_scope matches input"
+      ]
+    },
+    {
+      "id": "register_challenge_error_duplicate",
+      "description": "register_challenge() errors on duplicate challenge_id",
+      "function": "register_challenge",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "challenge_id already registered",
+      "expected_output_description": "",
+      "expected_error": "ChallengeAlreadyResolved",
+      "assertions": [
+        "Error raised for duplicate challenge"
+      ]
+    },
+    {
+      "id": "cleanup_expired_challenges_happy_path",
+      "description": "cleanup_expired_challenges() removes expired challenges and returns count",
+      "function": "cleanup_expired_challenges",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Registry has 3 challenges: 2 expired, 1 active",
+      "expected_output_description": "Returns 2, only 1 challenge remains active",
+      "expected_error": "",
+      "assertions": [
+        "Returned count is 2",
+        "Active challenge still in registry"
+      ]
+    },
+    {
+      "id": "cleanup_expired_preserves_active",
+      "description": "cleanup_expired_challenges() does not remove challenges with future deadlines",
+      "function": "cleanup_expired_challenges",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Registry has 2 challenges both with future deadlines, now is before both",
+      "expected_output_description": "Returns 0, both challenges remain",
+      "expected_error": "",
+      "assertions": [
+        "Returned count is 0",
+        "Both challenges still active"
+      ]
+    },
+    {
+      "id": "get_registry_snapshot_happy_path",
+      "description": "get_registry_snapshot() returns accurate diagnostic info without secrets",
+      "function": "get_registry_snapshot",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Registry with 5 active challenges, 3 resolved, 2 cleaned up",
+      "expected_output_description": "Snapshot with accurate counters",
+      "expected_error": "",
+      "assertions": [
+        "active_challenges is 5",
+        "total_challenges_resolved is 3",
+        "expired_challenges_cleaned is 2"
+      ]
+    },
+    {
+      "id": "get_endpoint_health_happy_path",
+      "description": "get_endpoint_health() returns health with correct circuit state",
+      "function": "get_endpoint_health",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Endpoint with known delivery history",
+      "expected_output_description": "EndpointHealth with correct counters and circuit state",
+      "expected_error": "",
+      "assertions": [
+        "Health reflects correct circuit state",
+        "No secret material in response"
+      ]
+    },
+    {
+      "id": "rotate_webhook_secret_happy_path",
+      "description": "rotate_webhook_secret() moves current to previous and installs new",
+      "function": "rotate_webhook_secret",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Endpoint with current_secret key_id='k1', new_secret key_id='k2'",
+      "expected_output_description": "Returned config: current_secret=k2, previous_secret=k1",
+      "expected_error": "",
+      "assertions": [
+        "new config current_secret.key_id is 'k2'",
+        "new config previous_secret.key_id is 'k1'"
+      ]
+    },
+    {
+      "id": "rotate_webhook_secret_error_duplicate_key_id",
+      "description": "rotate_webhook_secret() errors when new key_id matches current",
+      "function": "rotate_webhook_secret",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "new_secret.key_id same as current_secret.key_id",
+      "expected_output_description": "",
+      "expected_error": "ConfigurationError",
+      "assertions": [
+        "Error raised for duplicate key_id"
+      ]
+    },
+    {
+      "id": "rotate_webhook_secret_error_weak_secret",
+      "description": "rotate_webhook_secret() errors when new secret key_bytes < 32 bytes",
+      "function": "rotate_webhook_secret",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "new_secret with 16-byte key",
+      "expected_output_description": "",
+      "expected_error": "ConfigurationError",
+      "assertions": [
+        "Error raised for weak secret"
+      ]
+    },
+    {
+      "id": "rotate_secret_both_valid_for_verification",
+      "description": "After rotation, both old and new secrets are valid for signature verification",
+      "function": "rotate_webhook_secret",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Rotate secret, then verify signatures made with either old or new secret",
+      "expected_output_description": "Both verifications return True",
+      "expected_error": "",
+      "assertions": [
+        "Verify with new (current) secret returns True",
+        "Verify with old (previous) secret returns True"
+      ]
+    },
+    {
+      "id": "invariant_fail_secure_timeout",
+      "description": "INVARIANT: Pipeline timeout = deny. Any ChallengeHandle reaching deadline resolves as Denied with Timeout",
+      "function": "resolve",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Create challenge, let deadline expire, resolve handle",
+      "expected_output_description": "Denied with DenialReason::Timeout, never Approved or Modified",
+      "expected_error": "",
+      "assertions": [
+        "Decision is Denied",
+        "denial_reason is Timeout",
+        "Decision is NOT Approved",
+        "Decision is NOT Modified"
+      ]
+    },
+    {
+      "id": "invariant_anomaly_never_silent",
+      "description": "INVARIANT: AnomalyEscalation must produce auditable AuthorizationDecision even on timeout",
+      "function": "resolve",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Create AnomalyEscalation challenge, let it timeout",
+      "expected_output_description": "Explicit Denied decision with full provenance fields",
+      "expected_error": "",
+      "assertions": [
+        "Decision is Denied",
+        "decision.challenge_id is set",
+        "decision.event_id is set",
+        "decision.decided_at is set",
+        "decision.denial_reason is Timeout"
+      ]
+    },
+    {
+      "id": "invariant_scope_escalation_prevention",
+      "description": "INVARIANT: Modify response with non-strict-subset scope is rejected with ScopeEscalation",
+      "function": "handle_callback",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Callback with Modify response where adjusted_scope equals original_scope",
+      "expected_output_description": "ScopeEscalation error",
+      "expected_error": "",
+      "assertions": [
+        "NotifyError with ScopeEscalation variant is raised",
+        "Challenge remains unresolved"
+      ]
+    },
+    {
+      "id": "invariant_scope_escalation_superset",
+      "description": "INVARIANT: Modify response with superset scope is rejected",
+      "function": "handle_callback",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Callback with Modify response where adjusted_scope has entries not in original",
+      "expected_output_description": "ScopeEscalation error",
+      "expected_error": "",
+      "assertions": [
+        "NotifyError with ScopeEscalation variant is raised"
+      ]
+    },
+    {
+      "id": "invariant_https_only",
+      "description": "INVARIANT: Webhook endpoints must use HTTPS. HTTP URLs are rejected.",
+      "function": "notify",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "EndpointConfig with url='http://example.com/webhook'",
+      "expected_output_description": "ConfigurationError",
+      "expected_error": "",
+      "assertions": [
+        "Error raised for non-HTTPS URL"
+      ]
+    },
+    {
+      "id": "invariant_no_algorithm_negotiation",
+      "description": "INVARIANT: Only v1 HMAC-SHA256 signatures accepted; other version prefixes rejected",
+      "function": "verify_webhook_signature",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "webhook_signature with 'v2,' prefix",
+      "expected_output_description": "InvalidSignature error",
+      "expected_error": "",
+      "assertions": [
+        "Error raised for unsupported signature version"
+      ]
+    },
+    {
+      "id": "invariant_errors_no_secret_leakage",
+      "description": "INVARIANT: Error messages must not contain key material",
+      "function": "verify_webhook_signature",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Trigger various crypto errors and inspect error messages",
+      "expected_output_description": "No hex/base64 key material in error strings",
+      "expected_error": "",
+      "assertions": [
+        "Error string does not contain key bytes",
+        "Error string does not contain base64 key",
+        "Error message is generic"
+      ]
+    },
+    {
+      "id": "invariant_constant_time_verification",
+      "description": "INVARIANT: Signature verification uses same code path regardless of which byte differs",
+      "function": "verify_webhook_signature",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Two signatures: one differing at first byte, one at last byte",
+      "expected_output_description": "Both return False (no early exit observable)",
+      "expected_error": "",
+      "assertions": [
+        "Both return False",
+        "Both follow same verification logic"
+      ]
+    },
+    {
+      "id": "challenge_lifecycle_registered_to_resolved",
+      "description": "State machine: Challenge transitions from Registered to Resolved via callback",
+      "function": "handle_callback",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Register challenge, send callback with Approve, resolve handle",
+      "expected_output_description": "Clean transition, challenge removed from registry",
+      "expected_error": "",
+      "assertions": [
+        "Callback succeeds",
+        "Resolve returns Approve",
+        "Challenge removed from registry"
+      ]
+    },
+    {
+      "id": "challenge_lifecycle_registered_to_expired",
+      "description": "State machine: Challenge transitions from Registered to Expired via cleanup",
+      "function": "cleanup_expired_challenges",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Register challenge with short deadline, wait past deadline, run cleanup",
+      "expected_output_description": "Challenge removed, resolve returns Denied/DeliveryFailure",
+      "expected_error": "",
+      "assertions": [
+        "Cleanup removes expired challenge",
+        "Subsequent resolve returns Denied with DeliveryFailure"
+      ]
+    },
+    {
+      "id": "challenge_lifecycle_double_callback_rejected",
+      "description": "State machine: Second callback to already-resolved challenge is rejected",
+      "function": "handle_callback",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Register challenge, send Approve callback, send second Approve callback",
+      "expected_output_description": "Second callback returns ChallengeAlreadyResolved",
+      "expected_error": "",
+      "assertions": [
+        "First callback succeeds",
+        "Second callback raises ChallengeAlreadyResolved"
+      ]
+    },
+    {
+      "id": "cleanup_causes_delivery_failure_on_resolve",
+      "description": "When cleanup drops the sender, corresponding resolve returns Denied with DeliveryFailure",
+      "function": "cleanup_expired_challenges",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Register challenge, run cleanup after deadline, then resolve handle",
+      "expected_output_description": "Resolve returns Denied with DeliveryFailure",
+      "expected_error": "",
+      "assertions": [
+        "Resolve returns Denied",
+        "denial_reason is DeliveryFailure"
+      ]
+    },
+    {
+      "id": "deliver_webhook_exponential_backoff",
+      "description": "Retry delays follow exponential backoff pattern bounded by max_delay",
+      "function": "deliver_webhook",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "RetryPolicy with initial_delay=1s, backoff_factor=2.0, max_delay=30s, multiple failures",
+      "expected_output_description": "Delays between attempts increase exponentially up to max_delay",
+      "expected_error": "",
+      "assertions": [
+        "Delay pattern is exponential",
+        "No delay exceeds max_delay"
+      ]
+    },
+    {
+      "id": "deliver_webhook_circuit_breaker_transitions",
+      "description": "Circuit breaker transitions from Closed to Open after threshold consecutive failures",
+      "function": "deliver_webhook",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Endpoint with circuit_breaker_threshold=3, mock always fails",
+      "expected_output_description": "After 3 consecutive failures, circuit opens",
+      "expected_error": "",
+      "assertions": [
+        "Circuit state transitions to Open",
+        "Subsequent delivery attempt gets CircuitBreakerOpen error"
+      ]
+    },
+    {
+      "id": "newtype_id_not_interchangeable",
+      "description": "ChallengeId, DeliveryId, and EventId are distinct types and cannot be mixed",
+      "function": "handle_callback",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Pass an EventId value where ChallengeId is expected",
+      "expected_output_description": "Type error or validation failure",
+      "expected_error": "",
+      "assertions": [
+        "Types are not interchangeable"
+      ]
+    },
+    {
+      "id": "deadline_exact_boundary",
+      "description": "Edge case: resolution at exactly the deadline instant",
+      "function": "resolve",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "ChallengeHandle with deadline set to exactly 'now'",
+      "expected_output_description": "Denied with Timeout (fail-secure boundary)",
+      "expected_error": "",
+      "assertions": [
+        "Decision is Denied with Timeout at exact boundary"
+      ]
+    }
+  ],
+  "test_language": "python",
+  "generated_code": ""
+}

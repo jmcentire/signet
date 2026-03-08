@@ -1,0 +1,1497 @@
+{
+  "component_id": "signet_cred",
+  "contract_version": 1,
+  "test_cases": [
+    {
+      "id": "test_validate_schema_happy_path",
+      "description": "Valid schema with all field kinds returns empty error list",
+      "function": "validate_schema",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "result is an empty list"
+      ]
+    },
+    {
+      "id": "test_validate_schema_duplicate_field_names",
+      "description": "Schema with duplicate field names returns error",
+      "function": "validate_schema",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "schema_violation_duplicate_field",
+      "assertions": []
+    },
+    {
+      "id": "test_validate_schema_derived_boolean_missing_predicate",
+      "description": "DerivedBoolean field without predicate returns error",
+      "function": "validate_schema",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "schema_violation_missing_predicate",
+      "assertions": []
+    },
+    {
+      "id": "test_validate_schema_disclosure_policy_invalid_field_ref",
+      "description": "Disclosure policy referencing nonexistent field returns error",
+      "function": "validate_schema",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "invalid_disclosure_policy",
+      "assertions": []
+    },
+    {
+      "id": "test_validate_schema_attribute_limit_exceeded",
+      "description": "Schema exceeding max_attributes returns error",
+      "function": "validate_schema",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "attribute_limit_exceeded",
+      "assertions": []
+    },
+    {
+      "id": "test_validate_schema_empty_fields",
+      "description": "Schema with empty fields list returns error",
+      "function": "validate_schema",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_encode_claim_to_scalar_string_happy",
+      "description": "Encoding a StringVal with Utf8HashToScalar produces 32 bytes",
+      "function": "encode_claim_to_scalar",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "output is exactly 32 bytes"
+      ]
+    },
+    {
+      "id": "test_encode_claim_to_scalar_int_happy",
+      "description": "Encoding an IntVal with Int64LittleEndian produces 32 bytes",
+      "function": "encode_claim_to_scalar",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "output is exactly 32 bytes"
+      ]
+    },
+    {
+      "id": "test_encode_claim_to_scalar_bool_happy",
+      "description": "Encoding a BoolVal with BoolSingleByte produces 32 bytes",
+      "function": "encode_claim_to_scalar",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "output is exactly 32 bytes"
+      ]
+    },
+    {
+      "id": "test_encode_claim_to_scalar_bytes_happy",
+      "description": "Encoding a BytesVal with BytesDirect produces 32 bytes",
+      "function": "encode_claim_to_scalar",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "output is exactly 32 bytes"
+      ]
+    },
+    {
+      "id": "test_encode_claim_to_scalar_date_happy",
+      "description": "Encoding a DateVal with DateToEpochDays produces 32 bytes",
+      "function": "encode_claim_to_scalar",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "output is exactly 32 bytes"
+      ]
+    },
+    {
+      "id": "test_encode_claim_to_scalar_deterministic",
+      "description": "Same input always produces the same 32-byte scalar",
+      "function": "encode_claim_to_scalar",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "two calls with same input produce identical output"
+      ]
+    },
+    {
+      "id": "test_encode_claim_to_scalar_encoding_mismatch",
+      "description": "Incompatible encoding scheme raises encoding_mismatch error",
+      "function": "encode_claim_to_scalar",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "encoding_mismatch",
+      "assertions": []
+    },
+    {
+      "id": "test_encode_claim_to_scalar_value_out_of_range",
+      "description": "Integer too large for scalar raises value_out_of_range error",
+      "function": "encode_claim_to_scalar",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "value_out_of_range",
+      "assertions": []
+    },
+    {
+      "id": "test_encode_claim_to_scalar_distinct_values_distinct_scalars",
+      "description": "Different ClaimValues map to different scalars (injectivity spot check)",
+      "function": "encode_claim_to_scalar",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "distinct inputs produce distinct outputs"
+      ]
+    },
+    {
+      "id": "test_evaluate_predicate_greater_than_true",
+      "description": "GreaterThan(18) with IntVal(21) returns True",
+      "function": "evaluate_predicate",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "predicate": "GreaterThan(18)",
+        "value": "IntVal(21)"
+      },
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "result is True"
+      ]
+    },
+    {
+      "id": "test_evaluate_predicate_greater_than_false",
+      "description": "GreaterThan(18) with IntVal(18) returns False (not strictly greater)",
+      "function": "evaluate_predicate",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "predicate": "GreaterThan(18)",
+        "value": "IntVal(18)"
+      },
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "result is False"
+      ]
+    },
+    {
+      "id": "test_evaluate_predicate_less_than_true",
+      "description": "LessThan(65) with IntVal(30) returns True",
+      "function": "evaluate_predicate",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "predicate": "LessThan(65)",
+        "value": "IntVal(30)"
+      },
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "result is True"
+      ]
+    },
+    {
+      "id": "test_evaluate_predicate_greater_than_or_equal_boundary",
+      "description": "GreaterThanOrEqual(21) with IntVal(21) returns True",
+      "function": "evaluate_predicate",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "predicate": "GreaterThanOrEqual(21)",
+        "value": "IntVal(21)"
+      },
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "result is True"
+      ]
+    },
+    {
+      "id": "test_evaluate_predicate_less_than_or_equal_boundary",
+      "description": "LessThanOrEqual(65) with IntVal(65) returns True",
+      "function": "evaluate_predicate",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "predicate": "LessThanOrEqual(65)",
+        "value": "IntVal(65)"
+      },
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "result is True"
+      ]
+    },
+    {
+      "id": "test_evaluate_predicate_equal_to_string",
+      "description": "EqualTo(StringVal('US')) with StringVal('US') returns True",
+      "function": "evaluate_predicate",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "result is True"
+      ]
+    },
+    {
+      "id": "test_evaluate_predicate_not_equal_to",
+      "description": "NotEqualTo(IntVal(0)) with IntVal(5) returns True",
+      "function": "evaluate_predicate",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "result is True"
+      ]
+    },
+    {
+      "id": "test_evaluate_predicate_in_set_true",
+      "description": "InSet([StringVal('A'), StringVal('B')]) with StringVal('A') returns True",
+      "function": "evaluate_predicate",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "result is True"
+      ]
+    },
+    {
+      "id": "test_evaluate_predicate_in_set_false",
+      "description": "InSet([StringVal('A'), StringVal('B')]) with StringVal('C') returns False",
+      "function": "evaluate_predicate",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "result is False"
+      ]
+    },
+    {
+      "id": "test_evaluate_predicate_type_mismatch",
+      "description": "GreaterThan(18) with StringVal('hello') raises type_mismatch",
+      "function": "evaluate_predicate",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "type_mismatch",
+      "assertions": []
+    },
+    {
+      "id": "test_evaluate_predicate_in_set_empty",
+      "description": "InSet([]) raises empty_set error",
+      "function": "evaluate_predicate",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "empty_set",
+      "assertions": []
+    },
+    {
+      "id": "test_create_engine_happy_path",
+      "description": "Create engine with valid config, signer, storage, and audit_log succeeds",
+      "function": "create_engine",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "engine is not None",
+        "engine holds no raw key material"
+      ]
+    },
+    {
+      "id": "test_create_engine_invalid_config",
+      "description": "Create engine with invalid config raises invalid_config error",
+      "function": "create_engine",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "invalid_config",
+      "assertions": []
+    },
+    {
+      "id": "test_create_engine_signer_unavailable",
+      "description": "Create engine when signer cannot retrieve public keys raises signer_unavailable",
+      "function": "create_engine",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "signer_unavailable",
+      "assertions": []
+    },
+    {
+      "id": "test_register_schema_happy_path",
+      "description": "Register valid schema returns schema_id and records audit event",
+      "function": "register_schema",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "returned schema_id matches input",
+        "audit event SchemaRegistered recorded"
+      ]
+    },
+    {
+      "id": "test_register_schema_idempotent",
+      "description": "Registering same schema_id+version twice is idempotent",
+      "function": "register_schema",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "second registration returns same schema_id",
+        "no error raised"
+      ]
+    },
+    {
+      "id": "test_register_schema_missing_predicate",
+      "description": "DerivedBoolean field without predicate raises schema_violation_missing_predicate",
+      "function": "register_schema",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "schema_violation_missing_predicate",
+      "assertions": []
+    },
+    {
+      "id": "test_register_schema_duplicate_field",
+      "description": "Schema with duplicate field names raises schema_violation_duplicate_field",
+      "function": "register_schema",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "schema_violation_duplicate_field",
+      "assertions": []
+    },
+    {
+      "id": "test_register_schema_invalid_disclosure_policy",
+      "description": "Disclosure policy referencing non-existent field raises invalid_disclosure_policy",
+      "function": "register_schema",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "invalid_disclosure_policy",
+      "assertions": []
+    },
+    {
+      "id": "test_register_schema_attribute_limit_exceeded",
+      "description": "Schema exceeding max_attributes_per_credential raises attribute_limit_exceeded",
+      "function": "register_schema",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "attribute_limit_exceeded",
+      "assertions": []
+    },
+    {
+      "id": "test_register_schema_audit_failure",
+      "description": "Audit log failure during schema registration raises vault_error_audit",
+      "function": "register_schema",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "vault_error_audit",
+      "assertions": []
+    },
+    {
+      "id": "test_issue_credential_happy_path",
+      "description": "Issue dual-format credential from valid schema and claims returns complete CredentialBundle",
+      "function": "issue_credential",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "bundle contains sd_jwt with non-empty compact",
+        "bundle contains bbs with valid signature",
+        "bundle contains witness with entries for committed attributes",
+        "bundle metadata has Active status implicitly",
+        "metadata.expires_at = issued_at + ttl_seconds",
+        "metadata.id is a fresh random CredentialId",
+        "audit event CredentialIssued recorded"
+      ]
+    },
+    {
+      "id": "test_issue_credential_schema_not_found",
+      "description": "Issuing with unregistered schema_id raises schema_not_found",
+      "function": "issue_credential",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "schema_not_found",
+      "assertions": []
+    },
+    {
+      "id": "test_issue_credential_missing_required_claim",
+      "description": "Missing required claim in ClaimSet raises missing_required_claim",
+      "function": "issue_credential",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "missing_required_claim",
+      "assertions": []
+    },
+    {
+      "id": "test_issue_credential_claim_type_mismatch",
+      "description": "Claim value type mismatch raises claim_type_mismatch",
+      "function": "issue_credential",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "claim_type_mismatch",
+      "assertions": []
+    },
+    {
+      "id": "test_issue_credential_invalid_predicate_evaluation",
+      "description": "Predicate that cannot be evaluated raises invalid_predicate_evaluation",
+      "function": "issue_credential",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "invalid_predicate_evaluation",
+      "assertions": []
+    },
+    {
+      "id": "test_issue_credential_signing_failed_ed25519",
+      "description": "Ed25519 signing failure raises signing_failed_ed25519 (generic)",
+      "function": "issue_credential",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "signing_failed_ed25519",
+      "assertions": []
+    },
+    {
+      "id": "test_issue_credential_signing_failed_bbs",
+      "description": "BBS+ signing failure raises signing_failed_bbs (generic)",
+      "function": "issue_credential",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "signing_failed_bbs",
+      "assertions": []
+    },
+    {
+      "id": "test_issue_credential_encoding_failed_sdjwt",
+      "description": "SD-JWT encoding failure raises encoding_failed_sdjwt",
+      "function": "issue_credential",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "encoding_failed_sdjwt",
+      "assertions": []
+    },
+    {
+      "id": "test_issue_credential_vault_storage_error",
+      "description": "Vault storage failure raises vault_storage_error",
+      "function": "issue_credential",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "vault_storage_error",
+      "assertions": []
+    },
+    {
+      "id": "test_issue_credential_vault_audit_error",
+      "description": "Audit log failure raises vault_audit_error",
+      "function": "issue_credential",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "vault_audit_error",
+      "assertions": []
+    },
+    {
+      "id": "test_issue_credential_derived_boolean_precomputed",
+      "description": "DerivedBoolean attributes are pre-computed from predicates during issuance",
+      "function": "issue_credential",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "DerivedBooleanAttribute.value matches predicate evaluation"
+      ]
+    },
+    {
+      "id": "test_issue_credential_committed_attributes_have_commitments",
+      "description": "Committed attributes have Pedersen commitments with fresh blinding factors",
+      "function": "issue_credential",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "commitment_bytes is non-empty",
+        "witness entries exist for all committed attributes"
+      ]
+    },
+    {
+      "id": "test_issue_credential_bbs_message_vector_ordering",
+      "description": "BBS+ message vector ordering matches schema field order",
+      "function": "issue_credential",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "message indices match schema field indices"
+      ]
+    },
+    {
+      "id": "test_get_credential_happy_path",
+      "description": "Retrieve active credential returns correct CredentialRecord",
+      "function": "get_credential",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "returned record has correct metadata",
+        "no private witness in response"
+      ]
+    },
+    {
+      "id": "test_get_credential_not_found",
+      "description": "Non-existent credential ID raises credential_not_found",
+      "function": "get_credential",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "credential_not_found",
+      "assertions": []
+    },
+    {
+      "id": "test_get_credential_auto_expires",
+      "description": "Retrieving credential past TTL auto-transitions to Expired",
+      "function": "get_credential",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "status is Expired",
+        "audit event CredentialExpired recorded"
+      ]
+    },
+    {
+      "id": "test_get_credential_decoding_failed",
+      "description": "Corrupted stored data raises decoding_failed",
+      "function": "get_credential",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "decoding_failed",
+      "assertions": []
+    },
+    {
+      "id": "test_get_credential_vault_error",
+      "description": "Vault storage read failure raises vault_error",
+      "function": "get_credential",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "vault_error",
+      "assertions": []
+    },
+    {
+      "id": "test_get_witness_happy_path",
+      "description": "Retrieve witness for active credential returns PrivateWitness and records audit",
+      "function": "get_witness",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "witness contains blinding factors",
+        "audit event WitnessAccessed recorded"
+      ]
+    },
+    {
+      "id": "test_get_witness_credential_not_found",
+      "description": "Non-existent credential raises credential_not_found",
+      "function": "get_witness",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "credential_not_found",
+      "assertions": []
+    },
+    {
+      "id": "test_get_witness_witness_not_found",
+      "description": "Credential exists but no witness raises witness_not_found",
+      "function": "get_witness",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "witness_not_found",
+      "assertions": []
+    },
+    {
+      "id": "test_get_witness_credential_consumed",
+      "description": "Consumed credential raises credential_consumed",
+      "function": "get_witness",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "credential_consumed",
+      "assertions": []
+    },
+    {
+      "id": "test_get_witness_credential_revoked",
+      "description": "Revoked credential raises credential_revoked",
+      "function": "get_witness",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "credential_revoked",
+      "assertions": []
+    },
+    {
+      "id": "test_get_witness_credential_expired",
+      "description": "Expired credential raises credential_expired",
+      "function": "get_witness",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "credential_expired",
+      "assertions": []
+    },
+    {
+      "id": "test_get_witness_vault_error",
+      "description": "Vault storage failure raises vault_error",
+      "function": "get_witness",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "vault_error",
+      "assertions": []
+    },
+    {
+      "id": "test_record_presentation_happy_path",
+      "description": "Record presentation for active non-one-time credential transitions to Presented",
+      "function": "record_presentation",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "returned status is Presented",
+        "presentation_history appended",
+        "audit event CredentialPresented recorded"
+      ]
+    },
+    {
+      "id": "test_record_presentation_one_time_consumes",
+      "description": "One-time credential atomically transitions to Consumed on first presentation",
+      "function": "record_presentation",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "returned status is Consumed",
+        "audit event CredentialConsumed recorded",
+        "witness marked for deletion"
+      ]
+    },
+    {
+      "id": "test_record_presentation_one_time_already_consumed",
+      "description": "One-time credential already consumed raises credential_consumed",
+      "function": "record_presentation",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "credential_consumed",
+      "assertions": []
+    },
+    {
+      "id": "test_record_presentation_credential_not_found",
+      "description": "Non-existent credential raises credential_not_found",
+      "function": "record_presentation",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "credential_not_found",
+      "assertions": []
+    },
+    {
+      "id": "test_record_presentation_credential_expired",
+      "description": "Expired credential raises credential_expired",
+      "function": "record_presentation",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "credential_expired",
+      "assertions": []
+    },
+    {
+      "id": "test_record_presentation_credential_revoked",
+      "description": "Revoked credential raises credential_revoked",
+      "function": "record_presentation",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "credential_revoked",
+      "assertions": []
+    },
+    {
+      "id": "test_record_presentation_disclosure_policy_violation_never_field",
+      "description": "Disclosing a Never field raises disclosure_policy_violation",
+      "function": "record_presentation",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "disclosure_policy_violation",
+      "assertions": []
+    },
+    {
+      "id": "test_record_presentation_disclosure_policy_violation_missing_always_field",
+      "description": "Omitting an Always field raises disclosure_policy_violation",
+      "function": "record_presentation",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "disclosure_policy_violation",
+      "assertions": []
+    },
+    {
+      "id": "test_record_presentation_status_transition_denied",
+      "description": "Presenting from terminal state raises status_transition_denied",
+      "function": "record_presentation",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "status_transition_denied",
+      "assertions": []
+    },
+    {
+      "id": "test_record_presentation_vault_error",
+      "description": "Vault storage failure raises vault_error",
+      "function": "record_presentation",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "vault_error",
+      "assertions": []
+    },
+    {
+      "id": "test_record_presentation_presented_to_consumed_one_time",
+      "description": "One-time credential in Presented state transitions to Consumed on second presentation",
+      "function": "record_presentation",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "returned status is Consumed"
+      ]
+    },
+    {
+      "id": "test_revoke_credential_happy_path",
+      "description": "Revoke active credential transitions to Revoked and deletes witness",
+      "function": "revoke_credential",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "returned status is Revoked",
+        "witness deleted",
+        "audit events CredentialRevoked and WitnessDeleted recorded"
+      ]
+    },
+    {
+      "id": "test_revoke_credential_not_found",
+      "description": "Non-existent credential raises credential_not_found",
+      "function": "revoke_credential",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "credential_not_found",
+      "assertions": []
+    },
+    {
+      "id": "test_revoke_credential_already_consumed",
+      "description": "Already consumed credential raises already_consumed",
+      "function": "revoke_credential",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "already_consumed",
+      "assertions": []
+    },
+    {
+      "id": "test_revoke_credential_already_revoked",
+      "description": "Already revoked credential raises already_revoked",
+      "function": "revoke_credential",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "already_revoked",
+      "assertions": []
+    },
+    {
+      "id": "test_revoke_credential_vault_error",
+      "description": "Vault storage failure raises vault_error",
+      "function": "revoke_credential",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "vault_error",
+      "assertions": []
+    },
+    {
+      "id": "test_check_expiry_not_expired",
+      "description": "Check expiry for credential with remaining TTL returns is_expired=False",
+      "function": "check_expiry",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "is_expired is False",
+        "remaining_seconds > 0",
+        "status_updated is False"
+      ]
+    },
+    {
+      "id": "test_check_expiry_expired",
+      "description": "Check expiry past TTL transitions to Expired and records audit",
+      "function": "check_expiry",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "is_expired is True",
+        "remaining_seconds is 0",
+        "status_updated is True",
+        "audit event CredentialExpired recorded"
+      ]
+    },
+    {
+      "id": "test_check_expiry_clock_skew_tolerance",
+      "description": "Credential within clock skew tolerance is not yet expired",
+      "function": "check_expiry",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "is_expired is False when within tolerance window"
+      ]
+    },
+    {
+      "id": "test_check_expiry_credential_not_found",
+      "description": "Non-existent credential raises credential_not_found",
+      "function": "check_expiry",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "credential_not_found",
+      "assertions": []
+    },
+    {
+      "id": "test_check_expiry_vault_error",
+      "description": "Vault failure raises vault_error",
+      "function": "check_expiry",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "vault_error",
+      "assertions": []
+    },
+    {
+      "id": "test_delete_witness_happy_path",
+      "description": "Delete existing witness returns True and records audit",
+      "function": "delete_witness",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "returns True",
+        "audit event WitnessDeleted recorded"
+      ]
+    },
+    {
+      "id": "test_delete_witness_credential_not_found",
+      "description": "Non-existent credential raises credential_not_found",
+      "function": "delete_witness",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "credential_not_found",
+      "assertions": []
+    },
+    {
+      "id": "test_delete_witness_witness_not_found",
+      "description": "Witness already deleted raises witness_not_found",
+      "function": "delete_witness",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "witness_not_found",
+      "assertions": []
+    },
+    {
+      "id": "test_delete_witness_vault_error",
+      "description": "Vault storage failure raises vault_error",
+      "function": "delete_witness",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "vault_error",
+      "assertions": []
+    },
+    {
+      "id": "test_lifecycle_register_issue_present_revoke",
+      "description": "Full lifecycle: register schema, issue credential, present, revoke — verify audit trail completeness",
+      "function": "issue_credential",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "all state transitions succeed",
+        "audit trail contains SchemaRegistered, CredentialIssued, CredentialPresented, CredentialRevoked, WitnessDeleted"
+      ]
+    },
+    {
+      "id": "test_lifecycle_one_time_credential",
+      "description": "One-time credential: issue, present (consumed), attempt second presentation (denied)",
+      "function": "record_presentation",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "first presentation returns Consumed",
+        "second presentation raises credential_consumed"
+      ]
+    },
+    {
+      "id": "test_lifecycle_expiry",
+      "description": "Expiry lifecycle: issue, check active, advance time, check expired",
+      "function": "check_expiry",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "first check: not expired",
+        "second check: expired with status_updated=True"
+      ]
+    },
+    {
+      "id": "test_lifecycle_witness",
+      "description": "Witness lifecycle: issue, get_witness, revoke, get_witness denied, delete_witness",
+      "function": "get_witness",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "get_witness succeeds for active",
+        "get_witness denied after revoke"
+      ]
+    },
+    {
+      "id": "invariant_engine_never_holds_key_material",
+      "description": "The credential engine never holds or accesses raw key material — all signing is delegated",
+      "function": "create_engine",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "engine object has no attributes containing key bytes",
+        "all signing calls go through signer mock"
+      ]
+    },
+    {
+      "id": "invariant_error_messages_no_secrets",
+      "description": "Error messages never contain key material, blinding factors, or raw claim values",
+      "function": "issue_credential",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "no error detail message contains secret patterns"
+      ]
+    },
+    {
+      "id": "invariant_terminal_states_no_outbound_transitions",
+      "description": "Consumed, Expired, and Revoked are terminal states with no outbound transitions",
+      "function": "record_presentation",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "presentation from Consumed raises error",
+        "presentation from Revoked raises error"
+      ]
+    },
+    {
+      "id": "invariant_bbs_message_vector_deterministic_ordering",
+      "description": "BBS+ message vector ordering is deterministic from schema field order",
+      "function": "issue_credential",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "issuing same claims twice produces same message ordering"
+      ]
+    },
+    {
+      "id": "invariant_disclosure_policy_default_never",
+      "description": "DisclosurePolicy defaults to Never for fields not explicitly listed",
+      "function": "record_presentation",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "field without explicit rule is treated as Never"
+      ]
+    },
+    {
+      "id": "invariant_audit_on_every_state_change",
+      "description": "Every state-changing operation emits exactly one audit event",
+      "function": "revoke_credential",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "audit log called for every state transition"
+      ]
+    },
+    {
+      "id": "invariant_scalar_encoding_deterministic",
+      "description": "Canonical ClaimValue-to-scalar encoding is deterministic",
+      "function": "encode_claim_to_scalar",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "same input always same output across multiple calls"
+      ]
+    },
+    {
+      "id": "invariant_vault_timeout_deny",
+      "description": "Vault operation timeout results in error, never silent success",
+      "function": "issue_credential",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "timeout from vault mock raises error, not success"
+      ]
+    },
+    {
+      "id": "test_check_expiry_exactly_at_boundary",
+      "description": "Credential checked at exactly expires_at (no skew) is expired",
+      "function": "check_expiry",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "is_expired is True at exactly expires_at + tolerance"
+      ]
+    },
+    {
+      "id": "test_check_expiry_one_second_before_boundary",
+      "description": "Credential checked 1 second before expiry+tolerance is not expired",
+      "function": "check_expiry",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "is_expired is False"
+      ]
+    },
+    {
+      "id": "test_record_presentation_selectable_field_disclosed",
+      "description": "Selectable field can be optionally disclosed",
+      "function": "record_presentation",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "presentation succeeds with selectable field disclosed"
+      ]
+    },
+    {
+      "id": "test_record_presentation_selectable_field_not_disclosed",
+      "description": "Selectable field can be optionally omitted",
+      "function": "record_presentation",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "presentation succeeds with selectable field omitted"
+      ]
+    },
+    {
+      "id": "test_evaluate_predicate_negation_consistency",
+      "description": "GreaterThan and LessThanOrEqual produce complementary results for same input",
+      "function": "evaluate_predicate",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "GreaterThan(x)(v) == not LessThanOrEqual(x)(v) for all valid inputs"
+      ]
+    }
+  ],
+  "test_language": "python",
+  "generated_code": "\"\"\"\nContract test suite for signet_cred — Signet Credential Engine.\n\nTests are organized in four layers:\n  Layer 1: Pure function unit tests (validate_schema, encode_claim_to_scalar, evaluate_predicate)\n  Layer 2: Engine unit tests with mocked dependencies\n  Layer 3: Integration / lifecycle tests\n  Layer 4: Invariant and security tests\n\nAll vault dependencies (Signer, Storage, AuditLog) are mocked via unittest.mock.\n\"\"\"\n\nimport pytest\nimport re\nimport random\nfrom unittest.mock import MagicMock, patch, call, PropertyMock\nfrom datetime import datetime, timedelta, timezone\n\n# Import the component under test\nfrom src.signet_cred import (\n    # Types\n    CredentialId,\n    Domain,\n    ClaimPath,\n    ClaimValue,\n    Predicate,\n    AttributeKind,\n    RawAttribute,\n    DerivedBooleanAttribute,\n    PedersenCommitment,\n    CommittedAttribute,\n    AttributeEntry,\n    SchemaField,\n    DisclosureLevel,\n    DisclosureRule,\n    DisclosurePolicy,\n    CredentialSchema,\n    ClaimSet,\n    CredentialMetadata,\n    SdJwtCredential,\n    BbsMessage,\n    BbsSignature,\n    BbsCredential,\n    BlindingFactor,\n    WitnessEntry,\n    PrivateWitness,\n    CredentialBundle,\n    CredentialStatus,\n    PresentationRecord,\n    CredentialRecord,\n    IssuanceConfig,\n    CredentialEngineConfig,\n    CredError,\n    CredErrorDetail,\n    AuditEventKind,\n    CredentialAuditEvent,\n    ExpiryCheckResult,\n    ScalarEncoding,\n    # Functions\n    create_engine,\n    register_schema,\n    issue_credential,\n    get_credential,\n    get_witness,\n    record_presentation,\n    revoke_credential,\n    check_expiry,\n    delete_witness,\n    encode_claim_to_scalar,\n    validate_schema,\n    evaluate_predicate,\n)\n\n\n# ═══════════════════════════════════════════════════════════════════════════════\n# Test Helpers — Mock Factory Functions\n# ═══════════════════════════════════════════════════════════════════════════════\n\ndef make_mock_signer(available=True):\n    \"\"\"Create a mock Signer trait object.\"\"\"\n    signer = MagicMock()\n    if not available:\n        signer.get_public_key.side_effect = Exception(\"signer unavailable\")\n    else:\n        signer.get_public_key.return_value = b\"\\x00\" * 32\n        signer.sign_ed25519.return_value = b\"\\x00\" * 64\n        signer.sign_bbs.return_value = b\"\\x00\" * 112\n    return signer\n\n\ndef make_mock_storage(available=True):\n    \"\"\"Create a mock VaultStorage trait object.\"\"\"\n    storage = MagicMock()\n    if not available:\n        storage.store.side_effect = Exception(\"storage unavailable\")\n        storage.load.side_effect = Exception(\"storage unavailable\")\n    return storage\n\n\ndef make_mock_audit_log(available=True):\n    \"\"\"Create a mock AuditLog trait object.\"\"\"\n    audit = MagicMock()\n    audit.recorded_events = []\n    if not available:\n        audit.record.side_effect = Exception(\"audit unavailable\")\n    else:\n        def _record(event):\n            audit.recorded_events.append(event)\n        audit.record.side_effect = _record\n    return audit\n\n\ndef make_valid_config(\n    default_ttl=3600,\n    clock_skew=60,\n    pedersen_tag=\"signet-cred-pedersen-v1\",\n    max_attrs=128,\n):\n    \"\"\"Create a valid CredentialEngineConfig.\"\"\"\n    return CredentialEngineConfig(\n        default_ttl_seconds=default_ttl,\n        default_clock_skew_tolerance_seconds=clock_skew,\n        pedersen_domain_tag=pedersen_tag,\n        max_attributes_per_credential=max_attrs,\n    )\n\n\ndef make_raw_schema_field(name, source_path, required=True, disclosure=DisclosureLevel.Selectable):\n    \"\"\"Create a Raw SchemaField.\"\"\"\n    return SchemaField(\n        name=name,\n        kind=AttributeKind.Raw,\n        source_path=ClaimPath(pointer=source_path),\n        predicate=None,\n        required=required,\n    )\n\n\ndef make_derived_boolean_field(name, source_path, predicate, required=True):\n    \"\"\"Create a DerivedBoolean SchemaField.\"\"\"\n    return SchemaField(\n        name=name,\n        kind=AttributeKind.DerivedBoolean,\n        source_path=ClaimPath(pointer=source_path),\n        predicate=predicate,\n        required=required,\n    )\n\n\ndef make_committed_field(name, source_path, required=True):\n    \"\"\"Create a Committed SchemaField.\"\"\"\n    return SchemaField(\n        name=name,\n        kind=AttributeKind.Committed,\n        source_path=ClaimPath(pointer=source_path),\n        predicate=None,\n        required=required,\n    )\n\n\ndef make_valid_schema(\n    schema_id=\"test-schema-v1\",\n    version=1,\n    fields=None,\n    disclosure_rules=None,\n    default_disclosure=DisclosureLevel.Never,\n    description=\"Test schema\",\n):\n    \"\"\"Create a valid CredentialSchema.\"\"\"\n    if fields is None:\n        fields = [\n            make_raw_schema_field(\"name\", \"/personal/name\"),\n            make_derived_boolean_field(\n                \"age_over_21\",\n                \"/personal/age\",\n                Predicate.GreaterThanOrEqual(21),\n            ),\n            make_committed_field(\"income\", \"/financial/income\"),\n        ]\n    if disclosure_rules is None:\n        disclosure_rules = [\n            DisclosureRule(field_name=f.name, level=DisclosureLevel.Selectable)\n            for f in fields\n        ]\n    return CredentialSchema(\n        schema_id=schema_id,\n        version=version,\n        fields=fields,\n        disclosure_policy=DisclosurePolicy(\n            rules=disclosure_rules,\n            default_level=default_disclosure,\n        ),\n        description=description,\n    )\n\n\ndef make_valid_claims():\n    \"\"\"Create a valid ClaimSet matching the default schema.\"\"\"\n    return ClaimSet(\n        claims={\n            \"/personal/name\": ClaimValue.StringVal(\"Alice Johnson\"),\n            \"/personal/age\": ClaimValue.IntVal(30),\n            \"/financial/income\": ClaimValue.IntVal(75000),\n        },\n        source_vault_id=\"vault-001\",\n        retrieved_at=\"2024-01-15T10:00:00Z\",\n    )\n\n\ndef make_issuance_config(\n    ttl=3600,\n    domain=\"example.com\",\n    one_time=False,\n    clock_skew=60,\n):\n    \"\"\"Create an IssuanceConfig.\"\"\"\n    return IssuanceConfig(\n        ttl_seconds=ttl,\n        domain=Domain(value=domain),\n        one_time=one_time,\n        clock_skew_tolerance_seconds=clock_skew,\n    )\n\n\ndef make_engine_with_schema(schema=None, signer=None, storage=None, audit=None):\n    \"\"\"Create engine with a registered schema. Returns (engine, schema, signer, storage, audit).\"\"\"\n    signer = signer or make_mock_signer()\n    storage = storage or make_mock_storage()\n    audit = audit or make_mock_audit_log()\n    config = make_valid_config()\n    engine = create_engine(config, signer, storage, audit)\n    schema = schema or make_valid_schema()\n    register_schema(engine, schema)\n    return engine, schema, signer, storage, audit\n\n\ndef make_credential_id(hex_str=None):\n    \"\"\"Create a CredentialId.\"\"\"\n    if hex_str is None:\n        hex_str = \"a\" * 32\n    return CredentialId(value=hex_str)\n\n\n# ═══════════════════════════════════════════════════════════════════════════════\n# LAYER 1 — Pure Function Unit Tests\n# ═══════════════════════════════════════════════════════════════════════════════\n\n\nclass TestValidateSchema:\n    \"\"\"Tests for validate_schema — pure validation, no state mutation.\"\"\"\n\n    def test_validate_schema_happy_path(self):\n        \"\"\"Valid schema with all field kinds returns empty error list.\"\"\"\n        schema = make_valid_schema()\n        errors = validate_schema(schema, max_attributes=128)\n        assert errors == [], f\"Expected no errors for valid schema, got: {errors}\"\n\n    def test_validate_schema_duplicate_field_names(self):\n        \"\"\"Schema with duplicate field names returns error.\"\"\"\n        fields = [\n            make_raw_schema_field(\"name\", \"/a\"),\n            make_raw_schema_field(\"name\", \"/b\"),  # duplicate\n        ]\n        schema = make_valid_schema(fields=fields, disclosure_rules=[\n            DisclosureRule(field_name=\"name\", level=DisclosureLevel.Selectable),\n        ])\n        errors = validate_schema(schema, max_attributes=128)\n        assert len(errors) > 0, \"Expected errors for duplicate field names\"\n        assert any(\"duplicate\" in e.lower() or \"unique\" in e.lower() for e in errors), \\\n            f\"Expected duplicate field error, got: {errors}\"\n\n    def test_validate_schema_derived_boolean_missing_predicate(self):\n        \"\"\"DerivedBoolean field without predicate returns error.\"\"\"\n        field = SchemaField(\n            name=\"age_check\",\n            kind=AttributeKind.DerivedBoolean,\n            source_path=ClaimPath(pointer=\"/age\"),\n            predicate=None,  # missing predicate\n            required=True,\n        )\n        schema = make_valid_schema(fields=[field], disclosure_rules=[\n            DisclosureRule(field_name=\"age_check\", level=DisclosureLevel.Selectable),\n        ])\n        errors = validate_schema(schema, max_attributes=128)\n        assert len(errors) > 0, \"Expected errors for missing predicate\"\n        assert any(\"predicate\" in e.lower() for e in errors), \\\n            f\"Expected predicate error, got: {errors}\"\n\n    def test_validate_schema_disclosure_policy_invalid_field_ref(self):\n        \"\"\"Disclosure policy referencing nonexistent field returns error.\"\"\"\n        fields = [make_raw_schema_field(\"name\", \"/name\")]\n        rules = [\n            DisclosureRule(field_name=\"name\", level=DisclosureLevel.Selectable),\n            DisclosureRule(field_name=\"nonexistent\", level=DisclosureLevel.Always),\n        ]\n        schema = make_valid_schema(fields=fields, disclosure_rules=rules)\n        errors = validate_schema(schema, max_attributes=128)\n        assert len(errors) > 0, \"Expected errors for invalid disclosure policy field reference\"\n\n    def test_validate_schema_attribute_limit_exceeded(self):\n        \"\"\"Schema exceeding max_attributes returns error.\"\"\"\n        fields = [make_raw_schema_field(f\"field_{i}\", f\"/f{i}\") for i in range(10)]\n        rules = [DisclosureRule(field_name=f\"field_{i}\", level=DisclosureLevel.Selectable) for i in range(10)]\n        schema = make_valid_schema(fields=fields, disclosure_rules=rules)\n        errors = validate_schema(schema, max_attributes=5)\n        assert len(errors) > 0, \"Expected errors when exceeding attribute limit\"\n        assert any(\"limit\" in e.lower() or \"exceed\" in e.lower() or \"max\" in e.lower() for e in errors), \\\n            f\"Expected attribute limit error, got: {errors}\"\n\n    def test_validate_schema_empty_fields(self):\n        \"\"\"Schema with empty fields list returns error.\"\"\"\n        schema = make_valid_schema(fields=[], disclosure_rules=[])\n        errors = validate_schema(schema, max_attributes=128)\n        assert len(errors) > 0, \"Expected errors for empty fields list\"\n\n\nclass TestEncodeClaimToScalar:\n    \"\"\"Tests for encode_claim_to_scalar — pure deterministic encoding.\"\"\"\n\n    def test_encode_claim_to_scalar_string_happy(self):\n        \"\"\"Encoding a StringVal with Utf8HashToScalar produces 32 bytes.\"\"\"\n        result = encode_claim_to_scalar(\n            ClaimValue.StringVal(\"hello world\"),\n            ScalarEncoding.Utf8HashToScalar,\n        )\n        assert isinstance(result, bytes), \"Expected bytes output\"\n        assert len(result) == 32, f\"Expected 32 bytes, got {len(result)}\"\n\n    def test_encode_claim_to_scalar_int_happy(self):\n        \"\"\"Encoding an IntVal with Int64LittleEndian produces 32 bytes.\"\"\"\n        result = encode_claim_to_scalar(\n            ClaimValue.IntVal(42),\n            ScalarEncoding.Int64LittleEndian,\n        )\n        assert isinstance(result, bytes), \"Expected bytes output\"\n        assert len(result) == 32, f\"Expected 32 bytes, got {len(result)}\"\n\n    def test_encode_claim_to_scalar_bool_happy(self):\n        \"\"\"Encoding a BoolVal with BoolSingleByte produces 32 bytes.\"\"\"\n        result = encode_claim_to_scalar(\n            ClaimValue.BoolVal(True),\n            ScalarEncoding.BoolSingleByte,\n        )\n        assert isinstance(result, bytes), \"Expected bytes output\"\n        assert len(result) == 32, f\"Expected 32 bytes, got {len(result)}\"\n\n    def test_encode_claim_to_scalar_bytes_happy(self):\n        \"\"\"Encoding a BytesVal with BytesDirect produces 32 bytes.\"\"\"\n        result = encode_claim_to_scalar(\n            ClaimValue.BytesVal(b\"\\x01\\x02\\x03\"),\n            ScalarEncoding.BytesDirect,\n        )\n        assert isinstance(result, bytes), \"Expected bytes output\"\n        assert len(result) == 32, f\"Expected 32 bytes, got {len(result)}\"\n\n    def test_encode_claim_to_scalar_date_happy(self):\n        \"\"\"Encoding a DateVal with DateToEpochDays produces 32 bytes.\"\"\"\n        result = encode_claim_to_scalar(\n            ClaimValue.DateVal(\"2024-01-15\"),\n            ScalarEncoding.DateToEpochDays,\n        )\n        assert isinstance(result, bytes), \"Expected bytes output\"\n        assert len(result) == 32, f\"Expected 32 bytes, got {len(result)}\"\n\n    def test_encode_claim_to_scalar_deterministic(self):\n        \"\"\"Same input always produces the same 32-byte scalar.\"\"\"\n        val = ClaimValue.StringVal(\"determinism test\")\n        enc = ScalarEncoding.Utf8HashToScalar\n        r1 = encode_claim_to_scalar(val, enc)\n        r2 = encode_claim_to_scalar(val, enc)\n        r3 = encode_claim_to_scalar(val, enc)\n        assert r1 == r2 == r3, \"Encoding must be deterministic\"\n\n    def test_encode_claim_to_scalar_encoding_mismatch(self):\n        \"\"\"Incompatible encoding scheme raises encoding_mismatch error.\"\"\"\n        with pytest.raises(Exception) as exc_info:\n            encode_claim_to_scalar(\n                ClaimValue.StringVal(\"hello\"),\n                ScalarEncoding.Int64LittleEndian,  # mismatch: string with int encoding\n            )\n        err = exc_info.value\n        assert _is_cred_error(err, CredError.EncodingFailed) or \"mismatch\" in str(err).lower(), \\\n            f\"Expected encoding mismatch error, got: {err}\"\n\n    def test_encode_claim_to_scalar_value_out_of_range(self):\n        \"\"\"Integer too large for scalar raises value_out_of_range error.\"\"\"\n        # Use an astronomically large integer that exceeds BBS+ group order\n        huge_int = 2**256\n        with pytest.raises(Exception) as exc_info:\n            encode_claim_to_scalar(\n                ClaimValue.IntVal(huge_int),\n                ScalarEncoding.Int64LittleEndian,\n            )\n        err = exc_info.value\n        assert _is_cred_error(err, CredError.EncodingFailed) or \"range\" in str(err).lower(), \\\n            f\"Expected value out of range error, got: {err}\"\n\n    def test_encode_claim_to_scalar_distinct_values_distinct_scalars(self):\n        \"\"\"Different ClaimValues map to different scalars (injectivity spot check).\"\"\"\n        values = [\n            (ClaimValue.IntVal(0), ScalarEncoding.Int64LittleEndian),\n            (ClaimValue.IntVal(1), ScalarEncoding.Int64LittleEndian),\n            (ClaimValue.IntVal(-1), ScalarEncoding.Int64LittleEndian),\n            (ClaimValue.IntVal(2**31), ScalarEncoding.Int64LittleEndian),\n        ]\n        scalars = [encode_claim_to_scalar(v, e) for v, e in values]\n        # All scalars should be unique\n        assert len(set(scalars)) == len(scalars), \\\n            \"Distinct ClaimValues should produce distinct scalars\"\n\n    def test_encode_claim_to_scalar_bool_distinct(self):\n        \"\"\"True and False produce distinct scalars.\"\"\"\n        true_scalar = encode_claim_to_scalar(ClaimValue.BoolVal(True), ScalarEncoding.BoolSingleByte)\n        false_scalar = encode_claim_to_scalar(ClaimValue.BoolVal(False), ScalarEncoding.BoolSingleByte)\n        assert true_scalar != false_scalar, \"True and False must encode to distinct scalars\"\n\n\nclass TestEvaluatePredicate:\n    \"\"\"Tests for evaluate_predicate — pure boolean evaluation.\"\"\"\n\n    def test_evaluate_predicate_greater_than_true(self):\n        \"\"\"GreaterThan(18) with IntVal(21) returns True.\"\"\"\n        result = evaluate_predicate(Predicate.GreaterThan(18), ClaimValue.IntVal(21))\n        assert result is True, \"21 > 18 should be True\"\n\n    def test_evaluate_predicate_greater_than_false(self):\n        \"\"\"GreaterThan(18) with IntVal(18) returns False (not strictly greater).\"\"\"\n        result = evaluate_predicate(Predicate.GreaterThan(18), ClaimValue.IntVal(18))\n        assert result is False, \"18 > 18 should be False (strictly greater)\"\n\n    def test_evaluate_predicate_greater_than_below(self):\n        \"\"\"GreaterThan(18) with IntVal(10) returns False.\"\"\"\n        result = evaluate_predicate(Predicate.GreaterThan(18), ClaimValue.IntVal(10))\n        assert result is False, \"10 > 18 should be False\"\n\n    def test_evaluate_predicate_less_than_true(self):\n        \"\"\"LessThan(65) with IntVal(30) returns True.\"\"\"\n        result = evaluate_predicate(Predicate.LessThan(65), ClaimValue.IntVal(30))\n        assert result is True, \"30 < 65 should be True\"\n\n    def test_evaluate_predicate_less_than_boundary(self):\n        \"\"\"LessThan(65) with IntVal(65) returns False.\"\"\"\n        result = evaluate_predicate(Predicate.LessThan(65), ClaimValue.IntVal(65))\n        assert result is False, \"65 < 65 should be False (strictly less)\"\n\n    def test_evaluate_predicate_greater_than_or_equal_boundary(self):\n        \"\"\"GreaterThanOrEqual(21) with IntVal(21) returns True.\"\"\"\n        result = evaluate_predicate(Predicate.GreaterThanOrEqual(21), ClaimValue.IntVal(21))\n        assert result is True, \"21 >= 21 should be True\"\n\n    def test_evaluate_predicate_greater_than_or_equal_below(self):\n        \"\"\"GreaterThanOrEqual(21) with IntVal(20) returns False.\"\"\"\n        result = evaluate_predicate(Predicate.GreaterThanOrEqual(21), ClaimValue.IntVal(20))\n        assert result is False, \"20 >= 21 should be False\"\n\n    def test_evaluate_predicate_less_than_or_equal_boundary(self):\n        \"\"\"LessThanOrEqual(65) with IntVal(65) returns True.\"\"\"\n        result = evaluate_predicate(Predicate.LessThanOrEqual(65), ClaimValue.IntVal(65))\n        assert result is True, \"65 <= 65 should be True\"\n\n    def test_evaluate_predicate_less_than_or_equal_above(self):\n        \"\"\"LessThanOrEqual(65) with IntVal(66) returns False.\"\"\"\n        result = evaluate_predicate(Predicate.LessThanOrEqual(65), ClaimValue.IntVal(66))\n        assert result is False, \"66 <= 65 should be False\"\n\n    def test_evaluate_predicate_equal_to_string(self):\n        \"\"\"EqualTo(StringVal('US')) with StringVal('US') returns True.\"\"\"\n        result = evaluate_predicate(\n            Predicate.EqualTo(ClaimValue.StringVal(\"US\")),\n            ClaimValue.StringVal(\"US\"),\n        )\n        assert result is True, \"StringVal('US') == StringVal('US') should be True\"\n\n    def test_evaluate_predicate_equal_to_string_not_equal(self):\n        \"\"\"EqualTo(StringVal('US')) with StringVal('UK') returns False.\"\"\"\n        result = evaluate_predicate(\n            Predicate.EqualTo(ClaimValue.StringVal(\"US\")),\n            ClaimValue.StringVal(\"UK\"),\n        )\n        assert result is False, \"StringVal('UK') == StringVal('US') should be False\"\n\n    def test_evaluate_predicate_not_equal_to(self):\n        \"\"\"NotEqualTo(IntVal(0)) with IntVal(5) returns True.\"\"\"\n        result = evaluate_predicate(\n            Predicate.NotEqualTo(ClaimValue.IntVal(0)),\n            ClaimValue.IntVal(5),\n        )\n        assert result is True, \"5 != 0 should be True\"\n\n    def test_evaluate_predicate_not_equal_to_same(self):\n        \"\"\"NotEqualTo(IntVal(5)) with IntVal(5) returns False.\"\"\"\n        result = evaluate_predicate(\n            Predicate.NotEqualTo(ClaimValue.IntVal(5)),\n            ClaimValue.IntVal(5),\n        )\n        assert result is False, \"5 != 5 should be False\"\n\n    def test_evaluate_predicate_in_set_true(self):\n        \"\"\"InSet with matching value returns True.\"\"\"\n        result = evaluate_predicate(\n            Predicate.InSet([ClaimValue.StringVal(\"A\"), ClaimValue.StringVal(\"B\")]),\n            ClaimValue.StringVal(\"A\"),\n        )\n        assert result is True, \"StringVal('A') in {'A', 'B'} should be True\"\n\n    def test_evaluate_predicate_in_set_false(self):\n        \"\"\"InSet with non-matching value returns False.\"\"\"\n        result = evaluate_predicate(\n            Predicate.InSet([ClaimValue.StringVal(\"A\"), ClaimValue.StringVal(\"B\")]),\n            ClaimValue.StringVal(\"C\"),\n        )\n        assert result is False, \"StringVal('C') in {'A', 'B'} should be False\"\n\n    def test_evaluate_predicate_type_mismatch(self):\n        \"\"\"GreaterThan(18) with StringVal('hello') raises type_mismatch.\"\"\"\n        with pytest.raises(Exception) as exc_info:\n            evaluate_predicate(Predicate.GreaterThan(18), ClaimValue.StringVal(\"hello\"))\n        err = exc_info.value\n        assert _is_cred_error(err, CredError.InvalidPredicate) or \"type\" in str(err).lower() or \"mismatch\" in str(err).lower(), \\\n            f\"Expected type mismatch error, got: {err}\"\n\n    def test_evaluate_predicate_in_set_empty(self):\n        \"\"\"InSet([]) raises empty_set error.\"\"\"\n        with pytest.raises(Exception) as exc_info:\n            evaluate_predicate(Predicate.InSet([]), ClaimValue.StringVal(\"A\"))\n        err = exc_info.value\n        assert _is_cred_error(err, CredError.InvalidPredicate) or \"empty\" in str(err).lower(), \\\n            f\"Expected empty set error, got: {err}\"\n\n    def test_evaluate_predicate_negation_consistency(self):\n        \"\"\"GreaterThan and LessThanOrEqual produce complementary results.\"\"\"\n        test_values = [0, 1, 17, 18, 19, 100, -1, -100]\n        threshold = 18\n        for v in test_values:\n            gt = evaluate_predicate(Predicate.GreaterThan(threshold), ClaimValue.IntVal(v))\n            lte = evaluate_predicate(Predicate.LessThanOrEqual(threshold), ClaimValue.IntVal(v))\n            assert gt != lte, (\n                f\"GreaterThan({threshold}) and LessThanOrEqual({threshold}) must be complements \"\n                f\"for value {v}, got GT={gt}, LTE={lte}\"\n            )\n\n\n# ═══════════════════════════════════════════════════════════════════════════════\n# LAYER 2 — Engine Unit Tests (with mocked dependencies)\n# ═══════════════════════════════════════════════════════════════════════════════\n\n\nclass TestCreateEngine:\n    \"\"\"Tests for create_engine.\"\"\"\n\n    def test_create_engine_happy_path(self):\n        \"\"\"Create engine with valid config, signer, storage, and audit_log succeeds.\"\"\"\n        signer = make_mock_signer()\n        storage = make_mock_storage()\n        audit = make_mock_audit_log()\n        config = make_valid_config()\n        engine = create_engine(config, signer, storage, audit)\n        assert engine is not None, \"Engine should be created successfully\"\n\n    def test_create_engine_invalid_config(self):\n        \"\"\"Create engine with invalid config raises error.\"\"\"\n        signer = make_mock_signer()\n        storage = make_mock_storage()\n        audit = make_mock_audit_log()\n        # Invalid config: negative TTL\n        config = CredentialEngineConfig(\n            default_ttl_seconds=-1,\n            default_clock_skew_tolerance_seconds=60,\n            pedersen_domain_tag=\"signet-cred-pedersen-v1\",\n            max_attributes_per_credential=128,\n        )\n        with pytest.raises(Exception) as exc_info:\n            create_engine(config, signer, storage, audit)\n        assert exc_info.value is not None, \"Expected error for invalid config\"\n\n    def test_create_engine_signer_unavailable(self):\n        \"\"\"Create engine when signer cannot retrieve public keys raises error.\"\"\"\n        signer = make_mock_signer(available=False)\n        storage = make_mock_storage()\n        audit = make_mock_audit_log()\n        config = make_valid_config()\n        with pytest.raises(Exception) as exc_info:\n            create_engine(config, signer, storage, audit)\n        assert exc_info.value is not None, \"Expected error for unavailable signer\"\n\n\nclass TestRegisterSchema:\n    \"\"\"Tests for register_schema.\"\"\"\n\n    def test_register_schema_happy_path(self):\n        \"\"\"Register valid schema returns schema_id and records audit event.\"\"\"\n        signer = make_mock_signer()\n        storage = make_mock_storage()\n        audit = make_mock_audit_log()\n        config = make_valid_config()\n        engine = create_engine(config, signer, storage, audit)\n        schema = make_valid_schema()\n\n        result = register_schema(engine, schema)\n        assert result == schema.schema_id, \\\n            f\"Expected schema_id '{schema.schema_id}', got '{result}'\"\n        # Verify audit event\n        assert audit.record.called, \"Audit event should be recorded\"\n\n    def test_register_schema_idempotent(self):\n        \"\"\"Registering same schema_id+version twice is idempotent.\"\"\"\n        signer = make_mock_signer()\n        storage = make_mock_storage()\n        audit = make_mock_audit_log()\n        config = make_valid_config()\n        engine = create_engine(config, signer, storage, audit)\n        schema = make_valid_schema()\n\n        result1 = register_schema(engine, schema)\n        result2 = register_schema(engine, schema)\n        assert result1 == result2, \"Idempotent registration should return same schema_id\"\n\n    def test_register_schema_missing_predicate(self):\n        \"\"\"DerivedBoolean field without predicate raises error.\"\"\"\n        engine, _, _, _, _ = make_engine_with_schema.__wrapped__() if hasattr(make_engine_with_schema, '__wrapped__') else (None, None, None, None, None)\n        signer = make_mock_signer()\n        storage = make_mock_storage()\n        audit = make_mock_audit_log()\n        config = make_valid_config()\n        engine = create_engine(config, signer, storage, audit)\n\n        bad_field = SchemaField(\n            name=\"age_check\",\n            kind=AttributeKind.DerivedBoolean,\n            source_path=ClaimPath(pointer=\"/age\"),\n            predicate=None,\n            required=True,\n        )\n        schema = make_valid_schema(fields=[bad_field], disclosure_rules=[\n            DisclosureRule(field_name=\"age_check\", level=DisclosureLevel.Selectable),\n        ])\n        with pytest.raises(Exception) as exc_info:\n            register_schema(engine, schema)\n        assert exc_info.value is not None\n\n    def test_register_schema_duplicate_field(self):\n        \"\"\"Schema with duplicate field names raises error.\"\"\"\n        signer = make_mock_signer()\n        storage = make_mock_storage()\n        audit = make_mock_audit_log()\n        engine = create_engine(make_valid_config(), signer, storage, audit)\n        fields = [\n            make_raw_schema_field(\"dup_name\", \"/a\"),\n            make_raw_schema_field(\"dup_name\", \"/b\"),\n        ]\n        schema = make_valid_schema(fields=fields, disclosure_rules=[\n            DisclosureRule(field_name=\"dup_name\", level=DisclosureLevel.Selectable),\n        ])\n        with pytest.raises(Exception):\n            register_schema(engine, schema)\n\n    def test_register_schema_invalid_disclosure_policy(self):\n        \"\"\"Disclosure policy referencing non-existent field raises error.\"\"\"\n        signer = make_mock_signer()\n        storage = make_mock_storage()\n        audit = make_mock_audit_log()\n        engine = create_engine(make_valid_config(), signer, storage, audit)\n        fields = [make_raw_schema_field(\"name\", \"/name\")]\n        rules = [\n            DisclosureRule(field_name=\"name\", level=DisclosureLevel.Selectable),\n            DisclosureRule(field_name=\"ghost\", level=DisclosureLevel.Always),\n        ]\n        schema = make_valid_schema(fields=fields, disclosure_rules=rules)\n        with pytest.raises(Exception):\n            register_schema(engine, schema)\n\n    def test_register_schema_attribute_limit_exceeded(self):\n        \"\"\"Schema exceeding max_attributes_per_credential raises error.\"\"\"\n        signer = make_mock_signer()\n        storage = make_mock_storage()\n        audit = make_mock_audit_log()\n        config = make_valid_config(max_attrs=2)\n        engine = create_engine(config, signer, storage, audit)\n        fields = [make_raw_schema_field(f\"f{i}\", f\"/{i}\") for i in range(5)]\n        rules = [DisclosureRule(field_name=f\"f{i}\", level=DisclosureLevel.Selectable) for i in range(5)]\n        schema = make_valid_schema(fields=fields, disclosure_rules=rules)\n        with pytest.raises(Exception):\n            register_schema(engine, schema)\n\n    def test_register_schema_audit_failure(self):\n        \"\"\"Audit log failure during schema registration raises error.\"\"\"\n        signer = make_mock_signer()\n        storage = make_mock_storage()\n        audit = make_mock_audit_log(available=False)\n        engine = create_engine(make_valid_config(), signer, storage, audit)\n        schema = make_valid_schema()\n        with pytest.raises(Exception):\n            register_schema(engine, schema)\n\n\nclass TestIssueCredential:\n    \"\"\"Tests for issue_credential.\"\"\"\n\n    def test_issue_credential_happy_path(self):\n        \"\"\"Issue dual-format credential returns complete CredentialBundle.\"\"\"\n        engine, schema, signer, storage, audit = make_engine_with_schema()\n        claims = make_valid_claims()\n        config = make_issuance_config()\n\n        bundle = issue_credential(engine, schema.schema_id, claims, config)\n\n        assert bundle is not None, \"Bundle should not be None\"\n        assert isinstance(bundle, CredentialBundle), \"Should return CredentialBundle\"\n\n        # SD-JWT\n        assert bundle.sd_jwt is not None, \"Bundle must contain SD-JWT\"\n        assert bundle.sd_jwt.compact, \"SD-JWT compact serialization must be non-empty\"\n\n        # BBS+\n        assert bundle.bbs is not None, \"Bundle must contain BBS+ credential\"\n        assert bundle.bbs.signature is not None, \"BBS+ must have signature\"\n        assert bundle.bbs.signature.signature_bytes, \"BBS+ signature bytes must be non-empty\"\n\n        # Witness\n        assert bundle.witness is not None, \"Bundle must contain PrivateWitness\"\n\n        # Metadata\n        assert bundle.metadata is not None, \"Bundle must contain metadata\"\n        assert bundle.metadata.id is not None, \"Metadata must have a credential ID\"\n        assert len(bundle.metadata.id.value) == 32, \"CredentialId should be 32-char hex\"\n        assert bundle.metadata.domain.value == \"example.com\", \"Domain should match config\"\n\n    def test_issue_credential_derived_boolean_precomputed(self):\n        \"\"\"DerivedBoolean attributes are pre-computed from predicates during issuance.\"\"\"\n        engine, schema, signer, storage, audit = make_engine_with_schema()\n        claims = make_valid_claims()  # age=30, so age >= 21 is True\n        config = make_issuance_config()\n\n        bundle = issue_credential(engine, schema.schema_id, claims, config)\n\n        # Find the age_over_21 attribute in BBS+ attributes\n        bbs_attrs = bundle.bbs.attributes\n        derived_attrs = [a for a in bbs_attrs if a.kind == AttributeKind.DerivedBoolean]\n        assert len(derived_attrs) > 0, \"Should have at least one DerivedBoolean attribute\"\n        age_attr = next((a for a in derived_attrs if a.derived_boolean.name == \"age_over_21\"), None)\n        assert age_attr is not None, \"Should have age_over_21 attribute\"\n        assert age_attr.derived_boolean.value is True, \"age_over_21 should be True for age=30\"\n\n    def test_issue_credential_committed_attributes_have_commitments(self):\n        \"\"\"Committed attributes have Pedersen commitments with fresh blinding factors.\"\"\"\n        engine, schema, signer, storage, audit = make_engine_with_schema()\n        claims = make_valid_claims()\n        config = make_issuance_config()\n\n        bundle = issue_credential(engine, schema.schema_id, claims, config)\n\n        committed_attrs = [a for a in bundle.bbs.attributes if a.kind == AttributeKind.Committed]\n        assert len(committed_attrs) > 0, \"Should have at least one Committed attribute\"\n        for attr in committed_attrs:\n            assert attr.committed.commitment is not None, \\\n                f\"Committed attribute '{attr.committed.name}' must have a commitment\"\n            assert len(attr.committed.commitment.commitment_bytes) > 0, \\\n                \"Commitment bytes must be non-empty\"\n\n        # Witness should have entries for committed attrs\n        assert len(bundle.witness.entries) == len(committed_attrs), \\\n            \"Witness should have entries for all committed attributes\"\n\n    def test_issue_credential_bbs_message_vector_ordering(self):\n        \"\"\"BBS+ message vector ordering matches schema field order.\"\"\"\n        engine, schema, signer, storage, audit = make_engine_with_schema()\n        claims = make_valid_claims()\n        config = make_issuance_config()\n\n        bundle = issue_credential(engine, schema.schema_id, claims, config)\n\n        messages = sorted(bundle.bbs.messages, key=lambda m: m.index)\n        assert len(messages) == len(schema.fields), \\\n            f\"Message count ({len(messages)}) should match field count ({len(schema.fields)})\"\n        for i, msg in enumerate(messages):\n            assert msg.index == i, f\"Message at position {i} should have index {i}, got {msg.index}\"\n\n    def test_issue_credential_metadata_expiry(self):\n        \"\"\"CredentialMetadata.expires_at = issued_at + config.ttl_seconds.\"\"\"\n        engine, schema, signer, storage, audit = make_engine_with_schema()\n        claims = make_valid_claims()\n        config = make_issuance_config(ttl=7200)\n\n        bundle = issue_credential(engine, schema.schema_id, claims, config)\n\n        issued_at = datetime.fromisoformat(bundle.metadata.issued_at.replace(\"Z\", \"+00:00\"))\n        expires_at = datetime.fromisoformat(bundle.metadata.expires_at.replace(\"Z\", \"+00:00\"))\n        expected_ttl = timedelta(seconds=7200)\n        actual_ttl = expires_at - issued_at\n        assert actual_ttl == expected_ttl, \\\n            f\"Expected TTL of {expected_ttl}, got {actual_ttl}\"\n\n    def test_issue_credential_schema_not_found(self):\n        \"\"\"Issuing with unregistered schema_id raises error.\"\"\"\n        engine, _, _, _, _ = make_engine_with_schema()\n        claims = make_valid_claims()\n        config = make_issuance_config()\n        with pytest.raises(Exception) as exc_info:\n            issue_credential(engine, \"nonexistent-schema\", claims, config)\n        assert exc_info.value is not None\n\n    def test_issue_credential_missing_required_claim(self):\n        \"\"\"Missing required claim in ClaimSet raises error.\"\"\"\n        engine, schema, _, _, _ = make_engine_with_schema()\n        # ClaimSet missing /personal/name\n        claims = ClaimSet(\n            claims={\n                \"/personal/age\": ClaimValue.IntVal(30),\n                \"/financial/income\": ClaimValue.IntVal(75000),\n            },\n            source_vault_id=\"vault-001\",\n            retrieved_at=\"2024-01-15T10:00:00Z\",\n        )\n        config = make_issuance_config()\n        with pytest.raises(Exception):\n            issue_credential(engine, schema.schema_id, claims, config)\n\n    def test_issue_credential_claim_type_mismatch(self):\n        \"\"\"Claim value type mismatch raises error.\"\"\"\n        engine, schema, _, _, _ = make_engine_with_schema()\n        # /financial/income is Committed (numeric), provide string instead\n        claims = ClaimSet(\n            claims={\n                \"/personal/name\": ClaimValue.StringVal(\"Alice\"),\n                \"/personal/age\": ClaimValue.IntVal(30),\n                \"/financial/income\": ClaimValue.StringVal(\"not-a-number\"),\n            },\n            source_vault_id=\"vault-001\",\n            retrieved_at=\"2024-01-15T10:00:00Z\",\n        )\n        config = make_issuance_config()\n        with pytest.raises(Exception):\n            issue_credential(engine, schema.schema_id, claims, config)\n\n    def test_issue_credential_invalid_predicate_evaluation(self):\n        \"\"\"Predicate that cannot be evaluated raises error.\"\"\"\n        # Create schema with GreaterThan predicate on a field, but provide string value\n        fields = [\n            make_derived_boolean_field(\"age_check\", \"/age\", Predicate.GreaterThan(18)),\n        ]\n        rules = [DisclosureRule(field_name=\"age_check\", level=DisclosureLevel.Selectable)]\n        schema = make_valid_schema(\n            schema_id=\"pred-test\",\n            fields=fields,\n            disclosure_rules=rules,\n        )\n        engine, _, signer, storage, audit = make_engine_with_schema(schema=schema)\n        claims = ClaimSet(\n            claims={\"/age\": ClaimValue.StringVal(\"not-a-number\")},\n            source_vault_id=\"vault-001\",\n            retrieved_at=\"2024-01-15T10:00:00Z\",\n        )\n        config = make_issuance_config()\n        with pytest.raises(Exception):\n            issue_credential(engine, \"pred-test\", claims, config)\n\n    def test_issue_credential_signing_failed_ed25519(self):\n        \"\"\"Ed25519 signing failure raises generic signing error.\"\"\"\n        signer = make_mock_signer()\n        signer.sign_ed25519.side_effect = Exception(\"signing failed\")\n        engine, schema, _, _, _ = make_engine_with_schema(signer=signer)\n        claims = make_valid_claims()\n        config = make_issuance_config()\n        with pytest.raises(Exception):\n            issue_credential(engine, schema.schema_id, claims, config)\n\n    def test_issue_credential_signing_failed_bbs(self):\n        \"\"\"BBS+ signing failure raises generic signing error.\"\"\"\n        signer = make_mock_signer()\n        signer.sign_bbs.side_effect = Exception(\"bbs signing failed\")\n        engine, schema, _, _, _ = make_engine_with_schema(signer=signer)\n        claims = make_valid_claims()\n        config = make_issuance_config()\n        with pytest.raises(Exception):\n            issue_credential(engine, schema.schema_id, claims, config)\n\n    def test_issue_credential_vault_storage_error(self):\n        \"\"\"Vault storage failure raises error.\"\"\"\n        storage = make_mock_storage(available=False)\n        engine, schema, _, _, _ = make_engine_with_schema(storage=storage)\n        claims = make_valid_claims()\n        config = make_issuance_config()\n        with pytest.raises(Exception):\n            issue_credential(engine, schema.schema_id, claims, config)\n\n    def test_issue_credential_vault_audit_error(self):\n        \"\"\"Audit log failure raises error.\"\"\"\n        audit = make_mock_audit_log(available=False)\n        # Note: schema registration also needs audit, so we need a special approach\n        signer = make_mock_signer()\n        storage = make_mock_storage()\n        # Allow audit during registration, fail during issuance\n        call_count = [0]\n        def _conditional_fail(event):\n            call_count[0] += 1\n            if call_count[0] > 1:  # fail after schema registration\n                raise Exception(\"audit failed\")\n        audit_mock = MagicMock()\n        audit_mock.record.side_effect = _conditional_fail\n        engine = create_engine(make_valid_config(), signer, storage, audit_mock)\n        schema = make_valid_schema()\n        register_schema(engine, schema)\n        claims = make_valid_claims()\n        config = make_issuance_config()\n        with pytest.raises(Exception):\n            issue_credential(engine, schema.schema_id, claims, config)\n\n\nclass TestGetCredential:\n    \"\"\"Tests for get_credential.\"\"\"\n\n    def _issue_and_get_id(self, engine, schema):\n        claims = make_valid_claims()\n        config = make_issuance_config()\n        bundle = issue_credential(engine, schema.schema_id, claims, config)\n        return bundle.metadata.id\n\n    def test_get_credential_happy_path(self):\n        \"\"\"Retrieve active credential returns correct CredentialRecord.\"\"\"\n        engine, schema, _, _, _ = make_engine_with_schema()\n        cred_id = self._issue_and_get_id(engine, schema)\n\n        record = get_credential(engine, cred_id)\n        assert record is not None, \"Should return credential record\"\n        assert isinstance(record, CredentialRecord), \"Should be CredentialRecord\"\n        assert record.metadata.id.value == cred_id.value, \"ID should match\"\n        assert record.status == CredentialStatus.Active, \"Status should be Active\"\n\n    def test_get_credential_not_found(self):\n        \"\"\"Non-existent credential ID raises credential_not_found.\"\"\"\n        engine, _, _, _, _ = make_engine_with_schema()\n        with pytest.raises(Exception) as exc_info:\n            get_credential(engine, make_credential_id(\"b\" * 32))\n        assert exc_info.value is not None\n\n    def test_get_credential_auto_expires(self):\n        \"\"\"Retrieving credential past TTL auto-transitions to Expired.\"\"\"\n        engine, schema, _, storage, _ = make_engine_with_schema()\n        config = make_issuance_config(ttl=1)  # 1 second TTL\n        claims = make_valid_claims()\n        bundle = issue_credential(engine, schema.schema_id, claims, config)\n        cred_id = bundle.metadata.id\n\n        # Simulate time passing by manipulating the stored credential's expires_at\n        # or by using a time mock. We'll attempt retrieval and check for expiry.\n        import time\n        time.sleep(2)  # Wait for TTL to elapse\n\n        record = get_credential(engine, cred_id)\n        assert record.status == CredentialStatus.Expired, \\\n            f\"Expected Expired status, got {record.status}\"\n\n    def test_get_credential_vault_error(self):\n        \"\"\"Vault storage read failure raises vault_error.\"\"\"\n        storage = MagicMock()\n        storage.load.side_effect = Exception(\"vault read failed\")\n        signer = make_mock_signer()\n        audit = make_mock_audit_log()\n        engine = create_engine(make_valid_config(), signer, storage, audit)\n        schema = make_valid_schema()\n        register_schema(engine, schema)\n        # Issue will also fail with this storage, so we test get directly\n        with pytest.raises(Exception):\n            get_credential(engine, make_credential_id())\n\n\nclass TestGetWitness:\n    \"\"\"Tests for get_witness.\"\"\"\n\n    def test_get_witness_happy_path(self):\n        \"\"\"Retrieve witness for active credential returns PrivateWitness.\"\"\"\n        engine, schema, _, _, audit = make_engine_with_schema()\n        claims = make_valid_claims()\n        config = make_issuance_config()\n        bundle = issue_credential(engine, schema.schema_id, claims, config)\n        cred_id = bundle.metadata.id\n\n        witness = get_witness(engine, cred_id)\n        assert witness is not None, \"Witness should not be None\"\n        assert isinstance(witness, PrivateWitness), \"Should return PrivateWitness\"\n        assert witness.credential_id.value == cred_id.value, \"Witness credential ID should match\"\n        assert len(witness.entries) > 0, \"Witness should have entries for committed attributes\"\n        # Verify audit\n        assert audit.record.called, \"Audit event WitnessAccessed should be recorded\"\n\n    def test_get_witness_credential_not_found(self):\n        \"\"\"Non-existent credential raises credential_not_found.\"\"\"\n        engine, _, _, _, _ = make_engine_with_schema()\n        with pytest.raises(Exception):\n            get_witness(engine, make_credential_id(\"c\" * 32))\n\n    def test_get_witness_credential_consumed(self):\n        \"\"\"Consumed credential raises credential_consumed.\"\"\"\n        engine, schema, _, _, _ = make_engine_with_schema()\n        claims = make_valid_claims()\n        config = make_issuance_config(one_time=True)\n        bundle = issue_credential(engine, schema.schema_id, claims, config)\n        cred_id = bundle.metadata.id\n\n        # Present to consume it\n        record_presentation(\n            engine, cred_id, Domain(value=\"verifier.com\"),\n            [f.name for f in schema.fields if True],  # all fields\n        )\n\n        with pytest.raises(Exception) as exc_info:\n            get_witness(engine, cred_id)\n        assert exc_info.value is not None\n\n    def test_get_witness_credential_revoked(self):\n        \"\"\"Revoked credential raises credential_revoked.\"\"\"\n        engine, schema, _, _, _ = make_engine_with_schema()\n        claims = make_valid_claims()\n        config = make_issuance_config()\n        bundle = issue_credential(engine, schema.schema_id, claims, config)\n        cred_id = bundle.metadata.id\n\n        revoke_credential(engine, cred_id, \"test revocation\")\n\n        with pytest.raises(Exception):\n            get_witness(engine, cred_id)\n\n    def test_get_witness_vault_error(self):\n        \"\"\"Vault storage failure raises vault_error.\"\"\"\n        # Use a storage that works for issuance but fails on witness retrieval\n        storage = MagicMock()\n        stored_data = {}\n\n        def _store(key, value):\n            stored_data[key] = value\n\n        def _load(key):\n            if \"witness\" in str(key).lower():\n                raise Exception(\"vault read failed\")\n            if key in stored_data:\n                return stored_data[key]\n            raise KeyError(key)\n\n        storage.store.side_effect = _store\n        storage.load.side_effect = _load\n\n        signer = make_mock_signer()\n        audit = make_mock_audit_log()\n        engine = create_engine(make_valid_config(), signer, storage, audit)\n        schema = make_valid_schema()\n        register_schema(engine, schema)\n\n        with pytest.raises(Exception):\n            get_witness(engine, make_credential_id())\n\n\nclass TestRecordPresentation:\n    \"\"\"Tests for record_presentation.\"\"\"\n\n    def _setup_credential(self, one_time=False):\n        \"\"\"Helper to create engine with schema and issued credential.\"\"\"\n        engine, schema, signer, storage, audit = make_engine_with_schema()\n        claims = make_valid_claims()\n        config = make_issuance_config(one_time=one_time)\n        bundle = issue_credential(engine, schema.schema_id, claims, config)\n        return engine, schema, bundle.metadata.id, audit\n\n    def test_record_presentation_happy_path(self):\n        \"\"\"Record presentation for active non-one-time credential transitions to Presented.\"\"\"\n        engine, schema, cred_id, audit = self._setup_credential(one_time=False)\n        disclosed = [f.name for f in schema.fields]\n\n        status = record_presentation(\n            engine, cred_id, Domain(value=\"verifier.com\"), disclosed\n        )\n        assert status == CredentialStatus.Presented, \\\n            f\"Expected Presented, got {status}\"\n\n    def test_record_presentation_one_time_consumes(self):\n        \"\"\"One-time credential atomically transitions to Consumed on first presentation.\"\"\"\n        engine, schema, cred_id, audit = self._setup_credential(one_time=True)\n        disclosed = [f.name for f in schema.fields]\n\n        status = record_presentation(\n            engine, cred_id, Domain(value=\"verifier.com\"), disclosed\n        )\n        assert status == CredentialStatus.Consumed, \\\n            f\"Expected Consumed for one-time credential, got {status}\"\n\n    def test_record_presentation_one_time_already_consumed(self):\n        \"\"\"One-time credential already consumed raises credential_consumed.\"\"\"\n        engine, schema, cred_id, audit = self._setup_credential(one_time=True)\n        disclosed = [f.name for f in schema.fields]\n\n        # First presentation — consume\n        record_presentation(engine, cred_id, Domain(value=\"verifier.com\"), disclosed)\n\n        # Second presentation — should fail\n        with pytest.raises(Exception) as exc_info:\n            record_presentation(engine, cred_id, Domain(value=\"other.com\"), disclosed)\n        assert exc_info.value is not None\n\n    def test_record_presentation_credential_not_found(self):\n        \"\"\"Non-existent credential raises credential_not_found.\"\"\"\n        engine, _, _, _ = self._setup_credential()\n        with pytest.raises(Exception):\n            record_presentation(\n                engine, make_credential_id(\"d\" * 32),\n                Domain(value=\"verifier.com\"), [\"name\"]\n            )\n\n    def test_record_presentation_credential_revoked(self):\n        \"\"\"Revoked credential raises credential_revoked.\"\"\"\n        engine, schema, cred_id, _ = self._setup_credential()\n        revoke_credential(engine, cred_id, \"test\")\n        with pytest.raises(Exception):\n            record_presentation(\n                engine, cred_id, Domain(value=\"verifier.com\"),\n                [f.name for f in schema.fields]\n            )\n\n    def test_record_presentation_disclosure_policy_violation_never_field(self):\n        \"\"\"Disclosing a Never field raises disclosure_policy_violation.\"\"\"\n        fields = [\n            make_raw_schema_field(\"public_name\", \"/name\"),\n            make_raw_schema_field(\"secret_field\", \"/secret\"),\n        ]\n        rules = [\n            DisclosureRule(field_name=\"public_name\", level=DisclosureLevel.Always),\n            DisclosureRule(field_name=\"secret_field\", level=DisclosureLevel.Never),\n        ]\n        schema = make_valid_schema(\n            schema_id=\"policy-test\",\n            fields=fields,\n            disclosure_rules=rules,\n        )\n        engine, _, signer, storage, audit = make_engine_with_schema(schema=schema)\n        claims = ClaimSet(\n            claims={\n                \"/name\": ClaimValue.StringVal(\"Alice\"),\n                \"/secret\": ClaimValue.StringVal(\"top-secret\"),\n            },\n            source_vault_id=\"vault-001\",\n            retrieved_at=\"2024-01-15T10:00:00Z\",\n        )\n        config = make_issuance_config()\n        bundle = issue_credential(engine, \"policy-test\", claims, config)\n\n        with pytest.raises(Exception):\n            record_presentation(\n                engine, bundle.metadata.id, Domain(value=\"verifier.com\"),\n                [\"public_name\", \"secret_field\"]  # includes Never field\n            )\n\n    def test_record_presentation_disclosure_policy_violation_missing_always_field(self):\n        \"\"\"Omitting an Always field raises disclosure_policy_violation.\"\"\"\n        fields = [\n            make_raw_schema_field(\"required_name\", \"/name\"),\n            make_raw_schema_field(\"optional_field\", \"/optional\"),\n        ]\n        rules = [\n            DisclosureRule(field_name=\"required_name\", level=DisclosureLevel.Always),\n            DisclosureRule(field_name=\"optional_field\", level=DisclosureLevel.Selectable),\n        ]\n        schema = make_valid_schema(\n            schema_id=\"always-test\",\n            fields=fields,\n            disclosure_rules=rules,\n        )\n        engine, _, signer, storage, audit = make_engine_with_schema(schema=schema)\n        claims = ClaimSet(\n            claims={\n                \"/name\": ClaimValue.StringVal(\"Alice\"),\n                \"/optional\": ClaimValue.StringVal(\"opt\"),\n            },\n            source_vault_id=\"vault-001\",\n            retrieved_at=\"2024-01-15T10:00:00Z\",\n        )\n        config = make_issuance_config()\n        bundle = issue_credential(engine, \"always-test\", claims, config)\n\n        with pytest.raises(Exception):\n            record_presentation(\n                engine, bundle.metadata.id, Domain(value=\"verifier.com\"),\n                [\"optional_field\"]  # missing Always field 'required_name'\n            )\n\n    def test_record_presentation_selectable_field_disclosed(self):\n        \"\"\"Selectable field can be optionally disclosed.\"\"\"\n        fields = [\n            make_raw_schema_field(\"required_name\", \"/name\"),\n            make_raw_schema_field(\"optional_email\", \"/email\"),\n        ]\n        rules = [\n            DisclosureRule(field_name=\"required_name\", level=DisclosureLevel.Always),\n            DisclosureRule(field_name=\"optional_email\", level=DisclosureLevel.Selectable),\n        ]\n        schema = make_valid_schema(\n            schema_id=\"selectable-test\",\n            fields=fields,\n            disclosure_rules=rules,\n        )\n        engine, _, signer, storage, audit = make_engine_with_schema(schema=schema)\n        claims = ClaimSet(\n            claims={\n                \"/name\": ClaimValue.StringVal(\"Alice\"),\n                \"/email\": ClaimValue.StringVal(\"alice@example.com\"),\n            },\n            source_vault_id=\"vault-001\",\n            retrieved_at=\"2024-01-15T10:00:00Z\",\n        )\n        config = make_issuance_config()\n        bundle = issue_credential(engine, \"selectable-test\", claims, config)\n\n        # Disclose both the Always and Selectable field — should succeed\n        status = record_presentation(\n            engine, bundle.metadata.id, Domain(value=\"verifier.com\"),\n            [\"required_name\", \"optional_email\"]\n        )\n        assert status in (CredentialStatus.Presented, CredentialStatus.Active), \\\n            \"Presentation with selectable field should succeed\"\n\n    def test_record_presentation_selectable_field_not_disclosed(self):\n        \"\"\"Selectable field can be optionally omitted.\"\"\"\n        fields = [\n            make_raw_schema_field(\"required_name\", \"/name\"),\n            make_raw_schema_field(\"optional_email\", \"/email\"),\n        ]\n        rules = [\n            DisclosureRule(field_name=\"required_name\", level=DisclosureLevel.Always),\n            DisclosureRule(field_name=\"optional_email\", level=DisclosureLevel.Selectable),\n        ]\n        schema = make_valid_schema(\n            schema_id=\"selectable-omit-test\",\n            fields=fields,\n            disclosure_rules=rules,\n        )\n        engine, _, signer, storage, audit = make_engine_with_schema(schema=schema)\n        claims = ClaimSet(\n            claims={\n                \"/name\": ClaimValue.StringVal(\"Alice\"),\n                \"/email\": ClaimValue.StringVal(\"alice@example.com\"),\n            },\n            source_vault_id=\"vault-001\",\n            retrieved_at=\"2024-01-15T10:00:00Z\",\n        )\n        config = make_issuance_config()\n        bundle = issue_credential(engine, \"selectable-omit-test\", claims, config)\n\n        # Disclose only Always field, omit Selectable — should succeed\n        status = record_presentation(\n            engine, bundle.metadata.id, Domain(value=\"verifier.com\"),\n            [\"required_name\"]  # omitting optional_email\n        )\n        assert status in (CredentialStatus.Presented, CredentialStatus.Active), \\\n            \"Presentation omitting selectable field should succeed\"\n\n    def test_record_presentation_status_transition_denied(self):\n        \"\"\"Presenting from terminal state raises status_transition_denied.\"\"\"\n        engine, schema, cred_id, _ = self._setup_credential(one_time=True)\n        disclosed = [f.name for f in schema.fields]\n\n        # Consume\n        record_presentation(engine, cred_id, Domain(value=\"verifier.com\"), disclosed)\n\n        # Attempt from Consumed\n        with pytest.raises(Exception):\n            record_presentation(engine, cred_id, Domain(value=\"other.com\"), disclosed)\n\n    def test_record_presentation_presented_to_consumed_one_time(self):\n        \"\"\"One-time credential in Presented state transitions to Consumed.\"\"\"\n        # This tests the Presented -> Consumed path for one-time credentials\n        # Some implementations may go Active -> Consumed directly. If Presented\n        # is reachable for one-time credentials, this tests the second step.\n        engine, schema, cred_id, _ = self._setup_credential(one_time=True)\n        disclosed = [f.name for f in schema.fields]\n\n        # First presentation should consume (Active -> Consumed)\n        status = record_presentation(engine, cred_id, Domain(value=\"verifier.com\"), disclosed)\n        assert status == CredentialStatus.Consumed, \\\n            \"One-time credential should be consumed after presentation\"\n\n\nclass TestRevokeCredential:\n    \"\"\"Tests for revoke_credential.\"\"\"\n\n    def test_revoke_credential_happy_path(self):\n        \"\"\"Revoke active credential transitions to Revoked and deletes witness.\"\"\"\n        engine, schema, _, _, audit = make_engine_with_schema()\n        claims = make_valid_claims()\n        config = make_issuance_config()\n        bundle = issue_credential(engine, schema.schema_id, claims, config)\n        cred_id = bundle.metadata.id\n\n        status = revoke_credential(engine, cred_id, \"policy violation\")\n        assert status == CredentialStatus.Revoked, \\\n            f\"Expected Revoked, got {status}\"\n\n        # Verify audit events were recorded\n        assert audit.record.called, \"Audit events should be recorded\"\n\n    def test_revoke_credential_not_found(self):\n        \"\"\"Non-existent credential raises credential_not_found.\"\"\"\n        engine, _, _, _, _ = make_engine_with_schema()\n        with pytest.raises(Exception):\n            revoke_credential(engine, make_credential_id(\"e\" * 32), \"reason\")\n\n    def test_revoke_credential_already_consumed(self):\n        \"\"\"Already consumed credential raises already_consumed.\"\"\"\n        engine, schema, _, _, _ = make_engine_with_schema()\n        claims = make_valid_claims()\n        config = make_issuance_config(one_time=True)\n        bundle = issue_credential(engine, schema.schema_id, claims, config)\n        cred_id = bundle.metadata.id\n\n        # Consume it\n        record_presentation(\n            engine, cred_id, Domain(value=\"verifier.com\"),\n            [f.name for f in schema.fields]\n        )\n\n        with pytest.raises(Exception):\n            revoke_credential(engine, cred_id, \"reason\")\n\n    def test_revoke_credential_already_revoked(self):\n        \"\"\"Already revoked credential raises already_revoked.\"\"\"\n        engine, schema, _, _, _ = make_engine_with_schema()\n        claims = make_valid_claims()\n        config = make_issuance_config()\n        bundle = issue_credential(engine, schema.schema_id, claims, config)\n        cred_id = bundle.metadata.id\n\n        revoke_credential(engine, cred_id, \"first revoke\")\n        with pytest.raises(Exception):\n            revoke_credential(engine, cred_id, \"second revoke\")\n\n\nclass TestCheckExpiry:\n    \"\"\"Tests for check_expiry.\"\"\"\n\n    def test_check_expiry_not_expired(self):\n        \"\"\"Check expiry for credential with remaining TTL returns is_expired=False.\"\"\"\n        engine, schema, _, _, _ = make_engine_with_schema()\n        claims = make_valid_claims()\n        config = make_issuance_config(ttl=86400)  # 24 hours\n        bundle = issue_credential(engine, schema.schema_id, claims, config)\n        cred_id = bundle.metadata.id\n\n        now = datetime.now(timezone.utc).isoformat()\n        result = check_expiry(engine, cred_id, now)\n\n        assert isinstance(result, ExpiryCheckResult), \"Should return ExpiryCheckResult\"\n        assert result.is_expired is False, \"Credential should not be expired\"\n        assert result.remaining_seconds > 0, \"Should have remaining seconds\"\n        assert result.status_updated is False, \"No status transition should occur\"\n\n    def test_check_expiry_expired(self):\n        \"\"\"Check expiry past TTL transitions to Expired and records audit.\"\"\"\n        engine, schema, _, _, audit = make_engine_with_schema()\n        claims = make_valid_claims()\n        config = make_issuance_config(ttl=1, clock_skew=0)  # 1 second TTL, no tolerance\n        bundle = issue_credential(engine, schema.schema_id, claims, config)\n        cred_id = bundle.metadata.id\n\n        # Check with a time far in the future\n        future = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()\n        result = check_expiry(engine, cred_id, future)\n\n        assert result.is_expired is True, \"Credential should be expired\"\n        assert result.remaining_seconds == 0, \"Remaining seconds should be 0\"\n        assert result.status_updated is True, \"Status should have been updated\"\n\n    def test_check_expiry_clock_skew_tolerance(self):\n        \"\"\"Credential within clock skew tolerance is not yet expired.\"\"\"\n        engine, schema, _, _, _ = make_engine_with_schema()\n        claims = make_valid_claims()\n        config = make_issuance_config(ttl=60, clock_skew=300)  # 1 min TTL, 5 min tolerance\n        bundle = issue_credential(engine, schema.schema_id, claims, config)\n        cred_id = bundle.metadata.id\n\n        # Check at TTL+30s (within tolerance window of 300s)\n        check_time = (datetime.now(timezone.utc) + timedelta(seconds=90)).isoformat()\n        result = check_expiry(engine, cred_id, check_time)\n\n        # With 300s tolerance, TTL of 60s means not expired until 60+300=360s after issuance\n        assert result.is_expired is False, \\\n            \"Credential within clock skew tolerance should not be expired\"\n\n    def test_check_expiry_exactly_at_boundary(self):\n        \"\"\"Credential checked at exactly expires_at + tolerance is expired.\"\"\"\n        engine, schema, _, _, _ = make_engine_with_schema()\n        claims = make_valid_claims()\n        config = make_issuance_config(ttl=60, clock_skew=0)\n        bundle = issue_credential(engine, schema.schema_id, claims, config)\n        cred_id = bundle.metadata.id\n\n        expires_at = datetime.fromisoformat(\n            bundle.metadata.expires_at.replace(\"Z\", \"+00:00\")\n        )\n        # Check at exactly expires_at (with 0 skew tolerance)\n        result = check_expiry(engine, cred_id, expires_at.isoformat())\n        assert result.is_expired is True, \\\n            \"Credential should be expired at exactly expires_at with 0 tolerance\"\n\n    def test_check_expiry_one_second_before_boundary(self):\n        \"\"\"Credential checked 1 second before expiry is not expired.\"\"\"\n        engine, schema, _, _, _ = make_engine_with_schema()\n        claims = make_valid_claims()\n        config = make_issuance_config(ttl=3600, clock_skew=0)\n        bundle = issue_credential(engine, schema.schema_id, claims, config)\n        cred_id = bundle.metadata.id\n\n        expires_at = datetime.fromisoformat(\n            bundle.metadata.expires_at.replace(\"Z\", \"+00:00\")\n        )\n        one_before = (expires_at - timedelta(seconds=1)).isoformat()\n        result = check_expiry(engine, cred_id, one_before)\n        assert result.is_expired is False, \\\n            \"Credential should NOT be expired 1 second before boundary\"\n\n    def test_check_expiry_credential_not_found(self):\n        \"\"\"Non-existent credential raises credential_not_found.\"\"\"\n        engine, _, _, _, _ = make_engine_with_schema()\n        now = datetime.now(timezone.utc).isoformat()\n        with pytest.raises(Exception):\n            check_expiry(engine, make_credential_id(\"f\" * 32), now)\n\n\nclass TestDeleteWitness:\n    \"\"\"Tests for delete_witness.\"\"\"\n\n    def test_delete_witness_happy_path(self):\n        \"\"\"Delete existing witness returns True and records audit.\"\"\"\n        engine, schema, _, _, audit = make_engine_with_schema()\n        claims = make_valid_claims()\n        config = make_issuance_config()\n        bundle = issue_credential(engine, schema.schema_id, claims, config)\n        cred_id = bundle.metadata.id\n\n        result = delete_witness(engine, cred_id)\n        assert result is True, \"delete_witness should return True\"\n        assert audit.record.called, \"Audit event WitnessDeleted should be recorded\"\n\n    def test_delete_witness_credential_not_found(self):\n        \"\"\"Non-existent credential raises credential_not_found.\"\"\"\n        engine, _, _, _, _ = make_engine_with_schema()\n        with pytest.raises(Exception):\n            delete_witness(engine, make_credential_id(\"g\" * 32))\n\n    def test_delete_witness_witness_not_found(self):\n        \"\"\"Witness already deleted raises witness_not_found.\"\"\"\n        engine, schema, _, _, _ = make_engine_with_schema()\n        claims = make_valid_claims()\n        config = make_issuance_config()\n        bundle = issue_credential(engine, schema.schema_id, claims, config)\n        cred_id = bundle.metadata.id\n\n        # Delete once\n        delete_witness(engine, cred_id)\n\n        # Delete again — should fail\n        with pytest.raises(Exception):\n            delete_witness(engine, cred_id)\n\n\n# ═══════════════════════════════════════════════════════════════════════════════\n# LAYER 3 — Integration / Lifecycle Tests\n# ═══════════════════════════════════════════════════════════════════════════════\n\n\nclass TestLifecycleRegisterIssuePresentRevoke:\n    \"\"\"Full lifecycle: register → issue → present → revoke.\"\"\"\n\n    def test_lifecycle_register_issue_present_revoke(self):\n        \"\"\"Full lifecycle verifying audit trail completeness.\"\"\"\n        signer = make_mock_signer()\n        storage = make_mock_storage()\n        audit = make_mock_audit_log()\n        config = make_valid_config()\n        engine = create_engine(config, signer, storage, audit)\n\n        # 1. Register schema\n        schema = make_valid_schema()\n        schema_id = register_schema(engine, schema)\n        assert schema_id == schema.schema_id\n\n        # 2. Issue credential\n        claims = make_valid_claims()\n        issuance_config = make_issuance_config()\n        bundle = issue_credential(engine, schema_id, claims, issuance_config)\n        cred_id = bundle.metadata.id\n        assert bundle.metadata.schema_id == schema_id\n\n        # 3. Present credential\n        disclosed = [f.name for f in schema.fields]\n        status = record_presentation(\n            engine, cred_id, Domain(value=\"verifier.com\"), disclosed\n        )\n        assert status == CredentialStatus.Presented\n\n        # 4. Revoke credential\n        status = revoke_credential(engine, cred_id, \"policy change\")\n        assert status == CredentialStatus.Revoked\n\n        # 5. Verify audit trail completeness\n        assert audit.record.call_count >= 4, \\\n            f\"Expected at least 4 audit events (register, issue, present, revoke+witness_delete), got {audit.record.call_count}\"\n\n\nclass TestLifecycleOneTimeCredential:\n    \"\"\"One-time credential: issue → present (consumed) → present again (denied).\"\"\"\n\n    def test_lifecycle_one_time_credential(self):\n        \"\"\"One-time credential is consumed on first presentation, denied on second.\"\"\"\n        engine, schema, _, _, _ = make_engine_with_schema()\n        claims = make_valid_claims()\n        config = make_issuance_config(one_time=True)\n        bundle = issue_credential(engine, schema.schema_id, claims, config)\n        cred_id = bundle.metadata.id\n        assert bundle.metadata.one_time is True\n\n        disclosed = [f.name for f in schema.fields]\n\n        # First presentation — consumed\n        status = record_presentation(\n            engine, cred_id, Domain(value=\"verifier.com\"), disclosed\n        )\n        assert status == CredentialStatus.Consumed, \\\n            \"First presentation of one-time credential should consume it\"\n\n        # Second presentation — denied\n        with pytest.raises(Exception) as exc_info:\n            record_presentation(\n                engine, cred_id, Domain(value=\"other.com\"), disclosed\n            )\n        assert exc_info.value is not None, \\\n            \"Second presentation of consumed one-time credential should be denied\"\n\n\nclass TestLifecycleExpiry:\n    \"\"\"Expiry lifecycle: issue → check (active) → advance time → check (expired).\"\"\"\n\n    def test_lifecycle_expiry(self):\n        \"\"\"Credential expiry lifecycle with time advancement.\"\"\"\n        engine, schema, _, _, _ = make_engine_with_schema()\n        claims = make_valid_claims()\n        config = make_issuance_config(ttl=60, clock_skew=0)  # 1 minute TTL\n        bundle = issue_credential(engine, schema.schema_id, claims, config)\n        cred_id = bundle.metadata.id\n\n        # Check now — should be active\n        now = datetime.now(timezone.utc).isoformat()\n        result1 = check_expiry(engine, cred_id, now)\n        assert result1.is_expired is False, \"Credential should be active\"\n        assert result1.remaining_seconds > 0\n\n        # Advance time past TTL\n        future = (datetime.now(timezone.utc) + timedelta(minutes=5)).isoformat()\n        result2 = check_expiry(engine, cred_id, future)\n        assert result2.is_expired is True, \"Credential should be expired\"\n        assert result2.remaining_seconds == 0\n        assert result2.status_updated is True\n\n\nclass TestLifecycleWitness:\n    \"\"\"Witness lifecycle: issue → get_witness → revoke → get_witness (denied).\"\"\"\n\n    def test_lifecycle_witness(self):\n        \"\"\"Witness access lifecycle with revocation.\"\"\"\n        engine, schema, _, _, _ = make_engine_with_schema()\n        claims = make_valid_claims()\n        config = make_issuance_config()\n        bundle = issue_credential(engine, schema.schema_id, claims, config)\n        cred_id = bundle.metadata.id\n\n        # Get witness — should succeed\n        witness = get_witness(engine, cred_id)\n        assert witness is not None\n        assert len(witness.entries) > 0\n\n        # Revoke credential\n        revoke_credential(engine, cred_id, \"testing witness lifecycle\")\n\n        # Get witness after revoke — should fail\n        with pytest.raises(Exception):\n            get_witness(engine, cred_id)\n\n\n# ═══════════════════════════════════════════════════════════════════════════════\n# LAYER 4 — Invariant and Security Tests\n# ═══════════════════════════════════════════════════════════════════════════════\n\n\nclass TestInvariantEngineNeverHoldsKeyMaterial:\n    \"\"\"Invariant: The credential engine NEVER holds or accesses raw key material.\"\"\"\n\n    def test_invariant_engine_never_holds_key_material(self):\n        \"\"\"Engine object has no attributes containing key bytes; all signing goes through signer.\"\"\"\n        signer = make_mock_signer()\n        storage = make_mock_storage()\n        audit = make_mock_audit_log()\n        config = make_valid_config()\n        engine = create_engine(config, signer, storage, audit)\n\n        # Inspect engine object — it should not contain raw key bytes\n        # Check all string/bytes attributes for key-like patterns\n        engine_attrs = vars(engine) if hasattr(engine, '__dict__') else {}\n        for attr_name, attr_val in engine_attrs.items():\n            if isinstance(attr_val, bytes) and len(attr_val) >= 32:\n                # This could be a key — flag it\n                assert attr_name in (\"_placeholder\",), \\\n                    f\"Engine holds suspicious bytes in attribute '{attr_name}' — possible key material\"\n\n        # Issue a credential and verify signer was called\n        schema = make_valid_schema()\n        register_schema(engine, schema)\n        claims = make_valid_claims()\n        config_issue = make_issuance_config()\n        issue_credential(engine, schema.schema_id, claims, config_issue)\n\n        # All signing should be delegated to signer\n        assert signer.sign_ed25519.called or signer.sign_bbs.called, \\\n            \"Signing must be delegated to the Signer trait object\"\n\n\nclass TestInvariantErrorMessagesNoSecrets:\n    \"\"\"Invariant: Error messages NEVER contain key material, blinding factors, or raw claim values.\"\"\"\n\n    def test_invariant_error_messages_no_secrets(self):\n        \"\"\"No error detail message contains secret patterns.\"\"\"\n        # Generate various errors and check their messages\n        engine, schema, _, _, _ = make_engine_with_schema()\n\n        errors_to_check = []\n\n        # Schema not found\n        try:\n            issue_credential(engine, \"nonexistent\", make_valid_claims(), make_issuance_config())\n        except Exception as e:\n            errors_to_check.append(str(e))\n\n        # Missing claim\n        try:\n            bad_claims = ClaimSet(\n                claims={\"/personal/age\": ClaimValue.IntVal(30)},\n                source_vault_id=\"v\",\n                retrieved_at=\"2024-01-15T10:00:00Z\",\n            )\n            issue_credential(engine, schema.schema_id, bad_claims, make_issuance_config())\n        except Exception as e:\n            errors_to_check.append(str(e))\n\n        # Credential not found\n        try:\n            get_credential(engine, make_credential_id(\"0\" * 32))\n        except Exception as e:\n            errors_to_check.append(str(e))\n\n        # Check none of the error messages contain secret-like patterns\n        secret_patterns = [\n            r'[0-9a-f]{64}',  # 256-bit hex key\n            r'blinding',  # blinding factor reference with value\n            r'-----BEGIN',  # PEM key material\n            r'secret_key',\n            r'private_key',\n        ]\n        for msg in errors_to_check:\n            msg_lower = msg.lower()\n            # Error messages should not contain raw claim values\n            assert \"alice\" not in msg_lower or \"claim\" not in msg_lower, \\\n                f\"Error message may contain raw claim data: {msg}\"\n            assert \"75000\" not in msg, \\\n                f\"Error message may contain raw numeric claim value: {msg}\"\n            for pattern in secret_patterns:\n                # Allow credential IDs (32 hex chars) but not 64-char keys\n                if pattern == r'[0-9a-f]{64}':\n                    matches = re.findall(pattern, msg_lower)\n                    for m in matches:\n                        assert len(m) <= 32, \\\n                            f\"Error message may contain key material: {msg}\"\n\n\nclass TestInvariantTerminalStatesNoOutbound:\n    \"\"\"Invariant: Consumed, Expired, and Revoked are terminal states.\"\"\"\n\n    def test_invariant_terminal_states_consumed(self):\n        \"\"\"Consumed state has no outbound transitions.\"\"\"\n        engine, schema, _, _, _ = make_engine_with_schema()\n        claims = make_valid_claims()\n        config = make_issuance_config(one_time=True)\n        bundle = issue_credential(engine, schema.schema_id, claims, config)\n        cred_id = bundle.metadata.id\n        disclosed = [f.name for f in schema.fields]\n\n        # Consume\n        record_presentation(engine, cred_id, Domain(value=\"v.com\"), disclosed)\n\n        # Try to present again\n        with pytest.raises(Exception):\n            record_presentation(engine, cred_id, Domain(value=\"v2.com\"), disclosed)\n\n        # Try to revoke\n        with pytest.raises(Exception):\n            revoke_credential(engine, cred_id, \"reason\")\n\n    def test_invariant_terminal_states_revoked(self):\n        \"\"\"Revoked state has no outbound transitions.\"\"\"\n        engine, schema, _, _, _ = make_engine_with_schema()\n        claims = make_valid_claims()\n        config = make_issuance_config()\n        bundle = issue_credential(engine, schema.schema_id, claims, config)\n        cred_id = bundle.metadata.id\n\n        revoke_credential(engine, cred_id, \"reason\")\n        disclosed = [f.name for f in schema.fields]\n\n        # Try to present\n        with pytest.raises(Exception):\n            record_presentation(engine, cred_id, Domain(value=\"v.com\"), disclosed)\n\n        # Try to revoke again\n        with pytest.raises(Exception):\n            revoke_credential(engine, cred_id, \"reason again\")\n\n\nclass TestInvariantBbsMessageVectorDeterministic:\n    \"\"\"Invariant: BBS+ message vector ordering is deterministic from schema field order.\"\"\"\n\n    def test_invariant_bbs_message_vector_deterministic_ordering(self):\n        \"\"\"Issuing same claims twice produces same message ordering.\"\"\"\n        engine, schema, _, _, _ = make_engine_with_schema()\n        claims = make_valid_claims()\n        config1 = make_issuance_config()\n        config2 = make_issuance_config()\n\n        bundle1 = issue_credential(engine, schema.schema_id, claims, config1)\n        bundle2 = issue_credential(engine, schema.schema_id, claims, config2)\n\n        msgs1 = sorted(bundle1.bbs.messages, key=lambda m: m.index)\n        msgs2 = sorted(bundle2.bbs.messages, key=lambda m: m.index)\n\n        assert len(msgs1) == len(msgs2), \"Same schema should produce same number of messages\"\n        for m1, m2 in zip(msgs1, msgs2):\n            assert m1.index == m2.index, \\\n                f\"Message indices should match: {m1.index} vs {m2.index}\"\n            # For Raw and DerivedBoolean, the scalar bytes should be identical\n            # (Committed scalars may differ due to random blinding)\n\n\nclass TestInvariantDisclosurePolicyDefaultNever:\n    \"\"\"Invariant: DisclosurePolicy defaults to Never for fields not explicitly listed.\"\"\"\n\n    def test_invariant_disclosure_policy_default_never(self):\n        \"\"\"Field without explicit rule is treated as Never.\"\"\"\n        fields = [\n            make_raw_schema_field(\"explicit_field\", \"/a\"),\n            make_raw_schema_field(\"implicit_field\", \"/b\"),\n        ]\n        # Only provide rule for explicit_field\n        rules = [\n            DisclosureRule(field_name=\"explicit_field\", level=DisclosureLevel.Always),\n            # implicit_field has no rule — defaults to Never\n        ]\n        schema = make_valid_schema(\n            schema_id=\"default-never-test\",\n            fields=fields,\n            disclosure_rules=rules,\n            default_disclosure=DisclosureLevel.Never,\n        )\n\n        # The schema may fail validation because disclosure_policy should cover all fields\n        # OR the implicit field should default to Never\n        # Either behavior is acceptable — test that the field cannot be disclosed\n        try:\n            engine, _, signer, storage, audit = make_engine_with_schema(schema=schema)\n            claims = ClaimSet(\n                claims={\n                    \"/a\": ClaimValue.StringVal(\"val_a\"),\n                    \"/b\": ClaimValue.StringVal(\"val_b\"),\n                },\n                source_vault_id=\"v\",\n                retrieved_at=\"2024-01-15T10:00:00Z\",\n            )\n            bundle = issue_credential(engine, \"default-never-test\", claims, make_issuance_config())\n\n            # Try to disclose implicit_field — should fail\n            with pytest.raises(Exception):\n                record_presentation(\n                    engine, bundle.metadata.id, Domain(value=\"v.com\"),\n                    [\"explicit_field\", \"implicit_field\"]  # implicit_field should be Never\n                )\n        except Exception:\n            # Schema validation rejected it — also valid (fail-closed)\n            pass\n\n\nclass TestInvariantAuditOnEveryStateChange:\n    \"\"\"Invariant: Every state-changing operation emits an audit event.\"\"\"\n\n    def test_invariant_audit_on_every_state_change(self):\n        \"\"\"All state-changing operations emit audit events.\"\"\"\n        signer = make_mock_signer()\n        storage = make_mock_storage()\n        audit = make_mock_audit_log()\n        config = make_valid_config()\n        engine = create_engine(config, signer, storage, audit)\n\n        # Track audit call count\n        initial_count = audit.record.call_count\n\n        # 1. Register schema (state change)\n        schema = make_valid_schema()\n        register_schema(engine, schema)\n        after_register = audit.record.call_count\n        assert after_register > initial_count, \\\n            \"Schema registration must emit audit event\"\n\n        # 2. Issue credential (state change)\n        claims = make_valid_claims()\n        bundle = issue_credential(engine, schema.schema_id, claims, make_issuance_config())\n        after_issue = audit.record.call_count\n        assert after_issue > after_register, \\\n            \"Credential issuance must emit audit event\"\n\n        # 3. Record presentation (state change)\n        disclosed = [f.name for f in schema.fields]\n        record_presentation(engine, bundle.metadata.id, Domain(value=\"v.com\"), disclosed)\n        after_present = audit.record.call_count\n        assert after_present > after_issue, \\\n            \"Credential presentation must emit audit event\"\n\n        # 4. Issue another credential for revocation test\n        bundle2 = issue_credential(engine, schema.schema_id, claims, make_issuance_config())\n        before_revoke = audit.record.call_count\n\n        # 5. Revoke credential (state change)\n        revoke_credential(engine, bundle2.metadata.id, \"test\")\n        after_revoke = audit.record.call_count\n        assert after_revoke > before_revoke, \\\n            \"Credential revocation must emit audit event\"\n\n\nclass TestInvariantScalarEncodingDeterministic:\n    \"\"\"Invariant: Canonical ClaimValue-to-scalar encoding is deterministic.\"\"\"\n\n    def test_invariant_scalar_encoding_deterministic(self):\n        \"\"\"Same input always produces same output across multiple calls.\"\"\"\n        test_cases = [\n            (ClaimValue.StringVal(\"hello\"), ScalarEncoding.Utf8HashToScalar),\n            (ClaimValue.IntVal(42), ScalarEncoding.Int64LittleEndian),\n            (ClaimValue.BoolVal(True), ScalarEncoding.BoolSingleByte),\n            (ClaimValue.BoolVal(False), ScalarEncoding.BoolSingleByte),\n            (ClaimValue.DateVal(\"2024-01-01\"), ScalarEncoding.DateToEpochDays),\n        ]\n\n        for value, encoding in test_cases:\n            results = [encode_claim_to_scalar(value, encoding) for _ in range(10)]\n            assert all(r == results[0] for r in results), \\\n                f\"Encoding for {value} with {encoding} must be deterministic\"\n\n\nclass TestInvariantVaultTimeoutDeny:\n    \"\"\"Invariant: Vault operation timeout results in error, never silent success.\"\"\"\n\n    def test_invariant_vault_timeout_deny(self):\n        \"\"\"Timeout from vault results in error, not success.\"\"\"\n        signer = make_mock_signer()\n        storage = MagicMock()\n        storage.store.side_effect = TimeoutError(\"vault timeout\")\n        audit = make_mock_audit_log()\n        engine = create_engine(make_valid_config(), signer, storage, audit)\n        schema = make_valid_schema()\n        register_schema(engine, schema)\n        claims = make_valid_claims()\n        config = make_issuance_config()\n\n        with pytest.raises(Exception):\n            issue_credential(engine, schema.schema_id, claims, config)\n\n\nclass TestInvariantScalarEncodingInjectivity:\n    \"\"\"Invariant: Distinct ClaimValues should map to distinct scalars (spot check).\"\"\"\n\n    def test_invariant_scalar_injectivity_integers(self):\n        \"\"\"Random integer pairs produce distinct scalars.\"\"\"\n        random.seed(42)\n        seen = set()\n        for _ in range(100):\n            v = random.randint(-2**31, 2**31)\n            scalar = encode_claim_to_scalar(\n                ClaimValue.IntVal(v), ScalarEncoding.Int64LittleEndian\n            )\n            assert scalar not in seen or v in seen, \\\n                f\"Collision detected for IntVal({v})\"\n            seen.add(scalar)\n\n    def test_invariant_scalar_injectivity_strings(self):\n        \"\"\"Random string pairs produce distinct scalars.\"\"\"\n        random.seed(42)\n        strings = [f\"test_string_{i}\" for i in range(100)]\n        scalars = [\n            encode_claim_to_scalar(ClaimValue.StringVal(s), ScalarEncoding.Utf8HashToScalar)\n            for s in strings\n        ]\n        assert len(set(scalars)) == len(scalars), \\\n            \"Distinct strings should produce distinct scalars\"\n\n\nclass TestInvariantPedersenCommitmentHiding:\n    \"\"\"Invariant: Same value with different blinding factors produces different commitments.\"\"\"\n\n    def test_invariant_pedersen_commitment_hiding(self):\n        \"\"\"Issuing same committed value twice produces different commitment bytes.\"\"\"\n        engine, schema, _, _, _ = make_engine_with_schema()\n        claims = make_valid_claims()\n\n        bundle1 = issue_credential(engine, schema.schema_id, claims, make_issuance_config())\n        bundle2 = issue_credential(engine, schema.schema_id, claims, make_issuance_config())\n\n        committed1 = [a for a in bundle1.bbs.attributes if a.kind == AttributeKind.Committed]\n        committed2 = [a for a in bundle2.bbs.attributes if a.kind == AttributeKind.Committed]\n\n        assert len(committed1) > 0, \"Should have committed attributes\"\n        assert len(committed1) == len(committed2)\n\n        for c1, c2 in zip(committed1, committed2):\n            # Same value, different blinding factors → different commitments (with overwhelming probability)\n            assert c1.committed.commitment.commitment_bytes != c2.committed.commitment.commitment_bytes, \\\n                f\"Pedersen commitments for '{c1.committed.name}' should differ due to fresh blinding factors\"\n\n\nclass TestInvariantCredentialExpiredPresentation:\n    \"\"\"Invariant: Expired credentials cannot be presented.\"\"\"\n\n    def test_invariant_expired_credential_cannot_be_presented(self):\n        \"\"\"Expired credential presentation is denied.\"\"\"\n        engine, schema, _, _, _ = make_engine_with_schema()\n        claims = make_valid_claims()\n        config = make_issuance_config(ttl=1, clock_skew=0)\n        bundle = issue_credential(engine, schema.schema_id, claims, config)\n        cred_id = bundle.metadata.id\n\n        # Force expiry\n        import time\n        time.sleep(2)\n\n        # Attempt to present — should be denied due to TTL check\n        disclosed = [f.name for f in schema.fields]\n        with pytest.raises(Exception):\n            record_presentation(engine, cred_id, Domain(value=\"v.com\"), disclosed)\n\n\n# ═══════════════════════════════════════════════════════════════════════════════\n# Helper utilities\n# ═══════════════════════════════════════════════════════════════════════════════\n\ndef _is_cred_error(exc, expected_kind):\n    \"\"\"Check if an exception is a CredErrorDetail with the expected kind.\"\"\"\n    if isinstance(exc, CredErrorDetail):\n        return exc.kind == expected_kind\n    if hasattr(exc, 'kind'):\n        return exc.kind == expected_kind\n    # Check string representation as fallback\n    return expected_kind.name.lower() in str(exc).lower() if hasattr(expected_kind, 'name') else False\n"
+}

@@ -1,0 +1,189 @@
+{
+  "component_id": "root",
+  "name": "Root",
+  "description": "Signet: Personal Sovereign Agent Stack",
+  "version": 1,
+  "types": [
+    {
+      "name": "RootError",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "VaultError",
+        "PolicyError",
+        "ProofError",
+        "McpError",
+        "NotifyError",
+        "SdkError",
+        "CredError",
+        "InternalError"
+      ],
+      "inner_types": [],
+      "description": "Comprehensive error type for the Root component aggregating errors from all dependencies."
+    },
+    {
+      "name": "RootConfig",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "vault_endpoint",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Endpoint for accessing the vault.",
+          "validators": []
+        },
+        {
+          "name": "policy_engine_config",
+          "type_ref": "PolicyEngineConfig",
+          "required": true,
+          "default": "",
+          "description": "Configuration settings for the policy engine.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Configuration settings for the Root component."
+    }
+  ],
+  "functions": [
+    {
+      "name": "initialize_root",
+      "description": "Initializes the root component with provided configuration.",
+      "inputs": [
+        {
+          "name": "config",
+          "type_ref": "RootConfig",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        }
+      ],
+      "output_type": "bool",
+      "error_cases": [
+        {
+          "name": "vault_init_failed",
+          "condition": "Vault initialization fails.",
+          "error_type": "RootError",
+          "error_data": {
+            "kind": "VaultError"
+          }
+        },
+        {
+          "name": "invalid_config",
+          "condition": "Configuration is invalid.",
+          "error_type": "RootError",
+          "error_data": {
+            "kind": "InternalError"
+          }
+        }
+      ],
+      "preconditions": [
+        "Config must be a valid RootConfig instance."
+      ],
+      "postconditions": [
+        "The Root component is ready to handle requests."
+      ],
+      "idempotent": true,
+      "side_effects": [],
+      "structured_side_effects": [],
+      "performance_budget": null
+    },
+    {
+      "name": "handle_request",
+      "description": "Processes a request by routing it through various components.",
+      "inputs": [
+        {
+          "name": "request",
+          "type_ref": "JsonRpcRequest",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        }
+      ],
+      "output_type": "JsonRpcResponse",
+      "error_cases": [
+        {
+          "name": "invalid_request",
+          "condition": "The request does not conform to the expected schema.",
+          "error_type": "RootError",
+          "error_data": {
+            "kind": "McpError"
+          }
+        },
+        {
+          "name": "processing_failed",
+          "condition": "General failure during request processing.",
+          "error_type": "RootError",
+          "error_data": {
+            "kind": "InternalError"
+          }
+        }
+      ],
+      "preconditions": [
+        "Server is running and ready to accept requests."
+      ],
+      "postconditions": [
+        "A JsonRpcResponse is generated for the request."
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "network_call"
+      ],
+      "structured_side_effects": [],
+      "performance_budget": null
+    },
+    {
+      "name": "shutdown_root",
+      "description": "Gracefully shuts down the root component.",
+      "inputs": [],
+      "output_type": "bool",
+      "error_cases": [
+        {
+          "name": "shutdown_failed",
+          "condition": "One of the dependent components fails to shut down properly.",
+          "error_type": "RootError",
+          "error_data": {
+            "kind": "InternalError"
+          }
+        }
+      ],
+      "preconditions": [
+        "The Root component is running."
+      ],
+      "postconditions": [
+        "All components are shut down and system resources are released."
+      ],
+      "idempotent": true,
+      "side_effects": [],
+      "structured_side_effects": [],
+      "performance_budget": null
+    }
+  ],
+  "dependencies": [
+    "signet_cred",
+    "signet_mcp",
+    "signet_notify",
+    "signet_policy",
+    "signet_proof",
+    "signet_sdk",
+    "signet_vault"
+  ],
+  "dependency_contracts": {},
+  "invariants": [
+    "Vault server never has access to plaintext.",
+    "All disclosures are on the audit chain.",
+    "No algorithm negotiation in any protocol.",
+    "Zero secrets in memory after use."
+  ],
+  "requires": [
+    "Rust language",
+    "serde for serialization",
+    "thiserror for error handling"
+  ]
+}

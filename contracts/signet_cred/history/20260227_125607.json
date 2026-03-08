@@ -1,0 +1,2397 @@
+{
+  "component_id": "signet_cred",
+  "name": "Signet Credential Engine",
+  "description": "Self-issuance credential engine. Takes structured data from vault and produces credentials in two formats: (1) SD-JWT VC per RFC 9901 using sd-jwt-rust (OpenWallet Foundation) for baseline interoperability, and (2) BBS+ signed attribute sets using anoncreds-v2-rs for unlinkable presentations. Pre-computes boolean attributes (age_over_21, balance_above_1000, etc.) in BBS+ credentials to avoid ZK circuits. Generates Pedersen commitments for numeric attributes (for downstream Bulletproof range proofs). TTL management with expiry tracking. One-time credential consumption tracking. Credentials signed by vault's identity key. Credential storage and caching within vault. Signing is delegated to signet_vault via Signer trait — the cred engine never touches raw key material. All algorithms are compile-time fixed (no negotiation). CBOR is the primary internal serialization format. Oracle-safe error types leak no secrets.",
+  "version": 1,
+  "types": [
+    {
+      "name": "CredentialId",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "value",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Hex-encoded 128-bit unique identifier",
+          "validators": [
+            {
+              "kind": "length",
+              "expression": "len == 32",
+              "error_message": "CredentialId must be exactly 32 hex characters"
+            },
+            {
+              "kind": "regex",
+              "expression": "^[0-9a-f]{32}$",
+              "error_message": "CredentialId must be lowercase hex"
+            }
+          ]
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Globally unique credential identifier. 128-bit random, encoded as 32-char hex string."
+    },
+    {
+      "name": "Domain",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "value",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "DNS-style domain identifier (e.g., 'bank.example.com')",
+          "validators": [
+            {
+              "kind": "length",
+              "expression": "len >= 1 && len <= 253",
+              "error_message": "Domain must be 1-253 characters"
+            },
+            {
+              "kind": "regex",
+              "expression": "^[a-z0-9]([a-z0-9\\-\\.]*[a-z0-9])?$",
+              "error_message": "Domain must be valid DNS-style identifier"
+            }
+          ]
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Domain binding for credential scope. Represents the relying party or service domain a credential is bound to."
+    },
+    {
+      "name": "ClaimPath",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "pointer",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "RFC 6901 JSON Pointer string, e.g., '/personal/date_of_birth'",
+          "validators": [
+            {
+              "kind": "regex",
+              "expression": "^(/[^/]+)+$",
+              "error_message": "ClaimPath must be a valid non-empty JSON Pointer"
+            }
+          ]
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "JSON Pointer (RFC 6901) path to a claim within a ClaimSet. Used to reference source data for derived attributes."
+    },
+    {
+      "name": "ClaimValue",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "StringVal(str)",
+        "IntVal(int)",
+        "FloatVal(float)",
+        "BoolVal(bool)",
+        "BytesVal(bytes)",
+        "DateVal(str)"
+      ],
+      "inner_types": [],
+      "description": "Typed claim value for use in predicates and raw attributes. Restricted to types that have well-defined BBS+ scalar encodings."
+    },
+    {
+      "name": "Predicate",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "GreaterThan(int)",
+        "LessThan(int)",
+        "GreaterThanOrEqual(int)",
+        "LessThanOrEqual(int)",
+        "EqualTo(ClaimValue)",
+        "NotEqualTo(ClaimValue)",
+        "InSet(list)"
+      ],
+      "inner_types": [],
+      "description": "Closed set of predicates for pre-computing DerivedBoolean attributes. No custom predicates allowed — this is a fixed enum to avoid ZK circuit complexity."
+    },
+    {
+      "name": "AttributeKind",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "Raw",
+        "DerivedBoolean",
+        "Committed"
+      ],
+      "inner_types": [],
+      "description": "Three-category attribute model. Raw for direct disclosure, DerivedBoolean for pre-computed predicate results (avoids ZK circuits), Committed for numeric values hidden behind Pedersen commitments (enabling downstream Bulletproof range proofs)."
+    },
+    {
+      "name": "RawAttribute",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "name",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Attribute name matching schema field name",
+          "validators": []
+        },
+        {
+          "name": "value",
+          "type_ref": "ClaimValue",
+          "required": true,
+          "default": "",
+          "description": "The claim value to be included directly",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "A directly-disclosable claim value."
+    },
+    {
+      "name": "DerivedBooleanAttribute",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "name",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Attribute name (e.g., 'age_over_21')",
+          "validators": []
+        },
+        {
+          "name": "predicate",
+          "type_ref": "Predicate",
+          "required": true,
+          "default": "",
+          "description": "The predicate evaluated against the source claim",
+          "validators": []
+        },
+        {
+          "name": "source_path",
+          "type_ref": "ClaimPath",
+          "required": true,
+          "default": "",
+          "description": "JSON Pointer to the source claim in the ClaimSet",
+          "validators": []
+        },
+        {
+          "name": "value",
+          "type_ref": "bool",
+          "required": true,
+          "default": "",
+          "description": "Pre-computed result of evaluating the predicate",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "A boolean attribute pre-computed from a predicate over a source claim. Example: age_over_21 = GreaterThanOrEqual(21) applied to /personal/age."
+    },
+    {
+      "name": "PedersenCommitment",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "commitment_bytes",
+          "type_ref": "bytes",
+          "required": true,
+          "default": "",
+          "description": "Compressed Ristretto point (32 bytes)",
+          "validators": [
+            {
+              "kind": "length",
+              "expression": "len == 32",
+              "error_message": "Pedersen commitment must be exactly 32 bytes (compressed Ristretto)"
+            }
+          ]
+        },
+        {
+          "name": "generator_domain_tag",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Domain separation tag used for generator derivation, always 'signet-cred-pedersen-v1'",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "A Pedersen commitment to a numeric value. Generator points derived via hash-to-curve with domain separation tag 'signet-cred-pedersen-v1'. The commitment is C = v*G + r*H where v is the value and r is the blinding factor."
+    },
+    {
+      "name": "CommittedAttribute",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "name",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Attribute name (e.g., 'account_balance')",
+          "validators": []
+        },
+        {
+          "name": "commitment",
+          "type_ref": "PedersenCommitment",
+          "required": true,
+          "default": "",
+          "description": "The Pedersen commitment to the numeric value",
+          "validators": []
+        },
+        {
+          "name": "source_path",
+          "type_ref": "ClaimPath",
+          "required": true,
+          "default": "",
+          "description": "JSON Pointer to the source numeric claim",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "A numeric attribute hidden behind a Pedersen commitment for downstream Bulletproof range proofs."
+    },
+    {
+      "name": "AttributeEntry",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "index",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Deterministic position in the BBS+ message vector. Assigned by CredentialSchema field ordering.",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": ">= 0",
+              "error_message": "Attribute index must be non-negative"
+            }
+          ]
+        },
+        {
+          "name": "kind",
+          "type_ref": "AttributeKind",
+          "required": true,
+          "default": "",
+          "description": "Which category this attribute belongs to",
+          "validators": []
+        },
+        {
+          "name": "raw",
+          "type_ref": "RawAttribute",
+          "required": false,
+          "default": "",
+          "description": "Present when kind == Raw",
+          "validators": []
+        },
+        {
+          "name": "derived_boolean",
+          "type_ref": "DerivedBooleanAttribute",
+          "required": false,
+          "default": "",
+          "description": "Present when kind == DerivedBoolean",
+          "validators": []
+        },
+        {
+          "name": "committed",
+          "type_ref": "CommittedAttribute",
+          "required": false,
+          "default": "",
+          "description": "Present when kind == Committed",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "A single entry in the credential attribute vector. Wraps all three attribute kinds with a deterministic ordering index for BBS+ message vector mapping."
+    },
+    {
+      "name": "SchemaField",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "name",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Field name in the output credential",
+          "validators": []
+        },
+        {
+          "name": "kind",
+          "type_ref": "AttributeKind",
+          "required": true,
+          "default": "",
+          "description": "Which attribute category this field uses",
+          "validators": []
+        },
+        {
+          "name": "source_path",
+          "type_ref": "ClaimPath",
+          "required": true,
+          "default": "",
+          "description": "JSON Pointer to the source claim in the input ClaimSet",
+          "validators": []
+        },
+        {
+          "name": "predicate",
+          "type_ref": "Predicate",
+          "required": false,
+          "default": "",
+          "description": "Required when kind == DerivedBoolean. The predicate to evaluate.",
+          "validators": []
+        },
+        {
+          "name": "required",
+          "type_ref": "bool",
+          "required": true,
+          "default": "true",
+          "description": "Whether this field must be present in the ClaimSet",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "A single field definition within a CredentialSchema. Defines the attribute kind, source path, and optional predicate for derived booleans."
+    },
+    {
+      "name": "DisclosureLevel",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "Always",
+        "Selectable",
+        "Never"
+      ],
+      "inner_types": [],
+      "description": "Three-level disclosure policy for selective disclosure in SD-JWT and BBS+ presentations."
+    },
+    {
+      "name": "DisclosureRule",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "field_name",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Must match a SchemaField.name in the associated schema",
+          "validators": []
+        },
+        {
+          "name": "level",
+          "type_ref": "DisclosureLevel",
+          "required": true,
+          "default": "",
+          "description": "Disclosure policy for this field",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Maps a schema field name to its disclosure level."
+    },
+    {
+      "name": "DisclosurePolicy",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "rules",
+          "type_ref": "list",
+          "required": true,
+          "default": "",
+          "description": "Per-field disclosure rules",
+          "validators": []
+        },
+        {
+          "name": "default_level",
+          "type_ref": "DisclosureLevel",
+          "required": true,
+          "default": "Never",
+          "description": "Default disclosure level for fields not explicitly listed. Defaults to Never (fail-closed).",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Governs selective disclosure across all fields in a credential. Every schema field must have a rule; missing rules default to Never (fail-closed)."
+    },
+    {
+      "name": "CredentialSchema",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "schema_id",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Unique schema identifier",
+          "validators": []
+        },
+        {
+          "name": "version",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Schema version number, monotonically increasing",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": ">= 1",
+              "error_message": "Schema version must be >= 1"
+            }
+          ]
+        },
+        {
+          "name": "fields",
+          "type_ref": "list",
+          "required": true,
+          "default": "",
+          "description": "Ordered list of field definitions. Order determines BBS+ message vector indices.",
+          "validators": [
+            {
+              "kind": "length",
+              "expression": "len >= 1",
+              "error_message": "Schema must have at least one field"
+            }
+          ]
+        },
+        {
+          "name": "disclosure_policy",
+          "type_ref": "DisclosurePolicy",
+          "required": true,
+          "default": "",
+          "description": "Selective disclosure policy for this schema",
+          "validators": []
+        },
+        {
+          "name": "description",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "Human-readable description of the credential type",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Defines the shape, attribute types, field ordering, and disclosure policy for a credential. Field ordering is deterministic and defines the BBS+ message vector index mapping."
+    },
+    {
+      "name": "ClaimSet",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "claims",
+          "type_ref": "dict",
+          "required": true,
+          "default": "",
+          "description": "Map from JSON Pointer path strings to ClaimValue entries",
+          "validators": []
+        },
+        {
+          "name": "source_vault_id",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Identifier of the vault compartment this data was retrieved from",
+          "validators": []
+        },
+        {
+          "name": "retrieved_at",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "ISO 8601 timestamp of when the data was retrieved from vault",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Structured input data from the vault for credential issuance. Key-value map where keys are JSON Pointer paths and values are typed claim values."
+    },
+    {
+      "name": "CredentialMetadata",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "id",
+          "type_ref": "CredentialId",
+          "required": true,
+          "default": "",
+          "description": "Unique credential identifier",
+          "validators": []
+        },
+        {
+          "name": "schema_id",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Schema identifier this credential conforms to",
+          "validators": []
+        },
+        {
+          "name": "schema_version",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Schema version at time of issuance",
+          "validators": []
+        },
+        {
+          "name": "issued_at",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "ISO 8601 timestamp of issuance",
+          "validators": []
+        },
+        {
+          "name": "expires_at",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "ISO 8601 timestamp of expiry",
+          "validators": []
+        },
+        {
+          "name": "domain",
+          "type_ref": "Domain",
+          "required": true,
+          "default": "",
+          "description": "Domain this credential is bound to",
+          "validators": []
+        },
+        {
+          "name": "one_time",
+          "type_ref": "bool",
+          "required": true,
+          "default": "",
+          "description": "If true, credential transitions to Consumed after first presentation",
+          "validators": []
+        },
+        {
+          "name": "issuer_public_key_id",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Identifier of the vault signing key used to issue this credential",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Metadata associated with an issued credential. Tracks identity, timing, domain binding, and one-time usage flag."
+    },
+    {
+      "name": "SdJwtCredential",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "compact",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "SD-JWT compact serialization string (header.payload.signature~disclosure1~disclosure2~...)",
+          "validators": []
+        },
+        {
+          "name": "disclosures",
+          "type_ref": "list",
+          "required": true,
+          "default": "",
+          "description": "Individual base64url-encoded disclosure strings",
+          "validators": []
+        },
+        {
+          "name": "key_binding_required",
+          "type_ref": "bool",
+          "required": true,
+          "default": "",
+          "description": "Whether key binding JWT is required for presentation",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "SD-JWT VC per RFC 9901 in compact serialization. The JWT is signed with Ed25519 via vault's identity key."
+    },
+    {
+      "name": "BbsMessage",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "index",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Position in the message vector",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": ">= 0",
+              "error_message": "Message index must be non-negative"
+            }
+          ]
+        },
+        {
+          "name": "scalar_bytes",
+          "type_ref": "bytes",
+          "required": true,
+          "default": "",
+          "description": "Canonical scalar encoding of the attribute value (32 bytes)",
+          "validators": [
+            {
+              "kind": "length",
+              "expression": "len == 32",
+              "error_message": "BBS+ scalar must be exactly 32 bytes"
+            }
+          ]
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "A single message in the BBS+ message vector. Contains the scalar encoding of an attribute."
+    },
+    {
+      "name": "BbsSignature",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "signature_bytes",
+          "type_ref": "bytes",
+          "required": true,
+          "default": "",
+          "description": "Serialized BBS+ signature",
+          "validators": []
+        },
+        {
+          "name": "public_key_bytes",
+          "type_ref": "bytes",
+          "required": true,
+          "default": "",
+          "description": "BBS+ public key used for verification",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "A BBS+ signature over the message vector."
+    },
+    {
+      "name": "BbsCredential",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "signature",
+          "type_ref": "BbsSignature",
+          "required": true,
+          "default": "",
+          "description": "BBS+ signature over the message vector",
+          "validators": []
+        },
+        {
+          "name": "messages",
+          "type_ref": "list",
+          "required": true,
+          "default": "",
+          "description": "Ordered message vector matching schema field ordering",
+          "validators": []
+        },
+        {
+          "name": "attributes",
+          "type_ref": "list",
+          "required": true,
+          "default": "",
+          "description": "Typed attribute entries corresponding to each message",
+          "validators": []
+        },
+        {
+          "name": "message_count",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Total number of messages in the vector",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": ">= 1",
+              "error_message": "Must have at least one message"
+            }
+          ]
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "BBS+ signed credential containing the signature and public message vector (including Pedersen commitments). Does NOT contain blinding factors or raw numeric values — those are in PrivateWitness."
+    },
+    {
+      "name": "BlindingFactor",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "attribute_name",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Name of the committed attribute this blinding factor corresponds to",
+          "validators": []
+        },
+        {
+          "name": "factor_bytes",
+          "type_ref": "bytes",
+          "required": true,
+          "default": "",
+          "description": "32-byte scalar blinding factor (Zeroize on drop)",
+          "validators": [
+            {
+              "kind": "length",
+              "expression": "len == 32",
+              "error_message": "Blinding factor must be exactly 32 bytes"
+            }
+          ]
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Blinding factor for a single Pedersen commitment. Must be zeroized on drop. Contains the random scalar r in C = v*G + r*H."
+    },
+    {
+      "name": "WitnessEntry",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "attribute_name",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Name of the committed attribute",
+          "validators": []
+        },
+        {
+          "name": "raw_value",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "The original numeric value (Zeroize on drop)",
+          "validators": []
+        },
+        {
+          "name": "blinding_factor",
+          "type_ref": "BlindingFactor",
+          "required": true,
+          "default": "",
+          "description": "Blinding factor for the Pedersen commitment",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "A single private witness entry pairing a raw numeric value with its blinding factor for a committed attribute."
+    },
+    {
+      "name": "PrivateWitness",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "credential_id",
+          "type_ref": "CredentialId",
+          "required": true,
+          "default": "",
+          "description": "Credential this witness belongs to",
+          "validators": []
+        },
+        {
+          "name": "entries",
+          "type_ref": "list",
+          "required": true,
+          "default": "",
+          "description": "Private witness entries for each committed attribute",
+          "validators": []
+        },
+        {
+          "name": "created_at",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "ISO 8601 timestamp of witness creation",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Private material needed for downstream Bulletproof range proofs. Contains blinding factors and raw numeric values for all committed attributes. Implements ZeroizeOnDrop. Stored encrypted in vault, separate from public credential material."
+    },
+    {
+      "name": "CredentialBundle",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "sd_jwt",
+          "type_ref": "SdJwtCredential",
+          "required": true,
+          "default": "",
+          "description": "SD-JWT VC format credential for baseline interoperability",
+          "validators": []
+        },
+        {
+          "name": "bbs",
+          "type_ref": "BbsCredential",
+          "required": true,
+          "default": "",
+          "description": "BBS+ signed credential for unlinkable presentations",
+          "validators": []
+        },
+        {
+          "name": "witness",
+          "type_ref": "PrivateWitness",
+          "required": true,
+          "default": "",
+          "description": "Private witness material (blinding factors, raw values). ZeroizeOnDrop.",
+          "validators": []
+        },
+        {
+          "name": "metadata",
+          "type_ref": "CredentialMetadata",
+          "required": true,
+          "default": "",
+          "description": "Credential lifecycle metadata",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Complete output of credential issuance. Contains both credential formats, private witness material, and metadata. The PrivateWitness is stored separately in the vault from the public credential data."
+    },
+    {
+      "name": "CredentialStatus",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "Active",
+        "Presented",
+        "Consumed",
+        "Expired",
+        "Revoked"
+      ],
+      "inner_types": [],
+      "description": "Credential lifecycle state machine. Transitions: Active -> Presented, Active -> Consumed (one-time only, atomic), Active -> Expired (TTL), Active -> Revoked, Presented -> Consumed (one-time only), Presented -> Expired, Presented -> Revoked. Terminal states: Consumed, Expired, Revoked."
+    },
+    {
+      "name": "PresentationRecord",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "presented_at",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "ISO 8601 timestamp of presentation",
+          "validators": []
+        },
+        {
+          "name": "presented_to",
+          "type_ref": "Domain",
+          "required": true,
+          "default": "",
+          "description": "Domain the credential was presented to",
+          "validators": []
+        },
+        {
+          "name": "disclosed_fields",
+          "type_ref": "list",
+          "required": true,
+          "default": "",
+          "description": "List of field names that were disclosed in this presentation",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Record of a credential presentation event."
+    },
+    {
+      "name": "CredentialRecord",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "metadata",
+          "type_ref": "CredentialMetadata",
+          "required": true,
+          "default": "",
+          "description": "Credential metadata",
+          "validators": []
+        },
+        {
+          "name": "status",
+          "type_ref": "CredentialStatus",
+          "required": true,
+          "default": "",
+          "description": "Current lifecycle status",
+          "validators": []
+        },
+        {
+          "name": "presentation_history",
+          "type_ref": "list",
+          "required": true,
+          "default": "",
+          "description": "Ordered list of presentation events",
+          "validators": []
+        },
+        {
+          "name": "sd_jwt",
+          "type_ref": "SdJwtCredential",
+          "required": true,
+          "default": "",
+          "description": "SD-JWT VC format credential",
+          "validators": []
+        },
+        {
+          "name": "bbs",
+          "type_ref": "BbsCredential",
+          "required": true,
+          "default": "",
+          "description": "BBS+ format credential",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Full credential record as stored in the vault. Combines metadata, status, and presentation history."
+    },
+    {
+      "name": "IssuanceConfig",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "ttl_seconds",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Time-to-live in seconds from issuance",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": "> 0 && <= 31536000",
+              "error_message": "TTL must be between 1 second and 1 year (31536000 seconds)"
+            }
+          ]
+        },
+        {
+          "name": "domain",
+          "type_ref": "Domain",
+          "required": true,
+          "default": "",
+          "description": "Domain binding for the credential",
+          "validators": []
+        },
+        {
+          "name": "one_time",
+          "type_ref": "bool",
+          "required": true,
+          "default": "false",
+          "description": "If true, credential can only be presented once before transitioning to Consumed",
+          "validators": []
+        },
+        {
+          "name": "clock_skew_tolerance_seconds",
+          "type_ref": "int",
+          "required": true,
+          "default": "30",
+          "description": "Allowed clock skew tolerance in seconds for expiry checks",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": ">= 0 && <= 300",
+              "error_message": "Clock skew tolerance must be 0-300 seconds"
+            }
+          ]
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Configuration parameters for credential issuance."
+    },
+    {
+      "name": "CredentialEngineConfig",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "default_ttl_seconds",
+          "type_ref": "int",
+          "required": true,
+          "default": "3600",
+          "description": "Default TTL for credentials if not specified in IssuanceConfig",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": "> 0 && <= 31536000",
+              "error_message": "Default TTL must be between 1 second and 1 year"
+            }
+          ]
+        },
+        {
+          "name": "default_clock_skew_tolerance_seconds",
+          "type_ref": "int",
+          "required": true,
+          "default": "30",
+          "description": "Default clock skew tolerance",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": ">= 0 && <= 300",
+              "error_message": "Clock skew tolerance must be 0-300 seconds"
+            }
+          ]
+        },
+        {
+          "name": "pedersen_domain_tag",
+          "type_ref": "str",
+          "required": true,
+          "default": "signet-cred-pedersen-v1",
+          "description": "Domain separation tag for Pedersen generator derivation via hash-to-curve. Fixed at compile time.",
+          "validators": []
+        },
+        {
+          "name": "max_attributes_per_credential",
+          "type_ref": "int",
+          "required": true,
+          "default": "128",
+          "description": "Maximum number of attributes in a single credential",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": ">= 1 && <= 1024",
+              "error_message": "Max attributes must be 1-1024"
+            }
+          ]
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Configuration for the CredentialEngine instance."
+    },
+    {
+      "name": "CredError",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "SchemaViolation",
+        "SigningFailed",
+        "EncodingFailed",
+        "DecodingFailed",
+        "CredentialExpired",
+        "CredentialConsumed",
+        "CredentialRevoked",
+        "CredentialNotFound",
+        "InvalidPredicate",
+        "InvalidClaimPath",
+        "AttributeLimitExceeded",
+        "InvalidDisclosurePolicy",
+        "WitnessNotFound",
+        "StatusTransitionDenied",
+        "VaultError",
+        "InternalError"
+      ],
+      "inner_types": [],
+      "description": "Oracle-safe error type for the credential engine. All Display implementations are constant-time-safe and never leak secret material. Crypto failures return generic error types to prevent oracle attacks."
+    },
+    {
+      "name": "CredErrorDetail",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "kind",
+          "type_ref": "CredError",
+          "required": true,
+          "default": "",
+          "description": "Error category",
+          "validators": []
+        },
+        {
+          "name": "message",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Human-readable error message. Must not contain secret material.",
+          "validators": []
+        },
+        {
+          "name": "credential_id",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "Credential ID if applicable (safe to include as it is a public identifier)",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Structured error with a CredError variant and a safe (non-secret-leaking) message. The message must not contain key material, blinding factors, or raw claim values."
+    },
+    {
+      "name": "AuditEventKind",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "CredentialIssued",
+        "CredentialPresented",
+        "CredentialConsumed",
+        "CredentialExpired",
+        "CredentialRevoked",
+        "WitnessAccessed",
+        "WitnessDeleted",
+        "SchemaRegistered"
+      ],
+      "inner_types": [],
+      "description": "Types of credential lifecycle events recorded to the audit log."
+    },
+    {
+      "name": "CredentialAuditEvent",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "event_kind",
+          "type_ref": "AuditEventKind",
+          "required": true,
+          "default": "",
+          "description": "Type of event",
+          "validators": []
+        },
+        {
+          "name": "credential_id",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Credential this event pertains to",
+          "validators": []
+        },
+        {
+          "name": "timestamp",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "ISO 8601 timestamp of the event",
+          "validators": []
+        },
+        {
+          "name": "domain",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "Domain involved if applicable",
+          "validators": []
+        },
+        {
+          "name": "details",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "Additional safe (non-secret) details",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Audit event for credential lifecycle transitions. Recorded to vault's audit log on every state change."
+    },
+    {
+      "name": "ExpiryCheckResult",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "credential_id",
+          "type_ref": "CredentialId",
+          "required": true,
+          "default": "",
+          "description": "Credential checked",
+          "validators": []
+        },
+        {
+          "name": "is_expired",
+          "type_ref": "bool",
+          "required": true,
+          "default": "",
+          "description": "Whether the credential has expired",
+          "validators": []
+        },
+        {
+          "name": "expires_at",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "ISO 8601 expiry timestamp",
+          "validators": []
+        },
+        {
+          "name": "remaining_seconds",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Seconds remaining until expiry (0 if expired)",
+          "validators": []
+        },
+        {
+          "name": "status_updated",
+          "type_ref": "bool",
+          "required": true,
+          "default": "",
+          "description": "Whether the credential status was transitioned to Expired",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Result of checking a credential's expiry status."
+    },
+    {
+      "name": "ScalarEncoding",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "Utf8HashToScalar",
+        "Int64LittleEndian",
+        "BoolSingleByte",
+        "BytesDirect",
+        "DateToEpochDays"
+      ],
+      "inner_types": [],
+      "description": "Canonical encoding scheme for mapping ClaimValues to BBS+ scalars. Fixed at compile time — no negotiation."
+    }
+  ],
+  "functions": [
+    {
+      "name": "create_engine",
+      "description": "Construct a new CredentialEngine instance with the given configuration and vault signer. The engine holds a reference to the vault signer trait object and vault storage trait object. No raw key material is ever held by the engine.",
+      "inputs": [
+        {
+          "name": "config",
+          "type_ref": "CredentialEngineConfig",
+          "required": true,
+          "default": "",
+          "description": "Engine configuration parameters",
+          "validators": []
+        },
+        {
+          "name": "signer",
+          "type_ref": "any",
+          "required": true,
+          "default": "",
+          "description": "Reference to a signet_vault::Signer trait object for delegated signing",
+          "validators": []
+        },
+        {
+          "name": "storage",
+          "type_ref": "any",
+          "required": true,
+          "default": "",
+          "description": "Reference to a signet_vault::VaultStorage trait object for credential persistence",
+          "validators": []
+        },
+        {
+          "name": "audit_log",
+          "type_ref": "any",
+          "required": true,
+          "default": "",
+          "description": "Reference to a signet_vault::AuditLog trait object for event recording",
+          "validators": []
+        }
+      ],
+      "output_type": "any",
+      "error_cases": [
+        {
+          "name": "invalid_config",
+          "condition": "Config validation fails (e.g., TTL out of range)",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "InternalError"
+          }
+        },
+        {
+          "name": "signer_unavailable",
+          "condition": "Signer trait object cannot retrieve public keys",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "VaultError"
+          }
+        }
+      ],
+      "preconditions": [
+        "signer must be a valid Signer trait object from signet_vault",
+        "storage must be a valid VaultStorage trait object from signet_vault",
+        "audit_log must be a valid AuditLog trait object from signet_vault",
+        "config must pass all field validators"
+      ],
+      "postconditions": [
+        "Returned engine holds no raw key material",
+        "Engine is ready to issue credentials via issue_credential"
+      ],
+      "idempotent": true,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "register_schema",
+      "description": "Register a CredentialSchema with the engine. Validates schema consistency: all DerivedBoolean fields must have predicates, disclosure policy must cover all fields, field names must be unique, and BBS+ message vector ordering is deterministic from field order. Schema registration is idempotent for the same schema_id + version.",
+      "inputs": [
+        {
+          "name": "engine",
+          "type_ref": "any",
+          "required": true,
+          "default": "",
+          "description": "Mutable reference to the CredentialEngine",
+          "validators": []
+        },
+        {
+          "name": "schema",
+          "type_ref": "CredentialSchema",
+          "required": true,
+          "default": "",
+          "description": "The schema to register",
+          "validators": []
+        }
+      ],
+      "output_type": "str",
+      "error_cases": [
+        {
+          "name": "schema_violation_missing_predicate",
+          "condition": "A DerivedBoolean field has no predicate",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "SchemaViolation"
+          }
+        },
+        {
+          "name": "schema_violation_duplicate_field",
+          "condition": "Two or more fields have the same name",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "SchemaViolation"
+          }
+        },
+        {
+          "name": "invalid_disclosure_policy",
+          "condition": "Disclosure policy references a field name not in the schema",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "InvalidDisclosurePolicy"
+          }
+        },
+        {
+          "name": "attribute_limit_exceeded",
+          "condition": "Schema has more fields than max_attributes_per_credential",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "AttributeLimitExceeded"
+          }
+        },
+        {
+          "name": "vault_error_audit",
+          "condition": "Audit log recording fails",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "VaultError"
+          }
+        }
+      ],
+      "preconditions": [
+        "Engine has been created via create_engine",
+        "Schema fields list is non-empty",
+        "All DerivedBoolean fields have a predicate defined",
+        "All field names within the schema are unique",
+        "Disclosure policy rules reference valid field names"
+      ],
+      "postconditions": [
+        "Schema is stored in the engine and available for issuance",
+        "BBS+ message vector index mapping is computed and cached",
+        "Audit event SchemaRegistered is recorded",
+        "Returns the schema_id on success"
+      ],
+      "idempotent": true,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "CredentialEngine schema registry",
+          "description": "Stores the validated schema"
+        },
+        {
+          "kind": "logging",
+          "target": "signet_vault::AuditLog",
+          "description": "Records SchemaRegistered event"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "issue_credential",
+      "description": "Issue a dual-format credential (SD-JWT VC + BBS+) from a ClaimSet and schema. Evaluates all predicates to pre-compute DerivedBoolean attributes. Generates Pedersen commitments for Committed attributes. Signs SD-JWT with Ed25519 via vault signer. Signs BBS+ message vector via vault signer. Generates PrivateWitness with blinding factors. Stores credential and witness separately in vault. Records audit event. Returns a complete CredentialBundle.",
+      "inputs": [
+        {
+          "name": "engine",
+          "type_ref": "any",
+          "required": true,
+          "default": "",
+          "description": "Reference to the CredentialEngine",
+          "validators": []
+        },
+        {
+          "name": "schema_id",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "ID of a previously registered schema",
+          "validators": []
+        },
+        {
+          "name": "claims",
+          "type_ref": "ClaimSet",
+          "required": true,
+          "default": "",
+          "description": "Input claim data from vault",
+          "validators": []
+        },
+        {
+          "name": "config",
+          "type_ref": "IssuanceConfig",
+          "required": true,
+          "default": "",
+          "description": "Issuance-specific configuration (TTL, domain, one-time flag)",
+          "validators": []
+        }
+      ],
+      "output_type": "CredentialBundle",
+      "error_cases": [
+        {
+          "name": "schema_not_found",
+          "condition": "No schema with the given schema_id is registered",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "SchemaViolation"
+          }
+        },
+        {
+          "name": "missing_required_claim",
+          "condition": "A required schema field's source_path is not present in the ClaimSet",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "SchemaViolation"
+          }
+        },
+        {
+          "name": "claim_type_mismatch",
+          "condition": "A claim value's type does not match what the schema field expects (e.g., string for a Committed numeric field)",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "SchemaViolation"
+          }
+        },
+        {
+          "name": "invalid_predicate_evaluation",
+          "condition": "A predicate cannot be evaluated against the source claim (e.g., GreaterThan on a string)",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "InvalidPredicate"
+          }
+        },
+        {
+          "name": "signing_failed_ed25519",
+          "condition": "Vault signer fails to produce Ed25519 signature (generic — no details exposed)",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "SigningFailed"
+          }
+        },
+        {
+          "name": "signing_failed_bbs",
+          "condition": "Vault signer fails to produce BBS+ signature (generic — no details exposed)",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "SigningFailed"
+          }
+        },
+        {
+          "name": "encoding_failed_sdjwt",
+          "condition": "SD-JWT encoding or serialization fails",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "EncodingFailed"
+          }
+        },
+        {
+          "name": "encoding_failed_cbor",
+          "condition": "CBOR serialization of BBS+ credential fails",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "EncodingFailed"
+          }
+        },
+        {
+          "name": "vault_storage_error",
+          "condition": "Vault storage fails to persist credential or witness",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "VaultError"
+          }
+        },
+        {
+          "name": "vault_audit_error",
+          "condition": "Audit log recording fails",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "VaultError"
+          }
+        }
+      ],
+      "preconditions": [
+        "Schema with schema_id has been registered via register_schema",
+        "All required schema fields are present in claims at their source_paths",
+        "ClaimSet values match expected types for their schema fields",
+        "Vault signer is available and can sign with both Ed25519 and BBS+",
+        "Vault storage is available for persistence"
+      ],
+      "postconditions": [
+        "CredentialBundle contains a valid SD-JWT VC with Ed25519 signature",
+        "CredentialBundle contains a valid BBS+ credential with correct message vector ordering",
+        "All DerivedBoolean attributes have been pre-computed from predicates",
+        "All Committed attributes have Pedersen commitments with fresh random blinding factors",
+        "PrivateWitness contains blinding factors and raw values for all committed attributes",
+        "Credential is stored in vault with status Active",
+        "PrivateWitness is stored encrypted in vault, separate from public credential",
+        "CredentialMetadata.id is a fresh random CredentialId",
+        "CredentialMetadata.expires_at = issued_at + config.ttl_seconds",
+        "Audit event CredentialIssued is recorded",
+        "All intermediate secret material (blinding factor generation state) is zeroized"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "signet_vault::VaultStorage",
+          "description": "Stores credential public material (CBOR-encoded) and private witness separately"
+        },
+        {
+          "kind": "logging",
+          "target": "signet_vault::AuditLog",
+          "description": "Records CredentialIssued event"
+        },
+        {
+          "kind": "network_call",
+          "target": "none",
+          "description": "No network calls — all operations are local"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "get_credential",
+      "description": "Retrieve a credential record by ID from vault storage. Checks expiry and updates status to Expired if TTL has elapsed (accounting for clock skew tolerance). Does NOT return PrivateWitness — use get_witness separately.",
+      "inputs": [
+        {
+          "name": "engine",
+          "type_ref": "any",
+          "required": true,
+          "default": "",
+          "description": "Reference to the CredentialEngine",
+          "validators": []
+        },
+        {
+          "name": "credential_id",
+          "type_ref": "CredentialId",
+          "required": true,
+          "default": "",
+          "description": "ID of the credential to retrieve",
+          "validators": []
+        }
+      ],
+      "output_type": "CredentialRecord",
+      "error_cases": [
+        {
+          "name": "credential_not_found",
+          "condition": "No credential with the given ID exists in vault storage",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "CredentialNotFound"
+          }
+        },
+        {
+          "name": "decoding_failed",
+          "condition": "Stored credential data cannot be deserialized",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "DecodingFailed"
+          }
+        },
+        {
+          "name": "vault_error",
+          "condition": "Vault storage read fails",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "VaultError"
+          }
+        }
+      ],
+      "preconditions": [
+        "Engine has been created via create_engine",
+        "Credential with the given ID exists in vault storage"
+      ],
+      "postconditions": [
+        "If credential TTL has elapsed, status is transitioned to Expired and audit event recorded",
+        "Returned CredentialRecord reflects current status",
+        "No private witness material is included in the response"
+      ],
+      "idempotent": true,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "reads_file",
+          "target": "signet_vault::VaultStorage",
+          "description": "Reads credential record from vault"
+        },
+        {
+          "kind": "mutates_state",
+          "target": "signet_vault::VaultStorage",
+          "description": "May update status to Expired if TTL elapsed"
+        },
+        {
+          "kind": "logging",
+          "target": "signet_vault::AuditLog",
+          "description": "Records CredentialExpired event if status transitioned"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "get_witness",
+      "description": "Retrieve the PrivateWitness for a credential from vault storage. The returned witness contains blinding factors and raw numeric values needed for downstream Bulletproof range proofs. Caller is responsible for zeroizing the witness when done. Records audit event for witness access.",
+      "inputs": [
+        {
+          "name": "engine",
+          "type_ref": "any",
+          "required": true,
+          "default": "",
+          "description": "Reference to the CredentialEngine",
+          "validators": []
+        },
+        {
+          "name": "credential_id",
+          "type_ref": "CredentialId",
+          "required": true,
+          "default": "",
+          "description": "ID of the credential whose witness to retrieve",
+          "validators": []
+        }
+      ],
+      "output_type": "PrivateWitness",
+      "error_cases": [
+        {
+          "name": "credential_not_found",
+          "condition": "No credential with the given ID exists",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "CredentialNotFound"
+          }
+        },
+        {
+          "name": "witness_not_found",
+          "condition": "Credential exists but witness material has been deleted or was never stored",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "WitnessNotFound"
+          }
+        },
+        {
+          "name": "credential_consumed",
+          "condition": "Credential is in Consumed state — witness should not be accessed",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "CredentialConsumed"
+          }
+        },
+        {
+          "name": "credential_revoked",
+          "condition": "Credential is in Revoked state — witness should not be accessed",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "CredentialRevoked"
+          }
+        },
+        {
+          "name": "credential_expired",
+          "condition": "Credential is in Expired state",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "CredentialExpired"
+          }
+        },
+        {
+          "name": "vault_error",
+          "condition": "Vault storage read fails",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "VaultError"
+          }
+        }
+      ],
+      "preconditions": [
+        "Engine has been created via create_engine",
+        "Credential with the given ID exists and has associated witness material",
+        "Credential is not in a terminal state (Consumed, Revoked)"
+      ],
+      "postconditions": [
+        "Returned PrivateWitness contains all blinding factors and raw values for committed attributes",
+        "Audit event WitnessAccessed is recorded",
+        "Witness material in the return value implements ZeroizeOnDrop"
+      ],
+      "idempotent": true,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "reads_file",
+          "target": "signet_vault::VaultStorage",
+          "description": "Reads encrypted witness from vault"
+        },
+        {
+          "kind": "logging",
+          "target": "signet_vault::AuditLog",
+          "description": "Records WitnessAccessed event"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "record_presentation",
+      "description": "Record that a credential was presented to a domain. Updates credential status from Active to Presented. For one-time credentials, atomically transitions to Consumed via vault's atomic_consume_credential. Records audit event. Validates that disclosed fields comply with the credential's DisclosurePolicy.",
+      "inputs": [
+        {
+          "name": "engine",
+          "type_ref": "any",
+          "required": true,
+          "default": "",
+          "description": "Reference to the CredentialEngine",
+          "validators": []
+        },
+        {
+          "name": "credential_id",
+          "type_ref": "CredentialId",
+          "required": true,
+          "default": "",
+          "description": "ID of the credential being presented",
+          "validators": []
+        },
+        {
+          "name": "presented_to",
+          "type_ref": "Domain",
+          "required": true,
+          "default": "",
+          "description": "Domain the credential is being presented to",
+          "validators": []
+        },
+        {
+          "name": "disclosed_fields",
+          "type_ref": "list",
+          "required": true,
+          "default": "",
+          "description": "List of field name strings that were disclosed in this presentation",
+          "validators": []
+        }
+      ],
+      "output_type": "CredentialStatus",
+      "error_cases": [
+        {
+          "name": "credential_not_found",
+          "condition": "No credential with the given ID exists",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "CredentialNotFound"
+          }
+        },
+        {
+          "name": "credential_expired",
+          "condition": "Credential TTL has elapsed",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "CredentialExpired"
+          }
+        },
+        {
+          "name": "credential_consumed",
+          "condition": "One-time credential has already been consumed",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "CredentialConsumed"
+          }
+        },
+        {
+          "name": "credential_revoked",
+          "condition": "Credential has been revoked",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "CredentialRevoked"
+          }
+        },
+        {
+          "name": "disclosure_policy_violation",
+          "condition": "Disclosed fields violate the DisclosurePolicy (e.g., a Never field was disclosed, or an Always field was omitted)",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "InvalidDisclosurePolicy"
+          }
+        },
+        {
+          "name": "status_transition_denied",
+          "condition": "Credential is in a terminal state that does not allow presentation",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "StatusTransitionDenied"
+          }
+        },
+        {
+          "name": "atomic_consume_failed",
+          "condition": "Vault's atomic compare-and-swap for one-time consumption failed (race condition)",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "VaultError"
+          }
+        },
+        {
+          "name": "vault_error",
+          "condition": "Vault storage update fails",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "VaultError"
+          }
+        }
+      ],
+      "preconditions": [
+        "Credential exists and is in Active or Presented state",
+        "Credential is not expired (TTL check performed)",
+        "disclosed_fields only contains field names present in the credential's schema",
+        "disclosed_fields complies with DisclosurePolicy (no Never fields disclosed, all Always fields disclosed)"
+      ],
+      "postconditions": [
+        "If one_time credential and status was Active: status atomically transitions to Consumed",
+        "If one_time credential and status was Presented: status atomically transitions to Consumed",
+        "If not one_time: status transitions to Presented",
+        "PresentationRecord appended to credential's presentation_history",
+        "Audit event CredentialPresented (or CredentialConsumed for one-time) is recorded",
+        "For one-time credentials, witness material is marked for deletion",
+        "Returns the new CredentialStatus"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "signet_vault::VaultStorage",
+          "description": "Updates credential status and appends presentation record"
+        },
+        {
+          "kind": "logging",
+          "target": "signet_vault::AuditLog",
+          "description": "Records CredentialPresented or CredentialConsumed event"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "revoke_credential",
+      "description": "Revoke a credential, transitioning it to the terminal Revoked state. Deletes associated PrivateWitness from vault. Records audit event.",
+      "inputs": [
+        {
+          "name": "engine",
+          "type_ref": "any",
+          "required": true,
+          "default": "",
+          "description": "Reference to the CredentialEngine",
+          "validators": []
+        },
+        {
+          "name": "credential_id",
+          "type_ref": "CredentialId",
+          "required": true,
+          "default": "",
+          "description": "ID of the credential to revoke",
+          "validators": []
+        },
+        {
+          "name": "reason",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Human-readable revocation reason (must not contain secret material)",
+          "validators": []
+        }
+      ],
+      "output_type": "CredentialStatus",
+      "error_cases": [
+        {
+          "name": "credential_not_found",
+          "condition": "No credential with the given ID exists",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "CredentialNotFound"
+          }
+        },
+        {
+          "name": "already_consumed",
+          "condition": "Credential is already in Consumed terminal state",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "StatusTransitionDenied"
+          }
+        },
+        {
+          "name": "already_revoked",
+          "condition": "Credential is already in Revoked terminal state",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "StatusTransitionDenied"
+          }
+        },
+        {
+          "name": "vault_error",
+          "condition": "Vault storage update or witness deletion fails",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "VaultError"
+          }
+        }
+      ],
+      "preconditions": [
+        "Credential exists and is not already in a terminal state (Consumed or Revoked)"
+      ],
+      "postconditions": [
+        "Credential status is Revoked",
+        "PrivateWitness material is deleted from vault and zeroized",
+        "Audit events CredentialRevoked and WitnessDeleted are recorded",
+        "Returns CredentialStatus::Revoked"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "signet_vault::VaultStorage",
+          "description": "Updates credential status to Revoked and deletes witness"
+        },
+        {
+          "kind": "logging",
+          "target": "signet_vault::AuditLog",
+          "description": "Records CredentialRevoked and WitnessDeleted events"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "check_expiry",
+      "description": "Check whether a credential has expired based on its TTL and the configured clock skew tolerance. If expired, transitions status to Expired and records audit event. Returns detailed expiry information.",
+      "inputs": [
+        {
+          "name": "engine",
+          "type_ref": "any",
+          "required": true,
+          "default": "",
+          "description": "Reference to the CredentialEngine",
+          "validators": []
+        },
+        {
+          "name": "credential_id",
+          "type_ref": "CredentialId",
+          "required": true,
+          "default": "",
+          "description": "ID of the credential to check",
+          "validators": []
+        },
+        {
+          "name": "now",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Current ISO 8601 timestamp (caller-provided for testability)",
+          "validators": []
+        }
+      ],
+      "output_type": "ExpiryCheckResult",
+      "error_cases": [
+        {
+          "name": "credential_not_found",
+          "condition": "No credential with the given ID exists",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "CredentialNotFound"
+          }
+        },
+        {
+          "name": "vault_error",
+          "condition": "Vault storage read or update fails",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "VaultError"
+          }
+        }
+      ],
+      "preconditions": [
+        "Credential exists in vault storage",
+        "now is a valid ISO 8601 timestamp"
+      ],
+      "postconditions": [
+        "If credential has expired (expires_at + clock_skew_tolerance < now), status transitions to Expired",
+        "If status transitioned, audit event CredentialExpired is recorded",
+        "ExpiryCheckResult.status_updated is true only if a state transition occurred",
+        "ExpiryCheckResult.remaining_seconds is 0 if expired"
+      ],
+      "idempotent": true,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "reads_file",
+          "target": "signet_vault::VaultStorage",
+          "description": "Reads credential metadata"
+        },
+        {
+          "kind": "mutates_state",
+          "target": "signet_vault::VaultStorage",
+          "description": "May update status to Expired"
+        },
+        {
+          "kind": "logging",
+          "target": "signet_vault::AuditLog",
+          "description": "Records CredentialExpired event if transitioned"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "delete_witness",
+      "description": "Explicitly delete a PrivateWitness from vault storage. Used after Bulletproof proofs have been generated and the witness is no longer needed. Ensures zeroization of all blinding factors and raw values. Records audit event.",
+      "inputs": [
+        {
+          "name": "engine",
+          "type_ref": "any",
+          "required": true,
+          "default": "",
+          "description": "Reference to the CredentialEngine",
+          "validators": []
+        },
+        {
+          "name": "credential_id",
+          "type_ref": "CredentialId",
+          "required": true,
+          "default": "",
+          "description": "ID of the credential whose witness to delete",
+          "validators": []
+        }
+      ],
+      "output_type": "bool",
+      "error_cases": [
+        {
+          "name": "credential_not_found",
+          "condition": "No credential with the given ID exists",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "CredentialNotFound"
+          }
+        },
+        {
+          "name": "witness_not_found",
+          "condition": "Witness material does not exist or was already deleted",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "WitnessNotFound"
+          }
+        },
+        {
+          "name": "vault_error",
+          "condition": "Vault storage deletion fails",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "VaultError"
+          }
+        }
+      ],
+      "preconditions": [
+        "Credential exists in vault storage",
+        "Witness material exists for this credential"
+      ],
+      "postconditions": [
+        "PrivateWitness material is deleted from vault storage",
+        "All blinding factors and raw values in the witness are zeroized",
+        "Audit event WitnessDeleted is recorded",
+        "Returns true on successful deletion"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "signet_vault::VaultStorage",
+          "description": "Deletes witness material from vault"
+        },
+        {
+          "kind": "logging",
+          "target": "signet_vault::AuditLog",
+          "description": "Records WitnessDeleted event"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "encode_claim_to_scalar",
+      "description": "Encode a ClaimValue to a BBS+ scalar using the canonical encoding scheme. This is a pure function with no side effects. The encoding is deterministic: the same input always produces the same 32-byte scalar. Used internally during issuance and exposed for testing/verification.",
+      "inputs": [
+        {
+          "name": "value",
+          "type_ref": "ClaimValue",
+          "required": true,
+          "default": "",
+          "description": "The claim value to encode",
+          "validators": []
+        },
+        {
+          "name": "encoding",
+          "type_ref": "ScalarEncoding",
+          "required": true,
+          "default": "",
+          "description": "The encoding scheme to use (determined by value type)",
+          "validators": []
+        }
+      ],
+      "output_type": "bytes",
+      "error_cases": [
+        {
+          "name": "encoding_mismatch",
+          "condition": "Encoding scheme is incompatible with the value type",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "EncodingFailed"
+          }
+        },
+        {
+          "name": "value_out_of_range",
+          "condition": "Value cannot be represented as a valid scalar (e.g., integer too large)",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "EncodingFailed"
+          }
+        }
+      ],
+      "preconditions": [
+        "Encoding scheme is compatible with the value type (e.g., Int64LittleEndian for IntVal)"
+      ],
+      "postconditions": [
+        "Output is exactly 32 bytes",
+        "Encoding is deterministic (same input -> same output)",
+        "Output is a valid BBS+ scalar (less than the group order)"
+      ],
+      "idempotent": true,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "validate_schema",
+      "description": "Validate a CredentialSchema without registering it. Checks all structural invariants: unique field names, DerivedBoolean fields have predicates, disclosure policy consistency, attribute count limits. Returns a list of validation error messages (empty list means valid).",
+      "inputs": [
+        {
+          "name": "schema",
+          "type_ref": "CredentialSchema",
+          "required": true,
+          "default": "",
+          "description": "The schema to validate",
+          "validators": []
+        },
+        {
+          "name": "max_attributes",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Maximum allowed attributes per credential",
+          "validators": []
+        }
+      ],
+      "output_type": "list",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "Returns empty list if schema is valid",
+        "Returns non-empty list of human-readable error strings if schema has issues",
+        "Does not modify any state"
+      ],
+      "idempotent": true,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "evaluate_predicate",
+      "description": "Evaluate a Predicate against a ClaimValue to produce a boolean result. Pure function used during issuance to pre-compute DerivedBoolean attributes. Exposed for testing and verification.",
+      "inputs": [
+        {
+          "name": "predicate",
+          "type_ref": "Predicate",
+          "required": true,
+          "default": "",
+          "description": "The predicate to evaluate",
+          "validators": []
+        },
+        {
+          "name": "value",
+          "type_ref": "ClaimValue",
+          "required": true,
+          "default": "",
+          "description": "The claim value to evaluate against",
+          "validators": []
+        }
+      ],
+      "output_type": "bool",
+      "error_cases": [
+        {
+          "name": "type_mismatch",
+          "condition": "Value type is incompatible with the predicate (e.g., GreaterThan applied to a StringVal)",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "InvalidPredicate"
+          }
+        },
+        {
+          "name": "empty_set",
+          "condition": "InSet predicate has an empty set",
+          "error_type": "CredErrorDetail",
+          "error_data": {
+            "kind": "InvalidPredicate"
+          }
+        }
+      ],
+      "preconditions": [
+        "Value type is compatible with the predicate (e.g., IntVal for GreaterThan)"
+      ],
+      "postconditions": [
+        "Returns true if the value satisfies the predicate, false otherwise",
+        "Evaluation is deterministic"
+      ],
+      "idempotent": true,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    }
+  ],
+  "dependencies": [
+    "signet_vault"
+  ],
+  "dependency_contracts": {
+    "signet_vault": [
+      "Signer::sign_ed25519(payload: bytes) -> Result<Ed25519Signature, VaultError>",
+      "Signer::sign_bbs(messages: list<BbsMessage>) -> Result<BbsSignature, VaultError>",
+      "Signer::public_key_ed25519() -> Result<Ed25519PublicKey, VaultError>",
+      "Signer::public_key_bbs() -> Result<BbsPublicKey, VaultError>",
+      "VaultStorage::store_credential(id: CredentialId, public_cbor: bytes, private_cbor: bytes) -> Result<None, VaultError>",
+      "VaultStorage::load_credential(id: CredentialId) -> Result<CredentialStorageRecord, VaultError>",
+      "VaultStorage::update_credential_status(id: CredentialId, new_status: bytes) -> Result<None, VaultError>",
+      "VaultStorage::atomic_consume_credential(id: CredentialId) -> Result<bool, VaultError>",
+      "AuditLog::record(event: AuditEvent) -> Result<None, VaultError>"
+    ]
+  },
+  "invariants": [
+    "The credential engine NEVER holds or accesses raw key material — all signing is delegated to vault via Signer trait",
+    "All algorithms are compile-time fixed: Ed25519 for SD-JWT, BBS+ for unlinkable credentials, Pedersen over Ristretto for commitments. No algorithm negotiation in any code path.",
+    "PrivateWitness implements ZeroizeOnDrop — all blinding factors and raw numeric values are zeroized when the witness goes out of scope",
+    "All intermediate secret material (blinding factor generation state, scalar intermediates) is zeroized immediately after use",
+    "Error messages NEVER contain key material, blinding factors, raw claim values, or any secret data (oracle-safe)",
+    "Crypto failures (signing, commitment generation) return generic error types — no information leakage about failure mode",
+    "One-time credential consumption (Active/Presented -> Consumed) is atomic via vault's compare-and-swap — no race conditions",
+    "CredentialStatus state machine transitions are strictly enforced: Consumed, Expired, and Revoked are terminal states with no outbound transitions",
+    "BBS+ message vector ordering is deterministic: defined by CredentialSchema field list order, immutable once schema is registered",
+    "Canonical ClaimValue-to-scalar encoding is deterministic and fixed: Utf8HashToScalar for strings, Int64LittleEndian for integers, BoolSingleByte for booleans, BytesDirect for bytes, DateToEpochDays for dates",
+    "Pedersen commitment generators are derived via hash-to-curve with domain separation tag 'signet-cred-pedersen-v1' — generator derivation is deterministic and verifiable",
+    "SD-JWT VC output conforms to RFC 9901 compact serialization",
+    "All credential state transitions generate an audit event on the vault's audit log — no silent state changes",
+    "DisclosurePolicy defaults to Never (fail-closed) for any field not explicitly listed in rules",
+    "Pipeline timeout = deny: any vault operation timeout results in an error return, never a silent success",
+    "One-way data flow: credential data flows vault -> cred engine -> caller, never reverse. The cred engine does not write back to claim source.",
+    "BBS+ credentials must maintain unlinkability: no credential-specific identifiers are included in the BBS+ message vector that could correlate presentations",
+    "Clock skew tolerance is bounded (0-300 seconds) and applied consistently to all expiry checks",
+    "CBOR is the primary internal serialization format for vault storage; SD-JWT uses compact string serialization for external interoperability",
+    "All public types use serde(deny_unknown_fields) to reject unexpected data during deserialization"
+  ],
+  "requires": [
+    "signet_vault must expose a Signer trait with sign_ed25519 and sign_bbs methods",
+    "signet_vault must expose a VaultStorage trait for credential persistence",
+    "signet_vault must support atomic compare-and-swap for one-time credential consumption",
+    "signet_vault must expose an AuditLog trait for recording credential lifecycle events",
+    "signet_vault must zeroize all secret material on drop",
+    "sd-jwt-rust (OpenWallet Foundation) crate available for SD-JWT VC encoding",
+    "anoncreds-v2-rs crate available for BBS+ signature operations",
+    "dalek bulletproofs crate available for Pedersen commitment generation",
+    "System clock is reasonably accurate (clock skew tolerance is configurable)"
+  ]
+}

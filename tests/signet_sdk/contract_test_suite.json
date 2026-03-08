@@ -1,0 +1,210 @@
+{
+  "component_id": "signet_sdk",
+  "contract_version": 1,
+  "test_cases": [
+    {
+      "id": "test_verify_happy_path",
+      "description": "Verify should return true for valid proof and claim.",
+      "function": "verify",
+      "category": "happy_path",
+      "setup_description": "Set up with valid proof and claim.",
+      "mock_dependencies": {
+        "verify": "mock"
+      },
+      "input_values": {
+        "proof": "Proof(data=b'validproof')",
+        "claim": "Claim(attribute='age', value=25)"
+      },
+      "input_description": "Valid proof and claim.",
+      "expected_output_description": "Verification succeeds and returns true.",
+      "expected_error": "",
+      "assertions": [
+        "assert result.is_ok()",
+        "assert result.unwrap() is True"
+      ]
+    },
+    {
+      "id": "test_verify_invalid_proof",
+      "description": "Verify should return InvalidProof error for corrupted proof data.",
+      "function": "verify",
+      "category": "error_case",
+      "setup_description": "Corrupted proof data",
+      "mock_dependencies": {
+        "verify": "mock"
+      },
+      "input_values": {
+        "proof": "Proof(data=b'')",
+        "claim": "Claim(attribute='age', value=25)"
+      },
+      "input_description": "Corrupted proof data.",
+      "expected_output_description": "Verification fails with InvalidProof error.",
+      "expected_error": "InvalidProof",
+      "assertions": [
+        "assert result.is_err()",
+        "assert result.unwrap_err() == SignetError.InvalidProof"
+      ]
+    },
+    {
+      "id": "test_request_capability_happy_path",
+      "description": "Request capability should return a token for valid capability spec.",
+      "function": "requestCapability",
+      "category": "happy_path",
+      "setup_description": "Create a valid capability spec.",
+      "mock_dependencies": {
+        "requestCapability": "mock"
+      },
+      "input_values": {
+        "spec": "CapabilitySpec(permissions=['read', 'write'], expiration=60)"
+      },
+      "input_description": "Valid capability spec.",
+      "expected_output_description": "Returns a capability token.",
+      "expected_error": "",
+      "assertions": [
+        "assert result.is_ok()",
+        "assert isinstance(result.unwrap(), str)"
+      ]
+    },
+    {
+      "id": "test_request_capability_network_failure",
+      "description": "Request capability should return CapabilityRequestFailed when network issues occur.",
+      "function": "requestCapability",
+      "category": "error_case",
+      "setup_description": "Simulate network issues.",
+      "mock_dependencies": {
+        "requestCapability": "mock"
+      },
+      "input_values": {
+        "spec": "CapabilitySpec(permissions=['read'], expiration=60)"
+      },
+      "input_description": "Valid spec with hypothetical network issues.",
+      "expected_output_description": "Operation fails with CapabilityRequestFailed.",
+      "expected_error": "CapabilityRequestFailed",
+      "assertions": [
+        "assert result.is_err()",
+        "assert result.unwrap_err() == SignetError.CapabilityRequestFailed"
+      ]
+    },
+    {
+      "id": "test_check_authority_happy_path",
+      "description": "Check authority should return true when identity has authority.",
+      "function": "checkAuthority",
+      "category": "happy_path",
+      "setup_description": "Identity with the required authority.",
+      "mock_dependencies": {
+        "checkAuthority": "mock"
+      },
+      "input_values": {
+        "signet_id": "SignetId(id='valid')",
+        "authority": "admin"
+      },
+      "input_description": "Valid signet_id and authority.",
+      "expected_output_description": "Returns true since authority is present.",
+      "expected_error": "",
+      "assertions": [
+        "assert result.is_ok()",
+        "assert result.unwrap() is True"
+      ]
+    },
+    {
+      "id": "test_check_authority_missing",
+      "description": "Check authority should return false when identity does not have authority.",
+      "function": "checkAuthority",
+      "category": "edge_case",
+      "setup_description": "Identity without the required authority.",
+      "mock_dependencies": {
+        "checkAuthority": "mock"
+      },
+      "input_values": {
+        "signet_id": "SignetId(id='valid')",
+        "authority": "guest"
+      },
+      "input_description": "Valid signet_id and authority.",
+      "expected_output_description": "Returns false since authority is missing.",
+      "expected_error": "",
+      "assertions": [
+        "assert result.is_ok()",
+        "assert result.unwrap() is False"
+      ]
+    },
+    {
+      "id": "test_parse_credential_happy_path",
+      "description": "Parse credential should return a claim for a valid token.",
+      "function": "parseCredential",
+      "category": "happy_path",
+      "setup_description": "Valid SD-JWT or BBS+ token",
+      "mock_dependencies": {
+        "parseCredential": "mock"
+      },
+      "input_values": {
+        "token": "'validtoken'"
+      },
+      "input_description": "A valid credential token.",
+      "expected_output_description": "Returns the parsed claim.",
+      "expected_error": "",
+      "assertions": [
+        "assert result.is_ok()",
+        "assert isinstance(result.unwrap(), Claim)"
+      ]
+    },
+    {
+      "id": "test_parse_credential_invalid_token",
+      "description": "Parse credential should return CredentialParseError for a malformed token.",
+      "function": "parseCredential",
+      "category": "error_case",
+      "setup_description": "Malformed SD-JWT or BBS+ token",
+      "mock_dependencies": {
+        "parseCredential": "mock"
+      },
+      "input_values": {
+        "token": "'invalidtoken'"
+      },
+      "input_description": "A malformed credential token.",
+      "expected_output_description": "Returns CredentialParseError.",
+      "expected_error": "CredentialParseError",
+      "assertions": [
+        "assert result.is_err()",
+        "assert result.unwrap_err() == SignetError.CredentialParseError"
+      ]
+    },
+    {
+      "id": "test_invariant_same_input_consistent_results",
+      "description": "All functions should return consistent results given the same inputs.",
+      "function": "checkInvariant",
+      "category": "invariant",
+      "setup_description": "Set up inputs for repeated calls.",
+      "mock_dependencies": {
+        "verify": "mock",
+        "requestCapability": "mock",
+        "checkAuthority": "mock",
+        "parseCredential": "mock"
+      },
+      "input_values": {
+        "proof": "Proof(data=b'sameproof')",
+        "claim": "Claim(attribute='age', value=25)",
+        "spec": "CapabilitySpec(permissions=['read'], expiration=60)",
+        "signet_id": "SignetId(id='consistent')",
+        "authority": "read",
+        "token": "'consistenttoken'"
+      },
+      "input_description": "Repeatedly call each function with the same inputs.",
+      "expected_output_description": "Consistent results for the same inputs.",
+      "expected_error": "",
+      "assertions": [
+        "result1 = verify(input_values['proof'], input_values['claim'])",
+        "result2 = verify(input_values['proof'], input_values['claim'])",
+        "assert result1 == result2",
+        "result3 = requestCapability(input_values['spec'])",
+        "result4 = requestCapability(input_values['spec'])",
+        "assert result3 == result4",
+        "result5 = checkAuthority(input_values['signet_id'], input_values['authority'])",
+        "result6 = checkAuthority(input_values['signet_id'], input_values['authority'])",
+        "assert result5 == result6",
+        "result7 = parseCredential(input_values['token'])",
+        "result8 = parseCredential(input_values['token'])",
+        "assert result7 == result8"
+      ]
+    }
+  ],
+  "test_language": "python",
+  "generated_code": "import pytest\nfrom unittest.mock import Mock\nfrom src.signet_sdk import *\n\n\n@pytest.fixture\ndef mock_verify(mocker):\n    mock = mocker.patch('src.signet_sdk.verify')\n    return mock\n\n\n@pytest.fixture\ndef mock_requestCapability(mocker):\n    mock = mocker.patch('src.signet_sdk.requestCapability')\n    return mock\n\n\n@pytest.fixture\ndef mock_checkAuthority(mocker):\n    mock = mocker.patch('src.signet_sdk.checkAuthority')\n    return mock\n\n\n@pytest.fixture\ndef mock_parseCredential(mocker):\n    mock = mocker.patch('src.signet_sdk.parseCredential')\n    return mock\n\n\ndef test_verify_happy_path(mock_verify):\n    mock_verify.return_value = Ok(True)\n    proof = Proof(data=b'validproof')\n    claim = Claim(attribute='age', value=25)\n    result = verify(proof, claim)\n    assert result.is_ok(), \"Expected verification to succeed\"\n    assert result.unwrap() is True, \"Expected result to be True\"\n\n\ndef test_verify_invalid_proof(mock_verify):\n    mock_verify.return_value = Err(SignetError.InvalidProof)\n    proof = Proof(data=b'')\n    claim = Claim(attribute='age', value=25)\n    result = verify(proof, claim)\n    assert result.is_err(), \"Expected verification to fail\"\n    assert result.unwrap_err() == SignetError.InvalidProof, \"Expected InvalidProof error\"\n\n\ndef test_request_capability_happy_path(mock_requestCapability):\n    mock_requestCapability.return_value = Ok('valid_token')\n    spec = CapabilitySpec(permissions=['read', 'write'], expiration=60)\n    result = requestCapability(spec)\n    assert result.is_ok(), \"Expected capability request to succeed\"\n    assert isinstance(result.unwrap(), str), \"Expected result to be a string token\"\n\n\ndef test_request_capability_network_failure(mock_requestCapability):\n    mock_requestCapability.return_value = Err(SignetError.CapabilityRequestFailed)\n    spec = CapabilitySpec(permissions=['read'], expiration=60)\n    result = requestCapability(spec)\n    assert result.is_err(), \"Expected capability request to fail\"\n    assert result.unwrap_err() == SignetError.CapabilityRequestFailed, \"Expected CapabilityRequestFailed error\"\n\n\ndef test_check_authority_happy_path(mock_checkAuthority):\n    mock_checkAuthority.return_value = Ok(True)\n    signet_id = SignetId(id='valid')\n    authority = 'admin'\n    result = checkAuthority(signet_id, authority)\n    assert result.is_ok(), \"Expected authority check to succeed\"\n    assert result.unwrap() is True, \"Expected result to be True\"\n\n\ndef test_check_authority_missing(mock_checkAuthority):\n    mock_checkAuthority.return_value = Ok(False)\n    signet_id = SignetId(id='valid')\n    authority = 'guest'\n    result = checkAuthority(signet_id, authority)\n    assert result.is_ok(), \"Expected authority check to succeed\"\n    assert result.unwrap() is False, \"Expected result to be False\"\n\n\ndef test_parse_credential_happy_path(mock_parseCredential):\n    mock_parseCredential.return_value = Ok(Claim(attribute='age', value=25))\n    token = 'validtoken'\n    result = parseCredential(token)\n    assert result.is_ok(), \"Expected credential parsing to succeed\"\n    assert isinstance(result.unwrap(), Claim), \"Expected result to be a Claim instance\"\n\n\ndef test_parse_credential_invalid_token(mock_parseCredential):\n    mock_parseCredential.return_value = Err(SignetError.CredentialParseError)\n    token = 'invalidtoken'\n    result = parseCredential(token)\n    assert result.is_err(), \"Expected credential parsing to fail\"\n    assert result.unwrap_err() == SignetError.CredentialParseError, \"Expected CredentialParseError\"\n\n\ndef test_invariant_same_input_consistent_results(mock_verify, mock_requestCapability, mock_checkAuthority, mock_parseCredential):\n    mock_verify.return_value = Ok(True)\n    mock_requestCapability.return_value = Ok('valid_token')\n    mock_checkAuthority.return_value = Ok(True)\n    mock_parseCredential.return_value = Ok(Claim(attribute='age', value=25))\n\n    proof = Proof(data=b'sameproof')\n    claim = Claim(attribute='age', value=25)\n    spec = CapabilitySpec(permissions=['read'], expiration=60)\n    signet_id = SignetId(id='consistent')\n    authority = 'read'\n    token = 'consistenttoken'\n\n    result1 = verify(proof, claim)\n    result2 = verify(proof, claim)\n    assert result1 == result2, \"Expected consistent verification results\"\n\n    result3 = requestCapability(spec)\n    result4 = requestCapability(spec)\n    assert result3 == result4, \"Expected consistent capability request results\"\n\n    result5 = checkAuthority(signet_id, authority)\n    result6 = checkAuthority(signet_id, authority)\n    assert result5 == result6, \"Expected consistent authority check results\"\n\n    result7 = parseCredential(token)\n    result8 = parseCredential(token)\n    assert result7 == result8, \"Expected consistent credential parsing results\"\n"
+}

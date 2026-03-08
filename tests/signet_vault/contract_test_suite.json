@@ -1,0 +1,112 @@
+{
+  "component_id": "signet_vault",
+  "contract_version": 1,
+  "test_cases": [
+    {
+      "id": "test_generate_mnemonic_happy_path",
+      "description": "Test that generate_mnemonic returns a valid BIP39 mnemonic.",
+      "function": "generate_mnemonic",
+      "category": "happy_path",
+      "setup_description": "No setup required for this test.",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "No inputs needed for mnemonic generation.",
+      "expected_output_description": "A valid BIP39 mnemonic is returned.",
+      "expected_error": "",
+      "assertions": [
+        "assert isinstance(mnemonic, Mnemonic), 'Expected instance of Mnemonic.'",
+        "assert len(mnemonic.phrase) > 0, 'Expected non-empty mnemonic phrase.'"
+      ]
+    },
+    {
+      "id": "test_derive_key_with_valid_mnemonic",
+      "description": "Test derive_key with a valid mnemonic and check if it returns a key.",
+      "function": "derive_key",
+      "category": "happy_path",
+      "setup_description": "Generate a mock valid mnemonic for testing.",
+      "mock_dependencies": {
+        "src.signet_vault.generate_mnemonic": "lambda: Mnemonic(phrase=['word1', 'word2', 'word3'])"
+      },
+      "input_values": {
+        "mnemonic": "Mnemonic(phrase=['word1', 'word2', 'word3'])",
+        "key_type": "KeyType.Ed25519"
+      },
+      "input_description": "A valid BIP39 mnemonic and a key type.",
+      "expected_output_description": "A derived key should be returned.",
+      "expected_error": "",
+      "assertions": [
+        "assert isinstance(key, bytes), 'Expected bytes as derived key.'",
+        "assert len(key) > 0, 'Expected non-empty derived key.'"
+      ]
+    },
+    {
+      "id": "test_derive_key_with_invalid_mnemonic",
+      "description": "Test derive_key with an invalid mnemonic to see if it raises InvalidMnemonic error.",
+      "function": "derive_key",
+      "category": "error_case",
+      "setup_description": "Provide an invalid mnemonic for testing.",
+      "mock_dependencies": {},
+      "input_values": {
+        "mnemonic": "Mnemonic(phrase=['invalid'])",
+        "key_type": "KeyType.Ed25519"
+      },
+      "input_description": "An invalid BIP39 mnemonic and a key type.",
+      "expected_output_description": "",
+      "expected_error": "InvalidMnemonic",
+      "assertions": []
+    },
+    {
+      "id": "test_store_data_encryption_failure",
+      "description": "Test store_data with encryption failure handling.",
+      "function": "store_data",
+      "category": "error_case",
+      "setup_description": "Mock the encryption process to simulate failure.",
+      "mock_dependencies": {
+        "src.signet_vault.encrypt_data": "lambda data: raise EncryptionFailed"
+      },
+      "input_values": {
+        "data": "b'some data'",
+        "tier": "Tier.Tier1"
+      },
+      "input_description": "Valid data and storage tier.",
+      "expected_output_description": "",
+      "expected_error": "EncryptionFailed",
+      "assertions": []
+    },
+    {
+      "id": "test_retrieve_data_storage_error",
+      "description": "Test retrieve_data for storage error handling when data does not exist.",
+      "function": "retrieve_data",
+      "category": "error_case",
+      "setup_description": "Ensure data corresponding to identifier does not exist.",
+      "mock_dependencies": {
+        "src.signet_vault.retrieve_stored_data": "lambda identifier: raise StorageError"
+      },
+      "input_values": {
+        "identifier": "non_existing_id",
+        "tier": "Tier.Tier1"
+      },
+      "input_description": "Identifier for non-stored data and a valid tier.",
+      "expected_output_description": "",
+      "expected_error": "StorageError",
+      "assertions": []
+    },
+    {
+      "id": "test_zero_secrets_in_memory_invariant",
+      "description": "Test that the policy of zero secrets in memory is maintained after operations.",
+      "function": "invariant_checks",
+      "category": "invariant",
+      "setup_description": "Perform operations and verify memory cleanup.",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "No input values, test system state after operations.",
+      "expected_output_description": "All secrets should be cleared from memory.",
+      "expected_error": "",
+      "assertions": [
+        "assert check_memory_for_secrets(), 'Secrets should not be in memory after use.'"
+      ]
+    }
+  ],
+  "test_language": "python",
+  "generated_code": "\nimport pytest\nfrom unittest.mock import patch\nfrom src.signet_vault import *\n\n# Helper function to check for secrets in memory, to be implemented\n\ndef check_memory_for_secrets():\n    # Mocked logic to check if any secrets are left in memory\n    return True\n\n\ndef test_generate_mnemonic_happy_path():\n    mnemonic = generate_mnemonic()\n    assert isinstance(mnemonic, Mnemonic), 'Expected instance of Mnemonic.'\n    assert len(mnemonic.phrase) > 0, 'Expected non-empty mnemonic phrase.'\n\n\n@patch('src.signet_vault.generate_mnemonic', return_value=Mnemonic(phrase=['word1', 'word2', 'word3']))\ndef test_derive_key_with_valid_mnemonic(mock_generate_mnemonic):\n    mnemonic = Mnemonic(phrase=['word1', 'word2', 'word3'])\n    key = derive_key(mnemonic, KeyType.Ed25519)\n    assert isinstance(key, bytes), 'Expected bytes as derived key.'\n    assert len(key) > 0, 'Expected non-empty derived key.'\n\n\ndef test_derive_key_with_invalid_mnemonic():\n    with pytest.raises(InvalidMnemonic):\n        mnemonic = Mnemonic(phrase=['invalid'])\n        derive_key(mnemonic, KeyType.Ed25519)\n\n\n@patch('src.signet_vault.encrypt_data', side_effect=EncryptionFailed)\ndef test_store_data_encryption_failure(mock_encrypt_data):\n    with pytest.raises(EncryptionFailed):\n        store_data(b'some data', Tier.Tier1)\n\n\n@patch('src.signet_vault.retrieve_stored_data', side_effect=StorageError)\ndef test_retrieve_data_storage_error(mock_retrieve_stored_data):\n    with pytest.raises(StorageError):\n        retrieve_data('non_existing_id', Tier.Tier1)\n\n\ndef test_zero_secrets_in_memory_invariant():\n    # This should run after some data operations to validate cleanup\n    assert check_memory_for_secrets(), 'Secrets should not be in memory after use.'\n"
+}

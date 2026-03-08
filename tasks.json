@@ -1,0 +1,648 @@
+{
+  "project_id": "signet",
+  "tasks": [
+    {
+      "id": "T001",
+      "phase": "setup",
+      "component_id": "",
+      "description": "Initialize project directory structure",
+      "file_path": "",
+      "status": "pending",
+      "parallel": false,
+      "depends_on": [],
+      "category": "scaffold"
+    },
+    {
+      "id": "T002",
+      "phase": "setup",
+      "component_id": "",
+      "description": "Verify environment and dependencies",
+      "file_path": "",
+      "status": "pending",
+      "parallel": false,
+      "depends_on": [
+        "T001"
+      ],
+      "category": "scaffold"
+    },
+    {
+      "id": "T003",
+      "phase": "foundational",
+      "component_id": "",
+      "description": "Define shared type: AuditEventKind",
+      "file_path": "",
+      "status": "pending",
+      "parallel": true,
+      "depends_on": [],
+      "category": "type_definition"
+    },
+    {
+      "id": "T004",
+      "phase": "foundational",
+      "component_id": "",
+      "description": "Define shared type: JsonRpcRequest",
+      "file_path": "",
+      "status": "pending",
+      "parallel": true,
+      "depends_on": [],
+      "category": "type_definition"
+    },
+    {
+      "id": "T005",
+      "phase": "foundational",
+      "component_id": "",
+      "description": "Define shared type: JsonRpcResponse",
+      "file_path": "",
+      "status": "pending",
+      "parallel": true,
+      "depends_on": [],
+      "category": "type_definition"
+    },
+    {
+      "id": "T006",
+      "phase": "foundational",
+      "component_id": "",
+      "description": "Define shared type: PedersenCommitment",
+      "file_path": "",
+      "status": "pending",
+      "parallel": true,
+      "depends_on": [],
+      "category": "type_definition"
+    },
+    {
+      "id": "T007",
+      "phase": "foundational",
+      "component_id": "",
+      "description": "Define shared type: Predicate",
+      "file_path": "",
+      "status": "pending",
+      "parallel": true,
+      "depends_on": [],
+      "category": "type_definition"
+    },
+    {
+      "id": "T008",
+      "phase": "foundational",
+      "component_id": "",
+      "description": "Define shared type: Tier",
+      "file_path": "",
+      "status": "pending",
+      "parallel": true,
+      "depends_on": [],
+      "category": "type_definition"
+    },
+    {
+      "id": "T009",
+      "phase": "foundational",
+      "component_id": "",
+      "description": "Define shared type: Timestamp",
+      "file_path": "",
+      "status": "pending",
+      "parallel": true,
+      "depends_on": [],
+      "category": "type_definition"
+    },
+    {
+      "id": "T010",
+      "phase": "component",
+      "component_id": "signet_vault",
+      "description": "Review contract for Signet Vault",
+      "file_path": "contracts/signet_vault/interface.json",
+      "status": "completed",
+      "parallel": true,
+      "depends_on": [],
+      "category": "contract_review"
+    },
+    {
+      "id": "T011",
+      "phase": "component",
+      "component_id": "signet_vault",
+      "description": "Set up test harness for Signet Vault",
+      "file_path": "",
+      "status": "completed",
+      "parallel": false,
+      "depends_on": [
+        "T010"
+      ],
+      "category": "test_setup"
+    },
+    {
+      "id": "T012",
+      "phase": "component",
+      "component_id": "signet_vault",
+      "description": "Write contract tests for Signet Vault",
+      "file_path": "",
+      "status": "completed",
+      "parallel": false,
+      "depends_on": [
+        "T011"
+      ],
+      "category": "test_write"
+    },
+    {
+      "id": "T013",
+      "phase": "component",
+      "component_id": "signet_vault",
+      "description": "Implement Signet Vault",
+      "file_path": "implementations/signet_vault/src/",
+      "status": "completed",
+      "parallel": false,
+      "depends_on": [
+        "T012"
+      ],
+      "category": "implement"
+    },
+    {
+      "id": "T014",
+      "phase": "component",
+      "component_id": "signet_vault",
+      "description": "Run tests and verify Signet Vault",
+      "file_path": "",
+      "status": "failed",
+      "parallel": false,
+      "depends_on": [
+        "T013"
+      ],
+      "category": "verify"
+    },
+    {
+      "id": "T015",
+      "phase": "component",
+      "component_id": "signet_cred",
+      "description": "Review contract for Signet Credential Engine",
+      "file_path": "contracts/signet_cred/interface.json",
+      "status": "completed",
+      "parallel": false,
+      "depends_on": [],
+      "category": "contract_review"
+    },
+    {
+      "id": "T016",
+      "phase": "component",
+      "component_id": "signet_cred",
+      "description": "Set up test harness for Signet Credential Engine",
+      "file_path": "",
+      "status": "completed",
+      "parallel": false,
+      "depends_on": [
+        "T015"
+      ],
+      "category": "test_setup"
+    },
+    {
+      "id": "T017",
+      "phase": "component",
+      "component_id": "signet_cred",
+      "description": "Write contract tests for Signet Credential Engine",
+      "file_path": "",
+      "status": "completed",
+      "parallel": false,
+      "depends_on": [
+        "T016"
+      ],
+      "category": "test_write"
+    },
+    {
+      "id": "T018",
+      "phase": "component",
+      "component_id": "signet_cred",
+      "description": "Implement Signet Credential Engine",
+      "file_path": "implementations/signet_cred/src/",
+      "status": "completed",
+      "parallel": false,
+      "depends_on": [
+        "T017"
+      ],
+      "category": "implement"
+    },
+    {
+      "id": "T019",
+      "phase": "component",
+      "component_id": "signet_cred",
+      "description": "Run tests and verify Signet Credential Engine",
+      "file_path": "",
+      "status": "failed",
+      "parallel": false,
+      "depends_on": [
+        "T018"
+      ],
+      "category": "verify"
+    },
+    {
+      "id": "T020",
+      "phase": "component",
+      "component_id": "signet_proof",
+      "description": "Review contract for Signet Proof Workshop",
+      "file_path": "contracts/signet_proof/interface.json",
+      "status": "completed",
+      "parallel": false,
+      "depends_on": [],
+      "category": "contract_review"
+    },
+    {
+      "id": "T021",
+      "phase": "component",
+      "component_id": "signet_proof",
+      "description": "Set up test harness for Signet Proof Workshop",
+      "file_path": "",
+      "status": "completed",
+      "parallel": false,
+      "depends_on": [
+        "T020"
+      ],
+      "category": "test_setup"
+    },
+    {
+      "id": "T022",
+      "phase": "component",
+      "component_id": "signet_proof",
+      "description": "Write contract tests for Signet Proof Workshop",
+      "file_path": "",
+      "status": "completed",
+      "parallel": false,
+      "depends_on": [
+        "T021"
+      ],
+      "category": "test_write"
+    },
+    {
+      "id": "T023",
+      "phase": "component",
+      "component_id": "signet_proof",
+      "description": "Implement Signet Proof Workshop",
+      "file_path": "implementations/signet_proof/src/",
+      "status": "completed",
+      "parallel": false,
+      "depends_on": [
+        "T022"
+      ],
+      "category": "implement"
+    },
+    {
+      "id": "T024",
+      "phase": "component",
+      "component_id": "signet_proof",
+      "description": "Run tests and verify Signet Proof Workshop",
+      "file_path": "",
+      "status": "failed",
+      "parallel": false,
+      "depends_on": [
+        "T023"
+      ],
+      "category": "verify"
+    },
+    {
+      "id": "T025",
+      "phase": "component",
+      "component_id": "signet_policy",
+      "description": "Review contract for Signet Policy Engine",
+      "file_path": "contracts/signet_policy/interface.json",
+      "status": "completed",
+      "parallel": false,
+      "depends_on": [],
+      "category": "contract_review"
+    },
+    {
+      "id": "T026",
+      "phase": "component",
+      "component_id": "signet_policy",
+      "description": "Set up test harness for Signet Policy Engine",
+      "file_path": "",
+      "status": "completed",
+      "parallel": false,
+      "depends_on": [
+        "T025"
+      ],
+      "category": "test_setup"
+    },
+    {
+      "id": "T027",
+      "phase": "component",
+      "component_id": "signet_policy",
+      "description": "Write contract tests for Signet Policy Engine",
+      "file_path": "",
+      "status": "completed",
+      "parallel": false,
+      "depends_on": [
+        "T026"
+      ],
+      "category": "test_write"
+    },
+    {
+      "id": "T028",
+      "phase": "component",
+      "component_id": "signet_policy",
+      "description": "Implement Signet Policy Engine",
+      "file_path": "implementations/signet_policy/src/",
+      "status": "completed",
+      "parallel": false,
+      "depends_on": [
+        "T027"
+      ],
+      "category": "implement"
+    },
+    {
+      "id": "T029",
+      "phase": "component",
+      "component_id": "signet_policy",
+      "description": "Run tests and verify Signet Policy Engine",
+      "file_path": "",
+      "status": "failed",
+      "parallel": false,
+      "depends_on": [
+        "T028"
+      ],
+      "category": "verify"
+    },
+    {
+      "id": "T030",
+      "phase": "component",
+      "component_id": "signet_notify",
+      "description": "Review contract for Signet Notification Channel",
+      "file_path": "contracts/signet_notify/interface.json",
+      "status": "completed",
+      "parallel": false,
+      "depends_on": [],
+      "category": "contract_review"
+    },
+    {
+      "id": "T031",
+      "phase": "component",
+      "component_id": "signet_notify",
+      "description": "Set up test harness for Signet Notification Channel",
+      "file_path": "",
+      "status": "completed",
+      "parallel": false,
+      "depends_on": [
+        "T030"
+      ],
+      "category": "test_setup"
+    },
+    {
+      "id": "T032",
+      "phase": "component",
+      "component_id": "signet_notify",
+      "description": "Write contract tests for Signet Notification Channel",
+      "file_path": "",
+      "status": "completed",
+      "parallel": false,
+      "depends_on": [
+        "T031"
+      ],
+      "category": "test_write"
+    },
+    {
+      "id": "T033",
+      "phase": "component",
+      "component_id": "signet_notify",
+      "description": "Implement Signet Notification Channel",
+      "file_path": "implementations/signet_notify/src/",
+      "status": "completed",
+      "parallel": false,
+      "depends_on": [
+        "T032"
+      ],
+      "category": "implement"
+    },
+    {
+      "id": "T034",
+      "phase": "component",
+      "component_id": "signet_notify",
+      "description": "Run tests and verify Signet Notification Channel",
+      "file_path": "",
+      "status": "failed",
+      "parallel": false,
+      "depends_on": [
+        "T033"
+      ],
+      "category": "verify"
+    },
+    {
+      "id": "T035",
+      "phase": "component",
+      "component_id": "signet_mcp",
+      "description": "Review contract for Signet MCP Server",
+      "file_path": "contracts/signet_mcp/interface.json",
+      "status": "completed",
+      "parallel": false,
+      "depends_on": [],
+      "category": "contract_review"
+    },
+    {
+      "id": "T036",
+      "phase": "component",
+      "component_id": "signet_mcp",
+      "description": "Set up test harness for Signet MCP Server",
+      "file_path": "",
+      "status": "completed",
+      "parallel": false,
+      "depends_on": [
+        "T035"
+      ],
+      "category": "test_setup"
+    },
+    {
+      "id": "T037",
+      "phase": "component",
+      "component_id": "signet_mcp",
+      "description": "Write contract tests for Signet MCP Server",
+      "file_path": "",
+      "status": "completed",
+      "parallel": false,
+      "depends_on": [
+        "T036"
+      ],
+      "category": "test_write"
+    },
+    {
+      "id": "T038",
+      "phase": "component",
+      "component_id": "signet_mcp",
+      "description": "Implement Signet MCP Server",
+      "file_path": "implementations/signet_mcp/src/",
+      "status": "completed",
+      "parallel": false,
+      "depends_on": [
+        "T037"
+      ],
+      "category": "implement"
+    },
+    {
+      "id": "T039",
+      "phase": "component",
+      "component_id": "signet_mcp",
+      "description": "Run tests and verify Signet MCP Server",
+      "file_path": "",
+      "status": "failed",
+      "parallel": false,
+      "depends_on": [
+        "T038"
+      ],
+      "category": "verify"
+    },
+    {
+      "id": "T040",
+      "phase": "component",
+      "component_id": "signet_sdk",
+      "description": "Review contract for Signet Developer SDK",
+      "file_path": "contracts/signet_sdk/interface.json",
+      "status": "completed",
+      "parallel": false,
+      "depends_on": [],
+      "category": "contract_review"
+    },
+    {
+      "id": "T041",
+      "phase": "component",
+      "component_id": "signet_sdk",
+      "description": "Set up test harness for Signet Developer SDK",
+      "file_path": "",
+      "status": "completed",
+      "parallel": false,
+      "depends_on": [
+        "T040"
+      ],
+      "category": "test_setup"
+    },
+    {
+      "id": "T042",
+      "phase": "component",
+      "component_id": "signet_sdk",
+      "description": "Write contract tests for Signet Developer SDK",
+      "file_path": "",
+      "status": "completed",
+      "parallel": false,
+      "depends_on": [
+        "T041"
+      ],
+      "category": "test_write"
+    },
+    {
+      "id": "T043",
+      "phase": "component",
+      "component_id": "signet_sdk",
+      "description": "Implement Signet Developer SDK",
+      "file_path": "implementations/signet_sdk/src/",
+      "status": "completed",
+      "parallel": false,
+      "depends_on": [
+        "T042"
+      ],
+      "category": "implement"
+    },
+    {
+      "id": "T044",
+      "phase": "component",
+      "component_id": "signet_sdk",
+      "description": "Run tests and verify Signet Developer SDK",
+      "file_path": "",
+      "status": "failed",
+      "parallel": false,
+      "depends_on": [
+        "T043"
+      ],
+      "category": "verify"
+    },
+    {
+      "id": "T045",
+      "phase": "integration",
+      "component_id": "root",
+      "description": "Review integration contract for Root",
+      "file_path": "",
+      "status": "pending",
+      "parallel": false,
+      "depends_on": [],
+      "category": "contract_review"
+    },
+    {
+      "id": "T046",
+      "phase": "integration",
+      "component_id": "root",
+      "description": "Write integration tests for Root",
+      "file_path": "",
+      "status": "pending",
+      "parallel": true,
+      "depends_on": [],
+      "category": "test_write"
+    },
+    {
+      "id": "T047",
+      "phase": "integration",
+      "component_id": "root",
+      "description": "Wire children for Root",
+      "file_path": "",
+      "status": "pending",
+      "parallel": false,
+      "depends_on": [
+        "T019",
+        "T039",
+        "T034",
+        "T029",
+        "T024",
+        "T044",
+        "T014"
+      ],
+      "category": "integrate"
+    },
+    {
+      "id": "T048",
+      "phase": "integration",
+      "component_id": "root",
+      "description": "Run integration tests for Root",
+      "file_path": "",
+      "status": "pending",
+      "parallel": false,
+      "depends_on": [
+        "T047"
+      ],
+      "category": "verify"
+    },
+    {
+      "id": "T049",
+      "phase": "polish",
+      "component_id": "",
+      "description": "Run full contract validation gate",
+      "file_path": "",
+      "status": "pending",
+      "parallel": false,
+      "depends_on": [],
+      "category": "validate"
+    },
+    {
+      "id": "T050",
+      "phase": "polish",
+      "component_id": "",
+      "description": "Cross-artifact analysis",
+      "file_path": "",
+      "status": "pending",
+      "parallel": false,
+      "depends_on": [],
+      "category": "validate"
+    },
+    {
+      "id": "T051",
+      "phase": "polish",
+      "component_id": "",
+      "description": "Update design document",
+      "file_path": "",
+      "status": "pending",
+      "parallel": false,
+      "depends_on": [],
+      "category": "document"
+    }
+  ],
+  "checkpoints": [
+    {
+      "after_phase": "component",
+      "description": "All leaf components verified",
+      "validation": "All leaf contract tests pass"
+    },
+    {
+      "after_phase": "integration",
+      "description": "All integrations verified",
+      "validation": "All integration tests pass"
+    }
+  ],
+  "generated_at": "2026-02-27T15:22:01.403745",
+  "version": 1
+}

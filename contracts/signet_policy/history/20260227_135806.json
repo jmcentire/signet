@@ -1,0 +1,2086 @@
+{
+  "component_id": "signet_policy",
+  "name": "Signet Policy Engine",
+  "description": "Policy evaluation engine for the Signet personal sovereign agent stack. Every data request is evaluated as Actor + Predicate + Context = Legitimacy, producing a three-way decision: PERMIT, DENY, or ANOMALY. Implements a six-level sensitivity tier hierarchy (Public < Commerce < Financial < Medical < Identity < TrustedAgent), four actor classification methods (explicit assignment, credential-based, domain inference, self-declaration) with discrete confidence levels, deny-overrides policy combining, fail-secure timeout semantics (pipeline timeout = DENY, not error), structured ANOMALY escalation (who/what/why/options — never silently resolved), and a suggest-only pattern tracker with MAC-protected entries. Policies stored as versioned structured JSON in the vault. No algorithm negotiation. All evaluations are domain-bound and time-limited. Write-ahead audit guarantee for all decisions.",
+  "version": 1,
+  "types": [
+    {
+      "name": "SensitivityTier",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "Public",
+        "Commerce",
+        "Financial",
+        "Medical",
+        "Identity",
+        "TrustedAgent"
+      ],
+      "inner_types": [],
+      "description": "Six-level sensitivity hierarchy with manual Ord implementation. Exhaustive (no #[non_exhaustive]) so new tiers force compile-time review of all match sites. Ordering: Public < Commerce < Financial < Medical < Identity < TrustedAgent."
+    },
+    {
+      "name": "ActorId",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "value",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Opaque actor identifier string. Must be non-empty and at most 256 bytes UTF-8.",
+          "validators": [
+            {
+              "kind": "length",
+              "expression": "1..=256",
+              "error_message": "ActorId must be between 1 and 256 bytes"
+            }
+          ]
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Newtype wrapper around a string identifier for actors. Prevents stringly-typed confusion with other ID types."
+    },
+    {
+      "name": "PredicateId",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "value",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Opaque predicate identifier string. Must be non-empty and at most 256 bytes UTF-8.",
+          "validators": [
+            {
+              "kind": "length",
+              "expression": "1..=256",
+              "error_message": "PredicateId must be between 1 and 256 bytes"
+            }
+          ]
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Newtype wrapper around a string identifier for predicates (the 'what' in a data request). Prevents stringly-typed confusion."
+    },
+    {
+      "name": "DomainId",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "value",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Domain identifier string, typically a DNS name or URI origin. Must be non-empty and at most 512 bytes UTF-8.",
+          "validators": [
+            {
+              "kind": "length",
+              "expression": "1..=512",
+              "error_message": "DomainId must be between 1 and 512 bytes"
+            }
+          ]
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Newtype wrapper around a string identifier for domains. Used for domain-binding validation of proofs and requests."
+    },
+    {
+      "name": "PolicyVersion",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "value",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Monotonically increasing version number, starting from 1.",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": "1..=9223372036854775807",
+              "error_message": "PolicyVersion must be a positive integer"
+            }
+          ]
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Newtype wrapper for monotonically increasing policy set version numbers. Must be positive."
+    },
+    {
+      "name": "Timestamp",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "seconds_since_epoch",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Seconds since 1970-01-01T00:00:00Z UTC.",
+          "validators": []
+        },
+        {
+          "name": "nanoseconds",
+          "type_ref": "int",
+          "required": true,
+          "default": "0",
+          "description": "Sub-second nanosecond offset, 0..999_999_999.",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": "0..=999999999",
+              "error_message": "Nanoseconds must be in range 0..999_999_999"
+            }
+          ]
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "UTC timestamp represented as seconds since Unix epoch plus nanosecond offset. Used for expiration, audit, and time-bounding."
+    },
+    {
+      "name": "ConfidenceLevel",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "Low",
+        "Medium",
+        "High",
+        "Verified"
+      ],
+      "inner_types": [],
+      "description": "Discrete four-level confidence enum for actor classification. No floating point — each level has fixed semantics. Ordering: Low < Medium < High < Verified."
+    },
+    {
+      "name": "ClassificationMethod",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "Explicit",
+        "CredentialBased",
+        "DomainInferred",
+        "SelfDeclared"
+      ],
+      "inner_types": [],
+      "description": "How an actor's sensitivity tier was determined. Each variant carries different trust implications. Explicit has highest baseline trust; SelfDeclared has lowest."
+    },
+    {
+      "name": "ClassificationEvidence",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "method",
+          "type_ref": "ClassificationMethod",
+          "required": true,
+          "default": "",
+          "description": "How this evidence was obtained.",
+          "validators": []
+        },
+        {
+          "name": "tier_claim",
+          "type_ref": "SensitivityTier",
+          "required": true,
+          "default": "",
+          "description": "The sensitivity tier this evidence supports.",
+          "validators": []
+        },
+        {
+          "name": "evidence_ref",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Opaque reference to the backing evidence (credential hash, domain record, etc.). Must not contain plaintext secrets.",
+          "validators": [
+            {
+              "kind": "length",
+              "expression": "1..=1024",
+              "error_message": "Evidence reference must be between 1 and 1024 bytes"
+            }
+          ]
+        },
+        {
+          "name": "obtained_at",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "When this evidence was obtained.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "A single piece of evidence used to classify an actor. Combines the method of classification with supporting data."
+    },
+    {
+      "name": "ActorClassification",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "actor_id",
+          "type_ref": "ActorId",
+          "required": true,
+          "default": "",
+          "description": "The actor that was classified.",
+          "validators": []
+        },
+        {
+          "name": "tier",
+          "type_ref": "SensitivityTier",
+          "required": true,
+          "default": "",
+          "description": "The determined sensitivity tier for this actor.",
+          "validators": []
+        },
+        {
+          "name": "method",
+          "type_ref": "ClassificationMethod",
+          "required": true,
+          "default": "",
+          "description": "The primary classification method that determined the tier.",
+          "validators": []
+        },
+        {
+          "name": "confidence",
+          "type_ref": "ConfidenceLevel",
+          "required": true,
+          "default": "",
+          "description": "Discrete confidence level in the classification.",
+          "validators": []
+        },
+        {
+          "name": "evidence_count",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Number of evidence items considered.",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": "0..=1000",
+              "error_message": "Evidence count must be non-negative and bounded"
+            }
+          ]
+        },
+        {
+          "name": "classified_at",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "When this classification was performed.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "The result of classifying an actor: their determined sensitivity tier, the method used, confidence level, and all evidence considered."
+    },
+    {
+      "name": "RequestContext",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "domain_id",
+          "type_ref": "DomainId",
+          "required": true,
+          "default": "",
+          "description": "The domain this request is bound to. Used for domain-binding validation.",
+          "validators": []
+        },
+        {
+          "name": "request_timestamp",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "When the request was made. Used for time-limiting and freshness checks.",
+          "validators": []
+        },
+        {
+          "name": "metadata",
+          "type_ref": "dict",
+          "required": false,
+          "default": "{}",
+          "description": "Arbitrary key-value metadata pairs. Keys and values are strings. Must not contain secret material.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Contextual information accompanying an evaluation request: domain binding, timestamp, and optional metadata key-value pairs."
+    },
+    {
+      "name": "EvaluationRequest",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "actor_id",
+          "type_ref": "ActorId",
+          "required": true,
+          "default": "",
+          "description": "The actor requesting data access.",
+          "validators": []
+        },
+        {
+          "name": "predicate_id",
+          "type_ref": "PredicateId",
+          "required": true,
+          "default": "",
+          "description": "What data or action is being requested.",
+          "validators": []
+        },
+        {
+          "name": "actor_classification",
+          "type_ref": "ActorClassification",
+          "required": true,
+          "default": "",
+          "description": "Pre-computed classification of the actor. Must have been classified before evaluation.",
+          "validators": []
+        },
+        {
+          "name": "context",
+          "type_ref": "RequestContext",
+          "required": true,
+          "default": "",
+          "description": "Domain, timestamp, and metadata context for this request.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "A complete policy evaluation request: who (actor) wants what (predicate) in what context. This is the input to PolicyEvaluator::evaluate."
+    },
+    {
+      "name": "DenyReason",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "Timeout",
+        "InsufficientTier",
+        "PolicyRuleDeny",
+        "Revoked",
+        "ExpiredContext",
+        "DomainMismatch",
+        "NoMatchingPermitRule"
+      ],
+      "inner_types": [],
+      "description": "Structured reason for a DENY decision. Timeout variant implements fail-secure semantics. InsufficientTier indicates the actor's tier is below the predicate's minimum. PolicyRuleDeny indicates an explicit deny rule matched. Revoked indicates the actor's access was revoked. ExpiredContext indicates the request context timestamp is stale."
+    },
+    {
+      "name": "Provenance",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "policy_version",
+          "type_ref": "PolicyVersion",
+          "required": true,
+          "default": "",
+          "description": "Version of the PolicySet used for this evaluation.",
+          "validators": []
+        },
+        {
+          "name": "matching_rule_ids",
+          "type_ref": "list",
+          "required": true,
+          "default": "",
+          "description": "Identifiers of the policy rules that contributed to this PERMIT decision.",
+          "validators": []
+        },
+        {
+          "name": "evaluated_at",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "Timestamp when the evaluation was performed.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Traceability record linking a PERMIT decision back to the specific policy rules and version that authorized it."
+    },
+    {
+      "name": "AnomalyReport",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "who",
+          "type_ref": "ActorId",
+          "required": true,
+          "default": "",
+          "description": "The actor whose request triggered the anomaly.",
+          "validators": []
+        },
+        {
+          "name": "what",
+          "type_ref": "PredicateId",
+          "required": true,
+          "default": "",
+          "description": "The predicate (data/action) that was requested.",
+          "validators": []
+        },
+        {
+          "name": "why_unusual",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Human-readable structured reasoning explaining why this request is anomalous.",
+          "validators": [
+            {
+              "kind": "length",
+              "expression": "1..=4096",
+              "error_message": "Anomaly reason must be between 1 and 4096 bytes"
+            }
+          ]
+        },
+        {
+          "name": "options",
+          "type_ref": "list",
+          "required": true,
+          "default": "",
+          "description": "Available resolution options presented to the user. Must contain at least one option.",
+          "validators": []
+        },
+        {
+          "name": "anomaly_factors",
+          "type_ref": "list",
+          "required": true,
+          "default": "",
+          "description": "Machine-readable list of factors that contributed to the anomaly determination.",
+          "validators": []
+        },
+        {
+          "name": "request_context",
+          "type_ref": "RequestContext",
+          "required": true,
+          "default": "",
+          "description": "The original request context for audit trail.",
+          "validators": []
+        },
+        {
+          "name": "detected_at",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "When the anomaly was detected.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Structured escalation payload for ANOMALY decisions. Contains who, what, why unusual, and available options. Must never be silently resolved — requires explicit user action."
+    },
+    {
+      "name": "AnomalyOption",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "option_id",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Unique identifier for this option within the anomaly report.",
+          "validators": [
+            {
+              "kind": "length",
+              "expression": "1..=128",
+              "error_message": "Option ID must be between 1 and 128 bytes"
+            }
+          ]
+        },
+        {
+          "name": "label",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Human-readable label for the option.",
+          "validators": [
+            {
+              "kind": "length",
+              "expression": "1..=256",
+              "error_message": "Option label must be between 1 and 256 bytes"
+            }
+          ]
+        },
+        {
+          "name": "description",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Detailed description of what this option does.",
+          "validators": [
+            {
+              "kind": "length",
+              "expression": "1..=1024",
+              "error_message": "Option description must be between 1 and 1024 bytes"
+            }
+          ]
+        },
+        {
+          "name": "resulting_decision",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "The decision type this option would produce: 'permit' or 'deny'.",
+          "validators": [
+            {
+              "kind": "regex",
+              "expression": "^(permit|deny)$",
+              "error_message": "Resulting decision must be 'permit' or 'deny'"
+            }
+          ]
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "A single resolution option for an ANOMALY decision. Presented to the user for explicit action."
+    },
+    {
+      "name": "Decision",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "Permit",
+        "Deny",
+        "Anomaly"
+      ],
+      "inner_types": [],
+      "description": "Three-way evaluation output. Permit carries expiration and provenance. Deny carries structured reason (including Timeout for fail-secure). Anomaly carries full escalation report. Anomaly is never silently resolved."
+    },
+    {
+      "name": "PermitDecision",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "expires_at",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "When this permit expires. All permits are time-limited.",
+          "validators": []
+        },
+        {
+          "name": "provenance",
+          "type_ref": "Provenance",
+          "required": true,
+          "default": "",
+          "description": "Traceability back to the policy rules that authorized this decision.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Payload for a PERMIT decision. Includes expiration timestamp and provenance for audit traceability."
+    },
+    {
+      "name": "DenyDecision",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "reason",
+          "type_ref": "DenyReason",
+          "required": true,
+          "default": "",
+          "description": "Structured reason for denial.",
+          "validators": []
+        },
+        {
+          "name": "policy_version",
+          "type_ref": "PolicyVersion",
+          "required": true,
+          "default": "",
+          "description": "Version of the PolicySet that produced this denial.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Payload for a DENY decision. Carries structured reason. DenyReason::Timeout is used for fail-secure pipeline timeout."
+    },
+    {
+      "name": "AnomalyDecision",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "report",
+          "type_ref": "AnomalyReport",
+          "required": true,
+          "default": "",
+          "description": "Complete structured anomaly report with who/what/why/options.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Payload for an ANOMALY decision. Carries full structured escalation report. Must trigger escalation flow."
+    },
+    {
+      "name": "PolicyRuleKind",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "TierThreshold",
+        "ExplicitGrant",
+        "ExplicitDeny",
+        "DomainRestriction",
+        "TimeWindow",
+        "AnomalyTrigger"
+      ],
+      "inner_types": [],
+      "description": "Discriminator for policy rule types. Used as serde internally-tagged enum via #[serde(tag = \"type\")]. Each variant corresponds to a different rule structure."
+    },
+    {
+      "name": "PolicyRule",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "rule_id",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Unique identifier for this rule within the PolicySet.",
+          "validators": [
+            {
+              "kind": "length",
+              "expression": "1..=128",
+              "error_message": "Rule ID must be between 1 and 128 bytes"
+            }
+          ]
+        },
+        {
+          "name": "kind",
+          "type_ref": "PolicyRuleKind",
+          "required": true,
+          "default": "",
+          "description": "The type of this rule, used as serde tag discriminator.",
+          "validators": []
+        },
+        {
+          "name": "actor_pattern",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Actor matching pattern. '*' for all actors, or a specific ActorId value, or a tier-level pattern like 'tier:Commerce+'.",
+          "validators": [
+            {
+              "kind": "length",
+              "expression": "1..=512",
+              "error_message": "Actor pattern must be between 1 and 512 bytes"
+            }
+          ]
+        },
+        {
+          "name": "predicate_pattern",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Predicate matching pattern. '*' for all predicates, or a specific PredicateId value, or a category pattern.",
+          "validators": [
+            {
+              "kind": "length",
+              "expression": "1..=512",
+              "error_message": "Predicate pattern must be between 1 and 512 bytes"
+            }
+          ]
+        },
+        {
+          "name": "minimum_tier",
+          "type_ref": "SensitivityTier",
+          "required": false,
+          "default": "Public",
+          "description": "Minimum sensitivity tier required for this rule to apply (for TierThreshold rules) or the tier context for other rule kinds.",
+          "validators": []
+        },
+        {
+          "name": "domain_constraint",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "Optional domain constraint. If set, rule only applies to requests from this domain.",
+          "validators": []
+        },
+        {
+          "name": "valid_from",
+          "type_ref": "Timestamp",
+          "required": false,
+          "default": "",
+          "description": "Start of the time window this rule is valid. For TimeWindow rules this is required; for others it defaults to epoch.",
+          "validators": []
+        },
+        {
+          "name": "valid_until",
+          "type_ref": "Timestamp",
+          "required": false,
+          "default": "",
+          "description": "End of the time window this rule is valid. For TimeWindow rules this is required; for others it defaults to far future.",
+          "validators": []
+        },
+        {
+          "name": "priority",
+          "type_ref": "int",
+          "required": false,
+          "default": "0",
+          "description": "Rule priority for ordering within same-kind rules. Higher value = higher priority. Does not override deny-overrides combining.",
+          "validators": []
+        },
+        {
+          "name": "enabled",
+          "type_ref": "bool",
+          "required": false,
+          "default": "true",
+          "description": "Whether this rule is active. Disabled rules are skipped during evaluation.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "A single policy rule with serde internally-tagged serialization. Versioned schema. Each rule has an ID, kind, and kind-specific parameters encoded as structured JSON fields."
+    },
+    {
+      "name": "PolicySet",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "version",
+          "type_ref": "PolicyVersion",
+          "required": true,
+          "default": "",
+          "description": "Monotonically increasing version number for this policy set.",
+          "validators": []
+        },
+        {
+          "name": "rules",
+          "type_ref": "list",
+          "required": true,
+          "default": "",
+          "description": "Ordered list of policy rules. Evaluated with deny-overrides combining.",
+          "validators": []
+        },
+        {
+          "name": "created_at",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "When this policy set version was created.",
+          "validators": []
+        },
+        {
+          "name": "schema_version",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Schema version for forward compatibility. Current version is 1.",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": "1..=1",
+              "error_message": "Only schema version 1 is currently supported"
+            }
+          ]
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Versioned collection of policy rules. Serialized as JSON with deny_unknown_fields in strict deserialization mode. Stored in the vault."
+    },
+    {
+      "name": "PolicySnapshot",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "policy_set",
+          "type_ref": "PolicySet",
+          "required": true,
+          "default": "",
+          "description": "The frozen policy set for this evaluation.",
+          "validators": []
+        },
+        {
+          "name": "snapshot_taken_at",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "When the snapshot was taken. Used for freshness validation.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "An immutable, point-in-time snapshot of a PolicySet used for TOCTOU-safe evaluation. Once taken, the snapshot is used for the entire evaluation pipeline."
+    },
+    {
+      "name": "PatternRecord",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "actor_id",
+          "type_ref": "ActorId",
+          "required": true,
+          "default": "",
+          "description": "The actor in this pattern.",
+          "validators": []
+        },
+        {
+          "name": "predicate_id",
+          "type_ref": "PredicateId",
+          "required": true,
+          "default": "",
+          "description": "The predicate in this pattern.",
+          "validators": []
+        },
+        {
+          "name": "approve_count",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Number of times the user approved this actor+predicate pair.",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": "0..=9223372036854775807",
+              "error_message": "Approve count must be non-negative"
+            }
+          ]
+        },
+        {
+          "name": "deny_count",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Number of times the user denied this actor+predicate pair.",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": "0..=9223372036854775807",
+              "error_message": "Deny count must be non-negative"
+            }
+          ]
+        },
+        {
+          "name": "first_seen",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "Timestamp of the first recorded decision for this pair.",
+          "validators": []
+        },
+        {
+          "name": "last_seen",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "Timestamp of the most recent recorded decision for this pair.",
+          "validators": []
+        },
+        {
+          "name": "mac",
+          "type_ref": "bytes",
+          "required": true,
+          "default": "",
+          "description": "HMAC-SHA-256 over all other fields. Computed using a key derived from the vault. Detects tampering.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Records user approve/deny decisions for a specific actor+predicate pair. MAC-protected to detect tampering. Used by pattern tracker for suggestion generation."
+    },
+    {
+      "name": "PatternDecision",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "Approved",
+        "Denied"
+      ],
+      "inner_types": [],
+      "description": "The user's decision on an evaluated request, recorded by the pattern tracker."
+    },
+    {
+      "name": "SuggestionThresholds",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "min_occurrences",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Minimum total decisions (approve + deny) before suggesting a rule.",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": "1..=10000",
+              "error_message": "Minimum occurrences must be between 1 and 10000"
+            }
+          ]
+        },
+        {
+          "name": "approval_ratio_permit",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Minimum approval percentage (0-100) to suggest an auto-permit rule.",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": "0..=100",
+              "error_message": "Approval ratio must be between 0 and 100"
+            }
+          ]
+        },
+        {
+          "name": "denial_ratio_deny",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Minimum denial percentage (0-100) to suggest an auto-deny rule.",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": "0..=100",
+              "error_message": "Denial ratio must be between 0 and 100"
+            }
+          ]
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Configuration for when the pattern tracker should generate suggestions. Simple counter/threshold, not ML."
+    },
+    {
+      "name": "PolicySuggestion",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "suggested_rule",
+          "type_ref": "PolicyRule",
+          "required": true,
+          "default": "",
+          "description": "The policy rule being suggested.",
+          "validators": []
+        },
+        {
+          "name": "based_on_record",
+          "type_ref": "PatternRecord",
+          "required": true,
+          "default": "",
+          "description": "The pattern record that triggered this suggestion.",
+          "validators": []
+        },
+        {
+          "name": "rationale",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Human-readable explanation of why this rule is suggested.",
+          "validators": [
+            {
+              "kind": "length",
+              "expression": "1..=2048",
+              "error_message": "Rationale must be between 1 and 2048 bytes"
+            }
+          ]
+        },
+        {
+          "name": "confidence",
+          "type_ref": "ConfidenceLevel",
+          "required": true,
+          "default": "",
+          "description": "Confidence level in this suggestion based on pattern strength.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "A suggested policy rule generated by the pattern tracker based on observed user decisions. Suggest-only, never auto-applied."
+    },
+    {
+      "name": "AuditEventKind",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "EvaluationCompleted",
+        "AnomalyEscalated",
+        "AnomalyResolved",
+        "PolicySetUpdated",
+        "PatternRecorded",
+        "SuggestionGenerated",
+        "ClassificationPerformed"
+      ],
+      "inner_types": [],
+      "description": "Types of auditable events emitted by the policy engine."
+    },
+    {
+      "name": "AuditEvent",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "event_kind",
+          "type_ref": "AuditEventKind",
+          "required": true,
+          "default": "",
+          "description": "The type of audit event.",
+          "validators": []
+        },
+        {
+          "name": "timestamp",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "When the event occurred.",
+          "validators": []
+        },
+        {
+          "name": "actor_id",
+          "type_ref": "ActorId",
+          "required": false,
+          "default": "",
+          "description": "The actor involved, if applicable.",
+          "validators": []
+        },
+        {
+          "name": "predicate_id",
+          "type_ref": "PredicateId",
+          "required": false,
+          "default": "",
+          "description": "The predicate involved, if applicable.",
+          "validators": []
+        },
+        {
+          "name": "domain_id",
+          "type_ref": "DomainId",
+          "required": false,
+          "default": "",
+          "description": "The domain context, if applicable.",
+          "validators": []
+        },
+        {
+          "name": "decision_summary",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "Brief summary of the decision or action. Must not contain sensitive data.",
+          "validators": []
+        },
+        {
+          "name": "policy_version",
+          "type_ref": "PolicyVersion",
+          "required": false,
+          "default": "",
+          "description": "The policy version in effect, if applicable.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "A structured audit event emitted to the audit chain. All policy decisions and significant actions produce audit events."
+    },
+    {
+      "name": "TimeoutConfig",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "evaluation_timeout_ms",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Maximum time in milliseconds for a complete evaluation pipeline. On expiry, returns Deny::Timeout.",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": "1..=60000",
+              "error_message": "Evaluation timeout must be between 1ms and 60000ms"
+            }
+          ]
+        },
+        {
+          "name": "classification_timeout_ms",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Maximum time in milliseconds for actor classification. On expiry, classification fails and evaluation returns Deny::Timeout.",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": "1..=30000",
+              "error_message": "Classification timeout must be between 1ms and 30000ms"
+            }
+          ]
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Configuration for the fail-secure evaluation timeout. When the timeout expires, the pipeline returns Decision::Deny with DenyReason::Timeout."
+    },
+    {
+      "name": "PolicyError",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "LoadError",
+        "SaveError",
+        "SerializationError",
+        "DeserializationError",
+        "ValidationError",
+        "ClassificationError",
+        "PatternError",
+        "MacVerificationFailed",
+        "AuditSinkError",
+        "InternalError",
+        "SnapshotStale",
+        "InvalidRequest"
+      ],
+      "inner_types": [],
+      "description": "Single error enum for all policy engine operations. Implemented via thiserror. Display impls must never contain sensitive data (no key material, no raw evidence, no plaintext). Crypto failures return generic variants (no oracle). Timeouts produce Decision::Deny, not PolicyError."
+    },
+    {
+      "name": "PolicyErrorDetail",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "variant",
+          "type_ref": "PolicyError",
+          "required": true,
+          "default": "",
+          "description": "Which PolicyError variant this is.",
+          "validators": []
+        },
+        {
+          "name": "message",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Human-readable error message. Must not contain sensitive data.",
+          "validators": [
+            {
+              "kind": "length",
+              "expression": "1..=1024",
+              "error_message": "Error message must be between 1 and 1024 bytes"
+            }
+          ]
+        },
+        {
+          "name": "error_code",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "Machine-readable error code for programmatic handling.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Structured error detail accompanying a PolicyError variant. Contains a safe message and an optional error code, but never sensitive data."
+    }
+  ],
+  "functions": [
+    {
+      "name": "evaluate",
+      "description": "Core policy evaluation: Actor + Predicate + Context = Decision. Takes a PolicySnapshot for TOCTOU safety and an EvaluationRequest, applies deny-overrides combining over all matching rules, and returns a three-way Decision (Permit/Deny/Anomaly). If the evaluation pipeline exceeds the configured timeout, returns Decision::Deny with DenyReason::Timeout — not an error. Emits an audit event for every evaluation via AuditSink (write-ahead guarantee).",
+      "inputs": [
+        {
+          "name": "snapshot",
+          "type_ref": "PolicySnapshot",
+          "required": true,
+          "default": "",
+          "description": "Immutable point-in-time policy snapshot. Provides TOCTOU safety.",
+          "validators": []
+        },
+        {
+          "name": "request",
+          "type_ref": "EvaluationRequest",
+          "required": true,
+          "default": "",
+          "description": "The evaluation request containing actor, predicate, classification, and context.",
+          "validators": []
+        },
+        {
+          "name": "timeout_config",
+          "type_ref": "TimeoutConfig",
+          "required": true,
+          "default": "",
+          "description": "Timeout configuration for fail-secure semantics.",
+          "validators": []
+        }
+      ],
+      "output_type": "Decision",
+      "error_cases": [
+        {
+          "name": "invalid_request",
+          "condition": "EvaluationRequest fails validation (empty actor_id, empty predicate_id, mismatched classification)",
+          "error_type": "PolicyErrorDetail",
+          "error_data": {
+            "variant": "InvalidRequest"
+          }
+        },
+        {
+          "name": "snapshot_stale",
+          "condition": "PolicySnapshot is older than the configured maximum snapshot age",
+          "error_type": "PolicyErrorDetail",
+          "error_data": {
+            "variant": "SnapshotStale"
+          }
+        },
+        {
+          "name": "audit_sink_failure",
+          "condition": "AuditSink.emit fails and write-ahead guarantee cannot be met — evaluation aborts",
+          "error_type": "PolicyErrorDetail",
+          "error_data": {
+            "variant": "AuditSinkError"
+          }
+        },
+        {
+          "name": "internal_error",
+          "condition": "Unexpected internal error during rule matching or combining",
+          "error_type": "PolicyErrorDetail",
+          "error_data": {
+            "variant": "InternalError"
+          }
+        }
+      ],
+      "preconditions": [
+        "request.actor_classification.actor_id == request.actor_id (classification must match the requesting actor)",
+        "request.context.request_timestamp is not in the future (clock skew tolerance: 30 seconds)",
+        "request.context.domain_id is non-empty and syntactically valid",
+        "snapshot.policy_set.rules is not empty (at least one rule must exist)",
+        "request.actor_classification.classified_at is not stale (within configured freshness window)"
+      ],
+      "postconditions": [
+        "Return value is exactly one of Permit, Deny, or Anomaly — never a compound",
+        "If any matching rule is a Deny rule, the result is Deny (deny-overrides combining)",
+        "If the timeout elapsed, the result is Deny with reason Timeout regardless of partial evaluation state",
+        "An AuditEvent with kind EvaluationCompleted is emitted before the Decision is returned (write-ahead)",
+        "If result is Permit, PermitDecision.expires_at > current time",
+        "If result is Permit, PermitDecision.provenance.policy_version == snapshot.policy_set.version",
+        "If result is Anomaly, AnomalyReport.options is non-empty (at least one resolution option)",
+        "If result is Anomaly, an AuditEvent with kind AnomalyEscalated is also emitted"
+      ],
+      "idempotent": true,
+      "side_effects": [
+        "Emits AuditEvent(EvaluationCompleted) via AuditSink (write-ahead, before returning)",
+        "Emits AuditEvent(AnomalyEscalated) via AuditSink if decision is Anomaly"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "AuditSink",
+          "description": "Write-ahead audit event emission for every evaluation"
+        },
+        {
+          "kind": "logging",
+          "target": "evaluation_trace",
+          "description": "Structured trace log of rule matching (no sensitive data)"
+        }
+      ],
+      "performance_budget": {
+        "p95_latency_ms": 50,
+        "max_memory_mb": 4,
+        "complexity": "O(n) where n is number of rules in PolicySet"
+      }
+    },
+    {
+      "name": "classify",
+      "description": "Classify an actor's sensitivity tier based on provided evidence. Examines all ClassificationEvidence items, applies confidence-weighted tier determination, and returns an ActorClassification. Uses the highest-confidence evidence; in case of tie, uses the most restrictive (lowest) tier. Emits a ClassificationPerformed audit event.",
+      "inputs": [
+        {
+          "name": "actor_id",
+          "type_ref": "ActorId",
+          "required": true,
+          "default": "",
+          "description": "The actor to classify.",
+          "validators": []
+        },
+        {
+          "name": "evidence",
+          "type_ref": "list",
+          "required": true,
+          "default": "",
+          "description": "All available classification evidence for this actor. Must contain at least one item.",
+          "validators": []
+        }
+      ],
+      "output_type": "ActorClassification",
+      "error_cases": [
+        {
+          "name": "no_evidence",
+          "condition": "Evidence list is empty",
+          "error_type": "PolicyErrorDetail",
+          "error_data": {
+            "variant": "ClassificationError"
+          }
+        },
+        {
+          "name": "invalid_evidence",
+          "condition": "One or more evidence items fail validation (empty evidence_ref, future timestamp)",
+          "error_type": "PolicyErrorDetail",
+          "error_data": {
+            "variant": "ValidationError"
+          }
+        },
+        {
+          "name": "audit_sink_failure",
+          "condition": "AuditSink.emit fails for the ClassificationPerformed event",
+          "error_type": "PolicyErrorDetail",
+          "error_data": {
+            "variant": "AuditSinkError"
+          }
+        },
+        {
+          "name": "internal_error",
+          "condition": "Unexpected internal error during classification logic",
+          "error_type": "PolicyErrorDetail",
+          "error_data": {
+            "variant": "InternalError"
+          }
+        }
+      ],
+      "preconditions": [
+        "evidence list is non-empty (at least one ClassificationEvidence item)",
+        "All evidence items have valid, non-future obtained_at timestamps",
+        "No evidence item contains plaintext secrets in evidence_ref"
+      ],
+      "postconditions": [
+        "Returned ActorClassification.actor_id == input actor_id",
+        "Returned ActorClassification.tier is one of the tiers claimed in the evidence",
+        "Returned ActorClassification.confidence reflects the strength of the best evidence",
+        "Returned ActorClassification.evidence_count == length of input evidence list",
+        "Returned ActorClassification.classified_at is approximately current time",
+        "An AuditEvent with kind ClassificationPerformed is emitted",
+        "If multiple evidence items have the same confidence, the most restrictive (lowest) tier is selected"
+      ],
+      "idempotent": true,
+      "side_effects": [
+        "Emits AuditEvent(ClassificationPerformed) via AuditSink"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "AuditSink",
+          "description": "Audit event for classification"
+        },
+        {
+          "kind": "logging",
+          "target": "classification_trace",
+          "description": "Structured trace of evidence evaluation (no sensitive data)"
+        }
+      ],
+      "performance_budget": {
+        "p95_latency_ms": 10,
+        "max_memory_mb": null,
+        "complexity": "O(n) where n is number of evidence items"
+      }
+    },
+    {
+      "name": "record_pattern",
+      "description": "Record a user's approve/deny decision for an actor+predicate pair into the pattern tracker. Creates a new PatternRecord if none exists, or updates an existing one. Computes HMAC-SHA-256 MAC over all record fields using a vault-derived key. Emits a PatternRecorded audit event.",
+      "inputs": [
+        {
+          "name": "actor_id",
+          "type_ref": "ActorId",
+          "required": true,
+          "default": "",
+          "description": "The actor in the decision being recorded.",
+          "validators": []
+        },
+        {
+          "name": "predicate_id",
+          "type_ref": "PredicateId",
+          "required": true,
+          "default": "",
+          "description": "The predicate in the decision being recorded.",
+          "validators": []
+        },
+        {
+          "name": "decision",
+          "type_ref": "PatternDecision",
+          "required": true,
+          "default": "",
+          "description": "Whether the user approved or denied the request.",
+          "validators": []
+        },
+        {
+          "name": "decided_at",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "When the user made the decision.",
+          "validators": []
+        },
+        {
+          "name": "mac_key",
+          "type_ref": "bytes",
+          "required": true,
+          "default": "",
+          "description": "HMAC-SHA-256 key derived from the vault, used to MAC-protect the pattern record. Must be exactly 32 bytes.",
+          "validators": []
+        }
+      ],
+      "output_type": "PatternRecord",
+      "error_cases": [
+        {
+          "name": "invalid_mac_key",
+          "condition": "mac_key is not exactly 32 bytes",
+          "error_type": "PolicyErrorDetail",
+          "error_data": {
+            "variant": "PatternError"
+          }
+        },
+        {
+          "name": "mac_verification_failed",
+          "condition": "Existing PatternRecord MAC verification fails (tampered record detected)",
+          "error_type": "PolicyErrorDetail",
+          "error_data": {
+            "variant": "MacVerificationFailed"
+          }
+        },
+        {
+          "name": "audit_sink_failure",
+          "condition": "AuditSink.emit fails for the PatternRecorded event",
+          "error_type": "PolicyErrorDetail",
+          "error_data": {
+            "variant": "AuditSinkError"
+          }
+        },
+        {
+          "name": "internal_error",
+          "condition": "Unexpected internal error during record update",
+          "error_type": "PolicyErrorDetail",
+          "error_data": {
+            "variant": "InternalError"
+          }
+        }
+      ],
+      "preconditions": [
+        "mac_key is exactly 32 bytes",
+        "decided_at is not in the future (clock skew tolerance: 30 seconds)",
+        "actor_id and predicate_id are non-empty"
+      ],
+      "postconditions": [
+        "Returned PatternRecord.actor_id == input actor_id",
+        "Returned PatternRecord.predicate_id == input predicate_id",
+        "If decision is Approved, returned PatternRecord.approve_count is incremented by 1 from previous value (or 1 if new)",
+        "If decision is Denied, returned PatternRecord.deny_count is incremented by 1 from previous value (or 1 if new)",
+        "Returned PatternRecord.last_seen == decided_at",
+        "Returned PatternRecord.first_seen <= decided_at",
+        "Returned PatternRecord.mac is a valid HMAC-SHA-256 over all other fields using mac_key",
+        "An AuditEvent with kind PatternRecorded is emitted",
+        "mac_key is zeroized from memory after MAC computation"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Mutates pattern tracker state (creates or updates PatternRecord)",
+        "Emits AuditEvent(PatternRecorded) via AuditSink",
+        "Zeroizes mac_key from memory after use"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "PatternTracker storage",
+          "description": "Creates or updates MAC-protected PatternRecord"
+        },
+        {
+          "kind": "mutates_state",
+          "target": "AuditSink",
+          "description": "Audit event for pattern recording"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "suggest_rules",
+      "description": "Analyze all pattern records against the provided thresholds and generate policy rule suggestions. Returns suggestions for any actor+predicate pairs that exceed the configured occurrence and ratio thresholds. Suggestions are suggest-only and never auto-applied. Verifies MAC on each PatternRecord before considering it. Emits a SuggestionGenerated audit event for each suggestion produced.",
+      "inputs": [
+        {
+          "name": "thresholds",
+          "type_ref": "SuggestionThresholds",
+          "required": true,
+          "default": "",
+          "description": "Threshold configuration for when to generate suggestions.",
+          "validators": []
+        },
+        {
+          "name": "mac_key",
+          "type_ref": "bytes",
+          "required": true,
+          "default": "",
+          "description": "HMAC-SHA-256 key for verifying PatternRecord MACs. Must be exactly 32 bytes.",
+          "validators": []
+        }
+      ],
+      "output_type": "list",
+      "error_cases": [
+        {
+          "name": "invalid_mac_key",
+          "condition": "mac_key is not exactly 32 bytes",
+          "error_type": "PolicyErrorDetail",
+          "error_data": {
+            "variant": "PatternError"
+          }
+        },
+        {
+          "name": "audit_sink_failure",
+          "condition": "AuditSink.emit fails for a SuggestionGenerated event",
+          "error_type": "PolicyErrorDetail",
+          "error_data": {
+            "variant": "AuditSinkError"
+          }
+        },
+        {
+          "name": "internal_error",
+          "condition": "Unexpected internal error during suggestion generation",
+          "error_type": "PolicyErrorDetail",
+          "error_data": {
+            "variant": "InternalError"
+          }
+        }
+      ],
+      "preconditions": [
+        "mac_key is exactly 32 bytes",
+        "thresholds.min_occurrences >= 1",
+        "thresholds.approval_ratio_permit is between 0 and 100",
+        "thresholds.denial_ratio_deny is between 0 and 100"
+      ],
+      "postconditions": [
+        "Every returned PolicySuggestion has confidence level proportional to the pattern strength",
+        "Every returned PolicySuggestion.based_on_record has a valid MAC",
+        "No suggestions are auto-applied to any PolicySet",
+        "An AuditEvent with kind SuggestionGenerated is emitted for each suggestion",
+        "PatternRecords with invalid MACs are skipped (not included in suggestions) and logged",
+        "mac_key is zeroized from memory after all MAC verifications",
+        "Returned list may be empty if no patterns exceed thresholds"
+      ],
+      "idempotent": true,
+      "side_effects": [
+        "Reads all PatternRecords from PatternTracker storage",
+        "Emits AuditEvent(SuggestionGenerated) for each suggestion via AuditSink",
+        "Zeroizes mac_key from memory after use"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "reads_file",
+          "target": "PatternTracker storage",
+          "description": "Reads all PatternRecords for analysis"
+        },
+        {
+          "kind": "mutates_state",
+          "target": "AuditSink",
+          "description": "Audit events for generated suggestions"
+        },
+        {
+          "kind": "logging",
+          "target": "suggestion_trace",
+          "description": "Logs skipped records with invalid MACs (no sensitive data)"
+        }
+      ],
+      "performance_budget": {
+        "p95_latency_ms": null,
+        "max_memory_mb": null,
+        "complexity": "O(n) where n is number of PatternRecords"
+      }
+    },
+    {
+      "name": "load_policies",
+      "description": "Load the current PolicySet from vault storage. Deserializes from JSON with deny_unknown_fields in strict mode. Validates schema version, rule integrity, and version monotonicity. Returns the PolicySet or an error.",
+      "inputs": [
+        {
+          "name": "policy_data",
+          "type_ref": "bytes",
+          "required": true,
+          "default": "",
+          "description": "Raw JSON bytes of the serialized PolicySet, as retrieved from the vault.",
+          "validators": []
+        }
+      ],
+      "output_type": "PolicySet",
+      "error_cases": [
+        {
+          "name": "deserialization_error",
+          "condition": "JSON is malformed, missing required fields, or contains unknown fields (strict mode)",
+          "error_type": "PolicyErrorDetail",
+          "error_data": {
+            "variant": "DeserializationError"
+          }
+        },
+        {
+          "name": "validation_error",
+          "condition": "PolicySet passes JSON parsing but fails semantic validation (duplicate rule IDs, invalid schema version, invalid tier references)",
+          "error_type": "PolicyErrorDetail",
+          "error_data": {
+            "variant": "ValidationError"
+          }
+        },
+        {
+          "name": "load_error",
+          "condition": "Input data is empty, not valid UTF-8, or exceeds 10MB size limit",
+          "error_type": "PolicyErrorDetail",
+          "error_data": {
+            "variant": "LoadError"
+          }
+        }
+      ],
+      "preconditions": [
+        "policy_data is valid UTF-8",
+        "policy_data is valid JSON",
+        "policy_data length > 0 and <= 10MB"
+      ],
+      "postconditions": [
+        "Returned PolicySet has a valid PolicyVersion (>= 1)",
+        "Returned PolicySet has schema_version == 1",
+        "All PolicyRules in the returned set have non-empty rule_id values",
+        "All rule_id values within the PolicySet are unique",
+        "Deserialization used deny_unknown_fields (strict mode)"
+      ],
+      "idempotent": true,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": "Pure deserialization and validation, no side effects"
+        }
+      ],
+      "performance_budget": {
+        "p95_latency_ms": 20,
+        "max_memory_mb": 20,
+        "complexity": null
+      }
+    },
+    {
+      "name": "save_policies",
+      "description": "Serialize a PolicySet to JSON bytes for storage in the vault. Validates the PolicySet before serialization. Emits a PolicySetUpdated audit event. Returns the serialized bytes.",
+      "inputs": [
+        {
+          "name": "policy_set",
+          "type_ref": "PolicySet",
+          "required": true,
+          "default": "",
+          "description": "The PolicySet to serialize and save.",
+          "validators": []
+        }
+      ],
+      "output_type": "bytes",
+      "error_cases": [
+        {
+          "name": "validation_error",
+          "condition": "PolicySet fails pre-serialization validation (duplicate rule IDs, empty rules, invalid version)",
+          "error_type": "PolicyErrorDetail",
+          "error_data": {
+            "variant": "ValidationError"
+          }
+        },
+        {
+          "name": "serialization_error",
+          "condition": "JSON serialization fails (should not occur with valid types, but handled defensively)",
+          "error_type": "PolicyErrorDetail",
+          "error_data": {
+            "variant": "SerializationError"
+          }
+        },
+        {
+          "name": "audit_sink_failure",
+          "condition": "AuditSink.emit fails for the PolicySetUpdated event",
+          "error_type": "PolicyErrorDetail",
+          "error_data": {
+            "variant": "AuditSinkError"
+          }
+        }
+      ],
+      "preconditions": [
+        "policy_set.version >= 1",
+        "policy_set.schema_version == 1",
+        "All rule_id values within policy_set.rules are unique",
+        "policy_set.rules contains at least one rule"
+      ],
+      "postconditions": [
+        "Returned bytes are valid UTF-8 JSON",
+        "Returned bytes can be round-tripped through load_policies to produce an equivalent PolicySet",
+        "An AuditEvent with kind PolicySetUpdated is emitted",
+        "Serialized JSON uses deny_unknown_fields-compatible structure"
+      ],
+      "idempotent": true,
+      "side_effects": [
+        "Emits AuditEvent(PolicySetUpdated) via AuditSink"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "AuditSink",
+          "description": "Audit event for policy set update"
+        }
+      ],
+      "performance_budget": {
+        "p95_latency_ms": 20,
+        "max_memory_mb": 20,
+        "complexity": null
+      }
+    },
+    {
+      "name": "take_snapshot",
+      "description": "Create an immutable PolicySnapshot from the current PolicySet for TOCTOU-safe evaluation. The snapshot freezes the policy state at a point in time and is used for the entire evaluation pipeline.",
+      "inputs": [
+        {
+          "name": "policy_set",
+          "type_ref": "PolicySet",
+          "required": true,
+          "default": "",
+          "description": "The current PolicySet to snapshot.",
+          "validators": []
+        },
+        {
+          "name": "snapshot_time",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "The timestamp to record as the snapshot time. Should be the current time.",
+          "validators": []
+        }
+      ],
+      "output_type": "PolicySnapshot",
+      "error_cases": [
+        {
+          "name": "validation_error",
+          "condition": "PolicySet fails validation checks",
+          "error_type": "PolicyErrorDetail",
+          "error_data": {
+            "variant": "ValidationError"
+          }
+        }
+      ],
+      "preconditions": [
+        "policy_set is a valid, fully-loaded PolicySet",
+        "snapshot_time is approximately current time (within 30 seconds)"
+      ],
+      "postconditions": [
+        "Returned PolicySnapshot.policy_set is a deep copy of the input policy_set",
+        "Returned PolicySnapshot.snapshot_taken_at == snapshot_time",
+        "Modifications to the original policy_set after this call do not affect the returned snapshot"
+      ],
+      "idempotent": true,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": "Pure snapshot creation, no side effects"
+        }
+      ],
+      "performance_budget": {
+        "p95_latency_ms": 5,
+        "max_memory_mb": null,
+        "complexity": "O(n) where n is number of rules (deep copy)"
+      }
+    },
+    {
+      "name": "resolve_anomaly",
+      "description": "Record the user's explicit resolution of an ANOMALY decision. Takes the original AnomalyReport and the user's chosen option. Validates the chosen option is one of the presented options. Emits an AnomalyResolved audit event. Returns the final Decision (Permit or Deny) based on the chosen option. ANOMALY decisions are never silently resolved — this function is the only valid resolution path.",
+      "inputs": [
+        {
+          "name": "report",
+          "type_ref": "AnomalyReport",
+          "required": true,
+          "default": "",
+          "description": "The original AnomalyReport from the ANOMALY decision.",
+          "validators": []
+        },
+        {
+          "name": "chosen_option_id",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "The option_id of the AnomalyOption the user selected.",
+          "validators": [
+            {
+              "kind": "length",
+              "expression": "1..=128",
+              "error_message": "Chosen option ID must be between 1 and 128 bytes"
+            }
+          ]
+        },
+        {
+          "name": "snapshot",
+          "type_ref": "PolicySnapshot",
+          "required": true,
+          "default": "",
+          "description": "Current policy snapshot for generating the resulting Decision with proper provenance.",
+          "validators": []
+        },
+        {
+          "name": "resolved_at",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "Timestamp of the user's resolution action.",
+          "validators": []
+        }
+      ],
+      "output_type": "Decision",
+      "error_cases": [
+        {
+          "name": "invalid_option",
+          "condition": "chosen_option_id does not match any option in report.options",
+          "error_type": "PolicyErrorDetail",
+          "error_data": {
+            "variant": "InvalidRequest"
+          }
+        },
+        {
+          "name": "stale_anomaly",
+          "condition": "The anomaly report is older than the configured maximum anomaly age",
+          "error_type": "PolicyErrorDetail",
+          "error_data": {
+            "variant": "ValidationError"
+          }
+        },
+        {
+          "name": "audit_sink_failure",
+          "condition": "AuditSink.emit fails for the AnomalyResolved event",
+          "error_type": "PolicyErrorDetail",
+          "error_data": {
+            "variant": "AuditSinkError"
+          }
+        },
+        {
+          "name": "snapshot_stale",
+          "condition": "PolicySnapshot is older than configured maximum age",
+          "error_type": "PolicyErrorDetail",
+          "error_data": {
+            "variant": "SnapshotStale"
+          }
+        }
+      ],
+      "preconditions": [
+        "chosen_option_id matches one of the option_ids in report.options",
+        "resolved_at is not before report.detected_at (resolution cannot precede detection)",
+        "resolved_at is approximately current time (within 30 seconds)"
+      ],
+      "postconditions": [
+        "Returned Decision is either Permit or Deny, never Anomaly (anomaly is resolved)",
+        "If chosen option has resulting_decision 'permit', returns Permit with proper provenance and expiration",
+        "If chosen option has resulting_decision 'deny', returns Deny with reason PolicyRuleDeny",
+        "An AuditEvent with kind AnomalyResolved is emitted before returning",
+        "The audit event includes the chosen_option_id for traceability"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Emits AuditEvent(AnomalyResolved) via AuditSink"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "AuditSink",
+          "description": "Write-ahead audit event for anomaly resolution"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "emit_audit",
+      "description": "Emit a structured audit event to the audit chain. This is the AuditSink trait's core operation. All audit events must be durably recorded before the triggering operation returns (write-ahead guarantee). Events must not contain sensitive data.",
+      "inputs": [
+        {
+          "name": "event",
+          "type_ref": "AuditEvent",
+          "required": true,
+          "default": "",
+          "description": "The structured audit event to emit.",
+          "validators": []
+        }
+      ],
+      "output_type": "bool",
+      "error_cases": [
+        {
+          "name": "audit_sink_failure",
+          "condition": "The underlying audit storage is unavailable or the write fails",
+          "error_type": "PolicyErrorDetail",
+          "error_data": {
+            "variant": "AuditSinkError"
+          }
+        },
+        {
+          "name": "validation_error",
+          "condition": "The AuditEvent fails validation (future timestamp, missing required fields for the event kind)",
+          "error_type": "PolicyErrorDetail",
+          "error_data": {
+            "variant": "ValidationError"
+          }
+        }
+      ],
+      "preconditions": [
+        "event.timestamp is not in the future (clock skew tolerance: 30 seconds)",
+        "event.decision_summary does not contain sensitive data (no key material, no raw evidence)"
+      ],
+      "postconditions": [
+        "If returns true, the event is durably recorded on the audit chain",
+        "Event ordering is preserved (events emitted in sequence are recorded in sequence)",
+        "The event is immutable once recorded"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Durably records the audit event to the audit chain"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "writes_file",
+          "target": "Audit chain storage",
+          "description": "Durable write-ahead audit event recording"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "validate_policy_set",
+      "description": "Perform comprehensive validation of a PolicySet without loading or saving it. Checks structural integrity, rule ID uniqueness, tier consistency, pattern validity, domain constraint syntax, time window coherence, and schema version compatibility. Pure function with no side effects.",
+      "inputs": [
+        {
+          "name": "policy_set",
+          "type_ref": "PolicySet",
+          "required": true,
+          "default": "",
+          "description": "The PolicySet to validate.",
+          "validators": []
+        }
+      ],
+      "output_type": "bool",
+      "error_cases": [
+        {
+          "name": "validation_error",
+          "condition": "One or more validation checks fail. Error message describes which checks failed without leaking sensitive data.",
+          "error_type": "PolicyErrorDetail",
+          "error_data": {
+            "variant": "ValidationError"
+          }
+        }
+      ],
+      "preconditions": [],
+      "postconditions": [
+        "If returns true, the PolicySet is structurally valid and safe to use in evaluation",
+        "If returns true, all rule_id values are unique",
+        "If returns true, all time windows have valid_from < valid_until where both are specified",
+        "If returns true, schema_version is supported (currently only 1)",
+        "If returns true, all SensitivityTier references are valid enum variants"
+      ],
+      "idempotent": true,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": "Pure validation, no side effects"
+        }
+      ],
+      "performance_budget": {
+        "p95_latency_ms": 10,
+        "max_memory_mb": null,
+        "complexity": "O(n) where n is number of rules"
+      }
+    },
+    {
+      "name": "compare_tiers",
+      "description": "Compare two SensitivityTier values according to the strict ordering: Public < Commerce < Financial < Medical < Identity < TrustedAgent. Returns -1 if left < right, 0 if equal, 1 if left > right. Pure function, no side effects.",
+      "inputs": [
+        {
+          "name": "left",
+          "type_ref": "SensitivityTier",
+          "required": true,
+          "default": "",
+          "description": "The left-hand tier to compare.",
+          "validators": []
+        },
+        {
+          "name": "right",
+          "type_ref": "SensitivityTier",
+          "required": true,
+          "default": "",
+          "description": "The right-hand tier to compare.",
+          "validators": []
+        }
+      ],
+      "output_type": "int",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "Return value is exactly -1, 0, or 1",
+        "compare_tiers(a, b) == -compare_tiers(b, a) (antisymmetry)",
+        "compare_tiers(a, a) == 0 (reflexivity)",
+        "If compare_tiers(a, b) == -1 and compare_tiers(b, c) == -1 then compare_tiers(a, c) == -1 (transitivity)",
+        "compare_tiers(Public, TrustedAgent) == -1"
+      ],
+      "idempotent": true,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": "Pure comparison, no side effects"
+        }
+      ],
+      "performance_budget": {
+        "p95_latency_ms": 1,
+        "max_memory_mb": null,
+        "complexity": "O(1)"
+      }
+    }
+  ],
+  "dependencies": [],
+  "dependency_contracts": {},
+  "invariants": [
+    "Vault server never has access to plaintext policy decisions or evaluation context",
+    "ANOMALY decisions are never silently resolved — every ANOMALY must be escalated with a complete AnomalyReport and recorded on the audit chain",
+    "Pipeline timeout always produces Decision::Deny with reason DenyReason::Timeout, never an error",
+    "Deny-overrides combining: any matching DENY rule in the PolicySet wins regardless of other matching rules",
+    "SensitivityTier ordering is strictly Public < Commerce < Financial < Medical < Identity < TrustedAgent with no equivalences",
+    "No algorithm negotiation in any protocol path — combining algorithm is fixed as deny-overrides",
+    "Pattern tracker suggestions are suggest-only and never auto-applied to the active PolicySet",
+    "All pattern tracker entries are MAC-protected (HMAC-SHA-256) to detect tampering",
+    "One-way data flow: vault -> agent -> service, never reverse — policy decisions flow outward only",
+    "All disclosures resulting from PERMIT decisions are recorded on the audit chain via AuditSink",
+    "Error Display implementations never contain sensitive data (no key material, no raw actor evidence, no plaintext predicates)",
+    "Crypto failures return generic error variants (no oracle information leakage)",
+    "PolicySnapshot provides TOCTOU mitigation — evaluation uses a consistent snapshot of policies",
+    "No unwrap() or expect() in library code — all paths return Result",
+    "PolicyVersion is monotonically increasing within a PolicySet",
+    "EvaluationRequest domain_id and timestamp are validated before evaluation begins",
+    "All decisions include provenance tracing back to the originating policy rules"
+  ],
+  "requires": [
+    "thiserror for PolicyError enum",
+    "serde and serde_json for policy rule serialization (internally-tagged JSON)",
+    "time crate for timestamps (preferred over chrono per audit posture)",
+    "aws-lc-rs for HMAC-SHA-256 MAC on pattern tracker entries"
+  ]
+}

@@ -1,0 +1,902 @@
+{
+  "project_id": "signet",
+  "title": "Design: signet",
+  "summary": "",
+  "decomposition_tree": {
+    "root_id": "root",
+    "nodes": {
+      "signet_vault": {
+        "component_id": "signet_vault",
+        "name": "Signet Vault",
+        "description": "Encrypted local data store with key management. Implements: BIP39 mnemonic generation and recovery, SLIP-0010 Ed25519 master key derivation, HKDF-based key hierarchy (Ed25519 identity, X25519 encryption, per-device keys, Tier 3 compartment keys). Envelope encryption using aws-lc-rs (Ed25519 + X25519 + AES-256-GCM). Three-tier data model: Tier 1 (public-ish, agent-accessible), Tier 2 (sensitive, agent-accessible but conclusions-only egress enforced upstream), Tier 3 (restricted, compartment keys structurally inaccessible to agent). Content-addressed blob storage. Encrypted client-side index. Append-only hash-chained audit log (each entry includes hash of previous entry, write-path isolated from agent sessions). Per-device key provisioning via existing-device ceremony. Compile-time feature flags for SQLite+filesystem (self-hosted) vs Postgres+S3 (multi-tenant). Storage trait abstraction with two backends. User-assignable tier classification with sensible defaults. Zero secrets in memory after use.",
+        "depth": 1,
+        "parent_id": "root",
+        "children": [],
+        "contract": {
+          "component_id": "signet_vault",
+          "name": "Signet Vault",
+          "description": "Encrypted local data store with key management. Implements BIP39 mnemonic generation and recovery, SLIP-0010 Ed25519 master key derivation, and a HKDF-based key hierarchy. It features a three-tier data model and an append-only hash-chained audit log.",
+          "version": 1,
+          "types": [
+            {
+              "name": "Tier",
+              "kind": "enum",
+              "fields": [],
+              "item_type": "",
+              "variants": [
+                "Tier1",
+                "Tier2",
+                "Tier3"
+              ],
+              "inner_types": [],
+              "description": "Data tiers defining access and sensitivity levels."
+            },
+            {
+              "name": "AuditLogEntry",
+              "kind": "struct",
+              "fields": [
+                {
+                  "name": "timestamp",
+                  "type_ref": "int",
+                  "required": true,
+                  "default": "",
+                  "description": "Unix timestamp of the audit log entry.",
+                  "validators": []
+                },
+                {
+                  "name": "action",
+                  "type_ref": "str",
+                  "required": true,
+                  "default": "",
+                  "description": "Description of the action taken.",
+                  "validators": []
+                },
+                {
+                  "name": "previous_hash",
+                  "type_ref": "bytes",
+                  "required": true,
+                  "default": "",
+                  "description": "Hash of the previous log entry.",
+                  "validators": []
+                },
+                {
+                  "name": "current_hash",
+                  "type_ref": "bytes",
+                  "required": true,
+                  "default": "",
+                  "description": "Hash of the current log entry.",
+                  "validators": []
+                }
+              ],
+              "item_type": "",
+              "variants": [],
+              "inner_types": [],
+              "description": "Struct representing an entry in the audit log."
+            },
+            {
+              "name": "KeyType",
+              "kind": "enum",
+              "fields": [],
+              "item_type": "",
+              "variants": [
+                "Ed25519",
+                "X25519"
+              ],
+              "inner_types": [],
+              "description": "Enumeration of supported key types."
+            },
+            {
+              "name": "Mnemonic",
+              "kind": "struct",
+              "fields": [
+                {
+                  "name": "phrase",
+                  "type_ref": "list",
+                  "required": true,
+                  "default": "",
+                  "description": "List of words constituting the mnemonic.",
+                  "validators": []
+                }
+              ],
+              "item_type": "",
+              "variants": [],
+              "inner_types": [],
+              "description": "Struct representing a BIP39 mnemonic phrase."
+            },
+            {
+              "name": "SignetVaultError",
+              "kind": "enum",
+              "fields": [],
+              "item_type": "",
+              "variants": [
+                "InvalidTier",
+                "EncryptionFailed",
+                "DecryptionFailed",
+                "KeyDerivationFailed",
+                "InvalidMnemonic",
+                "StorageError"
+              ],
+              "inner_types": [],
+              "description": "Enumeration of possible errors within the Signet Vault."
+            }
+          ],
+          "functions": [
+            {
+              "name": "generate_mnemonic",
+              "description": "Generates a new BIP39 mnemonic phrase.",
+              "inputs": [],
+              "output_type": "Mnemonic",
+              "error_cases": [
+                {
+                  "name": "MnemonicGenerationFailed",
+                  "condition": "If the mnemonic generation process fails.",
+                  "error_type": "SignetVaultError",
+                  "error_data": {}
+                }
+              ],
+              "preconditions": [],
+              "postconditions": [
+                "A valid BIP39 mnemonic is generated."
+              ],
+              "idempotent": false,
+              "side_effects": [],
+              "structured_side_effects": [],
+              "performance_budget": null
+            },
+            {
+              "name": "derive_key",
+              "description": "Derives a new key from the given mnemonic.",
+              "inputs": [
+                {
+                  "name": "mnemonic",
+                  "type_ref": "Mnemonic",
+                  "required": true,
+                  "default": "",
+                  "description": "The BIP39 mnemonic to derive the key from.",
+                  "validators": []
+                },
+                {
+                  "name": "key_type",
+                  "type_ref": "KeyType",
+                  "required": true,
+                  "default": "",
+                  "description": "The type of key to derive.",
+                  "validators": []
+                }
+              ],
+              "output_type": "bytes",
+              "error_cases": [
+                {
+                  "name": "InvalidMnemonic",
+                  "condition": "The input mnemonic is invalid.",
+                  "error_type": "SignetVaultError",
+                  "error_data": {}
+                },
+                {
+                  "name": "KeyDerivationFailed",
+                  "condition": "If the key derivation process fails.",
+                  "error_type": "SignetVaultError",
+                  "error_data": {}
+                }
+              ],
+              "preconditions": [
+                "Input mnemonic must be a valid BIP39 mnemonic."
+              ],
+              "postconditions": [
+                "A newly derived key is returned based on the key type."
+              ],
+              "idempotent": false,
+              "side_effects": [],
+              "structured_side_effects": [],
+              "performance_budget": null
+            },
+            {
+              "name": "store_data",
+              "description": "Stores the given data in a specified tier in encrypted form.",
+              "inputs": [
+                {
+                  "name": "data",
+                  "type_ref": "bytes",
+                  "required": true,
+                  "default": "",
+                  "description": "The data to be encrypted and stored.",
+                  "validators": []
+                },
+                {
+                  "name": "tier",
+                  "type_ref": "Tier",
+                  "required": true,
+                  "default": "",
+                  "description": "The tier in which the data should be stored.",
+                  "validators": []
+                }
+              ],
+              "output_type": "None",
+              "error_cases": [
+                {
+                  "name": "EncryptionFailed",
+                  "condition": "If encryption of the data fails.",
+                  "error_type": "SignetVaultError",
+                  "error_data": {}
+                },
+                {
+                  "name": "StorageError",
+                  "condition": "If there is an issue storing the encrypted data.",
+                  "error_type": "SignetVaultError",
+                  "error_data": {}
+                }
+              ],
+              "preconditions": [
+                "Data must be non-empty."
+              ],
+              "postconditions": [
+                "Data is encrypted and securely stored in the specified tier."
+              ],
+              "idempotent": false,
+              "side_effects": [
+                "mutates_state"
+              ],
+              "structured_side_effects": [],
+              "performance_budget": null
+            },
+            {
+              "name": "retrieve_data",
+              "description": "Retrieves and decrypts data from a specified tier.",
+              "inputs": [
+                {
+                  "name": "identifier",
+                  "type_ref": "str",
+                  "required": true,
+                  "default": "",
+                  "description": "The identifier for the data to retrieve.",
+                  "validators": []
+                },
+                {
+                  "name": "tier",
+                  "type_ref": "Tier",
+                  "required": true,
+                  "default": "",
+                  "description": "The tier from which to retrieve the data.",
+                  "validators": []
+                }
+              ],
+              "output_type": "bytes",
+              "error_cases": [
+                {
+                  "name": "DecryptionFailed",
+                  "condition": "If decryption of the data fails.",
+                  "error_type": "SignetVaultError",
+                  "error_data": {}
+                },
+                {
+                  "name": "StorageError",
+                  "condition": "If the data cannot be found or there is an issue accessing storage.",
+                  "error_type": "SignetVaultError",
+                  "error_data": {}
+                }
+              ],
+              "preconditions": [
+                "Identifier must correspond to existing stored data."
+              ],
+              "postconditions": [
+                "The data is successfully decrypted and returned."
+              ],
+              "idempotent": false,
+              "side_effects": [
+                "reads_file"
+              ],
+              "structured_side_effects": [],
+              "performance_budget": null
+            },
+            {
+              "name": "log_action",
+              "description": "Logs an action into the audit log.",
+              "inputs": [
+                {
+                  "name": "entry",
+                  "type_ref": "AuditLogEntry",
+                  "required": true,
+                  "default": "",
+                  "description": "The entry to add to the audit log.",
+                  "validators": []
+                }
+              ],
+              "output_type": "None",
+              "error_cases": [],
+              "preconditions": [],
+              "postconditions": [
+                "Action is recorded in the audit log."
+              ],
+              "idempotent": false,
+              "side_effects": [
+                "mutates_state"
+              ],
+              "structured_side_effects": [],
+              "performance_budget": null
+            }
+          ],
+          "dependencies": [],
+          "dependency_contracts": {},
+          "invariants": [
+            "Vault server never has access to plaintext",
+            "Tier 3 compartment keys are never held by the agent",
+            "All disclosures are on the audit chain",
+            "No algorithm negotiation in any protocol",
+            "Zero secrets in memory after use"
+          ],
+          "requires": [
+            "thiserror",
+            "aws-lc-rs"
+          ]
+        },
+        "implementation_status": "contracted",
+        "test_results": null
+      },
+      "signet_cred": {
+        "component_id": "signet_cred",
+        "name": "Signet Credential Engine",
+        "description": "Self-issuance credential engine. Takes structured data from vault and produces credentials in two formats: (1) SD-JWT VC per RFC 9901 using sd-jwt-rust (OpenWallet Foundation) for baseline interoperability, and (2) BBS+ signed attribute sets using anoncreds-v2-rs for unlinkable presentations. Pre-computes boolean attributes (age_over_21, balance_above_1000, etc.) in BBS+ credentials to avoid ZK circuits. Generates Pedersen commitments for numeric attributes (for downstream Bulletproof range proofs). TTL management with expiry tracking. One-time credential consumption tracking. Credentials signed by vault's identity key. Credential storage and caching within vault.",
+        "depth": 1,
+        "parent_id": "root",
+        "children": [],
+        "contract": null,
+        "implementation_status": "pending",
+        "test_results": null
+      },
+      "signet_proof": {
+        "component_id": "signet_proof",
+        "name": "Signet Proof Workshop",
+        "description": "Proof derivation engine operating on cached credentials. Implements: SD-JWT selective disclosure presentations, BBS+ unlinkable proofs (fresh nonce per presentation for unlinkability), Bulletproof range proofs from Pedersen commitments using dalek bulletproofs (nightly). All proofs are domain-bound (relying party origin/DID + timestamp/nonce) and time-limited. Proof composition: combine multiple proofs into a single presentation. Performance SLAs: <20ms for SD-JWT and BBS+ derivation, <200ms for Bulletproof range proofs. BBS+ unlinkability invariant must be statistically tested.",
+        "depth": 1,
+        "parent_id": "root",
+        "children": [],
+        "contract": null,
+        "implementation_status": "pending",
+        "test_results": null
+      },
+      "signet_policy": {
+        "component_id": "signet_policy",
+        "name": "Signet Policy Engine",
+        "description": "Policy evaluation engine. Every data request evaluated as Actor + Predicate + Context = Legitimacy. Three-way decision output: PERMIT, DENY, ANOMALY. Role hierarchy: Public < Commerce < Financial < Medical < Identity < Trusted Agent. Actor classification via four methods: explicit assignment, credential-based, domain inference, or self-declaration. ANOMALY decisions trigger escalation with structured reasoning (who, what, why unusual, options) — never silently resolved. Pattern tracker: records user approve/deny decisions per actor+predicate pair, auto-suggests policy rules based on frequency patterns (simple counter/threshold, not ML). Policies stored in vault as structured JSON. Fail-secure: pipeline timeout defaults to deny.",
+        "depth": 1,
+        "parent_id": "root",
+        "children": [],
+        "contract": null,
+        "implementation_status": "pending",
+        "test_results": null
+      },
+      "signet_notify": {
+        "component_id": "signet_notify",
+        "name": "Signet Notification Channel",
+        "description": "Webhook-based authorization channel for Tier 3 requests and ANOMALY escalations. Presents structured reasoning payload: who is asking, what they want, why it is unusual, what options the user has. Accepts user response: approve, deny, or modify (with scope adjustment). Timeout defaults to deny (fail-secure). Sub-second delivery target for webhooks. Implements webhook delivery with retry logic, HMAC signature verification for callback authenticity. Response propagation back to the suspended policy decision. SMS and push channels are out of scope for v1.",
+        "depth": 1,
+        "parent_id": "root",
+        "children": [],
+        "contract": null,
+        "implementation_status": "pending",
+        "test_results": null
+      },
+      "signet_mcp": {
+        "component_id": "signet_mcp",
+        "name": "Signet MCP Server",
+        "description": "MCP (Model Context Protocol) server bridging personal AI agent to the vault ecosystem. Authenticates personal agent via Ed25519 session keys (expiring, revocable). OAuth 2.1 with PKCE for initial agent setup/provisioning. Exposes five MCP tools: signet_get_proof (request a proof for an external service), signet_query (query vault data within tier constraints), signet_request_capability (request a PASETO v4 capability token), signet_negotiate_context (negotiate disclosure scope with external agent), signet_check_status (check pending request status). Routes every request through policy engine. Enforces tier logic: Tier 1 auto-serve proofs, Tier 2 decrypt for agent but enforce conclusions-only egress (raw data never transmitted to external services), Tier 3 suspend request and delegate to notification channel. Session management with expiry and revocation. Runs as local process or self-hosted server. All disclosures recorded to audit log.",
+        "depth": 1,
+        "parent_id": "root",
+        "children": [],
+        "contract": null,
+        "implementation_status": "pending",
+        "test_results": null
+      },
+      "signet_sdk": {
+        "component_id": "signet_sdk",
+        "name": "Signet Developer SDK",
+        "description": "Developer-facing SDK for external service integration. Four primitives: verify(proof, claim) — verify a Signet proof against a claimed attribute, requestCapability(spec) — request a scoped capability from a Signet MCP server, checkAuthority(signet_id) — check if a Signet identity has a given authority, parseCredential(token) — parse and validate an SD-JWT or BBS+ credential. Rust primary crate with zero transitive dependencies beyond crypto (aws-lc-rs, sd-jwt-rust, anoncreds-v2-rs). TypeScript bindings via wasm-bindgen/wasm-pack. Python bindings via PyO3. 10-line integration target for passive verification. Verification is self-contained and does not require vault access.",
+        "depth": 1,
+        "parent_id": "root",
+        "children": [],
+        "contract": {
+          "component_id": "signet_sdk",
+          "name": "Signet Developer SDK",
+          "description": "Developer-facing SDK for external service integration with four core primitives: verify, requestCapability, checkAuthority, and parseCredential.",
+          "version": 1,
+          "types": [
+            {
+              "name": "Claim",
+              "kind": "struct",
+              "fields": [
+                {
+                  "name": "attribute",
+                  "type_ref": "str",
+                  "required": true,
+                  "default": "",
+                  "description": "The attributed claimed by the proof.",
+                  "validators": []
+                },
+                {
+                  "name": "value",
+                  "type_ref": "any",
+                  "required": true,
+                  "default": "",
+                  "description": "The value associated with the attributed claimed.",
+                  "validators": []
+                }
+              ],
+              "item_type": "",
+              "variants": [],
+              "inner_types": [],
+              "description": "Represents a claim consisting of an attribute and its associated value."
+            },
+            {
+              "name": "Proof",
+              "kind": "struct",
+              "fields": [
+                {
+                  "name": "data",
+                  "type_ref": "bytes",
+                  "required": true,
+                  "default": "",
+                  "description": "Serialized data of the proof.",
+                  "validators": []
+                }
+              ],
+              "item_type": "",
+              "variants": [],
+              "inner_types": [],
+              "description": "Serialized representation of the proof."
+            },
+            {
+              "name": "CapabilitySpec",
+              "kind": "struct",
+              "fields": [
+                {
+                  "name": "permissions",
+                  "type_ref": "list",
+                  "required": true,
+                  "default": "",
+                  "description": "Permissions requested by the capability.",
+                  "validators": []
+                },
+                {
+                  "name": "expiration",
+                  "type_ref": "int",
+                  "required": true,
+                  "default": "",
+                  "description": "Expiration time of the capability in Unix timestamp.",
+                  "validators": []
+                }
+              ],
+              "item_type": "",
+              "variants": [],
+              "inner_types": [],
+              "description": "Specifies a capability by describing its permissions and expiration."
+            },
+            {
+              "name": "SignetId",
+              "kind": "struct",
+              "fields": [
+                {
+                  "name": "id",
+                  "type_ref": "str",
+                  "required": true,
+                  "default": "",
+                  "description": "Unique identifier for the Signet identity.",
+                  "validators": []
+                }
+              ],
+              "item_type": "",
+              "variants": [],
+              "inner_types": [],
+              "description": "Represents a unique identifier for a Signet identity."
+            },
+            {
+              "name": "SignetError",
+              "kind": "enum",
+              "fields": [],
+              "item_type": "",
+              "variants": [
+                "InvalidProof",
+                "InvalidClaim",
+                "CapabilityRequestFailed",
+                "AuthorityCheckFailed",
+                "CredentialParseError",
+                "CryptoOperationFailed",
+                "UnauthorizedAccess",
+                "NetworkError"
+              ],
+              "inner_types": [],
+              "description": "Possible errors that may occur during SDK operations."
+            }
+          ],
+          "functions": [
+            {
+              "name": "verify",
+              "description": "Verifies a Signet proof against a claimed attribute.",
+              "inputs": [
+                {
+                  "name": "proof",
+                  "type_ref": "Proof",
+                  "required": true,
+                  "default": "",
+                  "description": "",
+                  "validators": []
+                },
+                {
+                  "name": "claim",
+                  "type_ref": "Claim",
+                  "required": true,
+                  "default": "",
+                  "description": "",
+                  "validators": []
+                }
+              ],
+              "output_type": "Result<bool, SignetError>",
+              "error_cases": [
+                {
+                  "name": "InvalidProof",
+                  "condition": "Proof data format is invalid or corrupted.",
+                  "error_type": "SignetError",
+                  "error_data": {}
+                },
+                {
+                  "name": "InvalidClaim",
+                  "condition": "The claim does not match the verified proof.",
+                  "error_type": "SignetError",
+                  "error_data": {}
+                }
+              ],
+              "preconditions": [
+                "Proof data must be non-empty.",
+                "Claim attribute must be defined."
+              ],
+              "postconditions": [
+                "Returns true if the proof is valid for the claim, otherwise false."
+              ],
+              "idempotent": true,
+              "side_effects": [],
+              "structured_side_effects": [],
+              "performance_budget": null
+            },
+            {
+              "name": "requestCapability",
+              "description": "Requests a scoped capability from a Signet MCP server.",
+              "inputs": [
+                {
+                  "name": "spec",
+                  "type_ref": "CapabilitySpec",
+                  "required": true,
+                  "default": "",
+                  "description": "",
+                  "validators": []
+                }
+              ],
+              "output_type": "Result<str, SignetError>",
+              "error_cases": [
+                {
+                  "name": "CapabilityRequestFailed",
+                  "condition": "Request to MCP server failed due to network issues or invalid spec.",
+                  "error_type": "SignetError",
+                  "error_data": {}
+                }
+              ],
+              "preconditions": [
+                "CapabilitySpec must contain valid permissions."
+              ],
+              "postconditions": [
+                "Returns a capability token if request is successful."
+              ],
+              "idempotent": false,
+              "side_effects": [
+                "network_call"
+              ],
+              "structured_side_effects": [],
+              "performance_budget": {
+                "p95_latency_ms": 500,
+                "max_memory_mb": 10,
+                "complexity": null
+              }
+            },
+            {
+              "name": "checkAuthority",
+              "description": "Checks whether a Signet identity possesses a specified authority.",
+              "inputs": [
+                {
+                  "name": "signet_id",
+                  "type_ref": "SignetId",
+                  "required": true,
+                  "default": "",
+                  "description": "",
+                  "validators": []
+                },
+                {
+                  "name": "authority",
+                  "type_ref": "str",
+                  "required": true,
+                  "default": "",
+                  "description": "",
+                  "validators": []
+                }
+              ],
+              "output_type": "Result<bool, SignetError>",
+              "error_cases": [
+                {
+                  "name": "AuthorityCheckFailed",
+                  "condition": "The authority check could not be completed.",
+                  "error_type": "SignetError",
+                  "error_data": {}
+                }
+              ],
+              "preconditions": [
+                "SignetId.id must be non-empty.",
+                "Authority must be defined."
+              ],
+              "postconditions": [
+                "Returns true if the identity has authority, otherwise false."
+              ],
+              "idempotent": true,
+              "side_effects": [],
+              "structured_side_effects": [],
+              "performance_budget": null
+            },
+            {
+              "name": "parseCredential",
+              "description": "Parses and validates an SD-JWT or BBS+ credential.",
+              "inputs": [
+                {
+                  "name": "token",
+                  "type_ref": "str",
+                  "required": true,
+                  "default": "",
+                  "description": "",
+                  "validators": []
+                }
+              ],
+              "output_type": "Result<Claim, SignetError>",
+              "error_cases": [
+                {
+                  "name": "CredentialParseError",
+                  "condition": "Token is not valid or cannot be parsed.",
+                  "error_type": "SignetError",
+                  "error_data": {}
+                }
+              ],
+              "preconditions": [
+                "Token should be a valid SD-JWT or BBS+ format."
+              ],
+              "postconditions": [
+                "Returns a claim if token is successfully parsed and validated."
+              ],
+              "idempotent": true,
+              "side_effects": [],
+              "structured_side_effects": [],
+              "performance_budget": null
+            }
+          ],
+          "dependencies": [],
+          "dependency_contracts": {
+            "aws-lc-rs": [],
+            "sd-jwt-rust": [],
+            "anoncreds-v2-rs": []
+          },
+          "invariants": [
+            "All operations must return consistent results given the same input.",
+            "Tokens and metadata must remain confidential and not be stored in plaintext."
+          ],
+          "requires": []
+        },
+        "implementation_status": "contracted",
+        "test_results": null
+      },
+      "root": {
+        "component_id": "root",
+        "name": "Root",
+        "description": "# Signet: Personal Sovereign Agent Stack\n\nBuild a personal data sovereignty system where the user's encrypted vault is the cryptographic root of trust, a personal agent acts as steward carrying proofs",
+        "depth": 0,
+        "parent_id": "",
+        "children": [
+          "signet_cred",
+          "signet_mcp",
+          "signet_notify",
+          "signet_policy",
+          "signet_proof",
+          "signet_sdk",
+          "signet_vault"
+        ],
+        "contract": {
+          "component_id": "root",
+          "name": "Root",
+          "description": "Signet: Personal Sovereign Agent Stack",
+          "version": 1,
+          "types": [
+            {
+              "name": "RootError",
+              "kind": "enum",
+              "fields": [],
+              "item_type": "",
+              "variants": [
+                "VaultError",
+                "PolicyError",
+                "ProofError",
+                "McpError",
+                "NotifyError",
+                "SdkError",
+                "CredError",
+                "InternalError"
+              ],
+              "inner_types": [],
+              "description": "Comprehensive error type for the Root component aggregating errors from all dependencies."
+            },
+            {
+              "name": "RootConfig",
+              "kind": "struct",
+              "fields": [
+                {
+                  "name": "vault_endpoint",
+                  "type_ref": "str",
+                  "required": true,
+                  "default": "",
+                  "description": "Endpoint for accessing the vault.",
+                  "validators": []
+                },
+                {
+                  "name": "policy_engine_config",
+                  "type_ref": "PolicyEngineConfig",
+                  "required": true,
+                  "default": "",
+                  "description": "Configuration settings for the policy engine.",
+                  "validators": []
+                }
+              ],
+              "item_type": "",
+              "variants": [],
+              "inner_types": [],
+              "description": "Configuration settings for the Root component."
+            }
+          ],
+          "functions": [
+            {
+              "name": "initialize_root",
+              "description": "Initializes the root component with provided configuration.",
+              "inputs": [
+                {
+                  "name": "config",
+                  "type_ref": "RootConfig",
+                  "required": true,
+                  "default": "",
+                  "description": "",
+                  "validators": []
+                }
+              ],
+              "output_type": "bool",
+              "error_cases": [
+                {
+                  "name": "vault_init_failed",
+                  "condition": "Vault initialization fails.",
+                  "error_type": "RootError",
+                  "error_data": {
+                    "kind": "VaultError"
+                  }
+                },
+                {
+                  "name": "invalid_config",
+                  "condition": "Configuration is invalid.",
+                  "error_type": "RootError",
+                  "error_data": {
+                    "kind": "InternalError"
+                  }
+                }
+              ],
+              "preconditions": [
+                "Config must be a valid RootConfig instance."
+              ],
+              "postconditions": [
+                "The Root component is ready to handle requests."
+              ],
+              "idempotent": true,
+              "side_effects": [],
+              "structured_side_effects": [],
+              "performance_budget": null
+            },
+            {
+              "name": "handle_request",
+              "description": "Processes a request by routing it through various components.",
+              "inputs": [
+                {
+                  "name": "request",
+                  "type_ref": "JsonRpcRequest",
+                  "required": true,
+                  "default": "",
+                  "description": "",
+                  "validators": []
+                }
+              ],
+              "output_type": "JsonRpcResponse",
+              "error_cases": [
+                {
+                  "name": "invalid_request",
+                  "condition": "The request does not conform to the expected schema.",
+                  "error_type": "RootError",
+                  "error_data": {
+                    "kind": "McpError"
+                  }
+                },
+                {
+                  "name": "processing_failed",
+                  "condition": "General failure during request processing.",
+                  "error_type": "RootError",
+                  "error_data": {
+                    "kind": "InternalError"
+                  }
+                }
+              ],
+              "preconditions": [
+                "Server is running and ready to accept requests."
+              ],
+              "postconditions": [
+                "A JsonRpcResponse is generated for the request."
+              ],
+              "idempotent": false,
+              "side_effects": [
+                "network_call"
+              ],
+              "structured_side_effects": [],
+              "performance_budget": null
+            },
+            {
+              "name": "shutdown_root",
+              "description": "Gracefully shuts down the root component.",
+              "inputs": [],
+              "output_type": "bool",
+              "error_cases": [
+                {
+                  "name": "shutdown_failed",
+                  "condition": "One of the dependent components fails to shut down properly.",
+                  "error_type": "RootError",
+                  "error_data": {
+                    "kind": "InternalError"
+                  }
+                }
+              ],
+              "preconditions": [
+                "The Root component is running."
+              ],
+              "postconditions": [
+                "All components are shut down and system resources are released."
+              ],
+              "idempotent": true,
+              "side_effects": [],
+              "structured_side_effects": [],
+              "performance_budget": null
+            }
+          ],
+          "dependencies": [
+            "signet_cred",
+            "signet_mcp",
+            "signet_notify",
+            "signet_policy",
+            "signet_proof",
+            "signet_sdk",
+            "signet_vault"
+          ],
+          "dependency_contracts": {},
+          "invariants": [
+            "Vault server never has access to plaintext.",
+            "All disclosures are on the audit chain.",
+            "No algorithm negotiation in any protocol.",
+            "Zero secrets in memory after use."
+          ],
+          "requires": [
+            "Rust language",
+            "serde for serialization",
+            "thiserror for error handling"
+          ]
+        },
+        "implementation_status": "contracted",
+        "test_results": null
+      }
+    }
+  },
+  "engineering_decisions": [],
+  "failure_history": [],
+  "lessons_learned": [],
+  "version": 1
+}

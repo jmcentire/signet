@@ -1,0 +1,343 @@
+{
+  "problem": "AI agents operating on behalf of users broadcast personal data to every service they touch. There is no minimum-disclosure mechanism — when an agent calls an API or answers a query, it has no way to prove a fact (e.g., \"user is over 21\") without revealing the underlying data. There is no audit trail of what was disclosed to whom, no policy engine to evaluate whether a request is legitimate, and no way to detect when an external service requests data outside its role. Users have zero visibility and zero control. The result is that adopting AI agents means surrendering data sovereignty entirely.",
+  "appetite": "big",
+  "solution_breadboard": {
+    "places": [
+      {
+        "name": "Vault Setup",
+        "description": "First-run experience: generate master key from BIP39 mnemonic via SLIP-0010, derive key hierarchy (Ed25519 identity, X25519 encryption, device key), create encrypted local store (SQLite or Postgres via feature flag), initialize append-only audit log."
+      },
+      {
+        "name": "Data Store",
+        "description": "Content-addressed encrypted blob storage with three-tier classification. Tier 1 (public-ish: name, email) uses agent-accessible keys. Tier 2 (sensitive: financial, employment) uses agent-accessible keys but MCP enforces conclusions-only egress. Tier 3 (restricted: medical, identity docs) uses compartment keys the agent structurally cannot derive. User assigns tier at storage time with sensible defaults."
+      },
+      {
+        "name": "Credential Forge",
+        "description": "Self-issuance engine. Takes structured data from vault, produces SD-JWT VC (RFC 9901) for interop and BBS+ signed attribute sets for unlinkable presentations. Pre-computes boolean attributes (age_over_21, balance_above_1000). Generates Pedersen commitments for numeric attributes. Manages TTL and one-time consumption tracking."
+      },
+      {
+        "name": "Proof Workshop",
+        "description": "Derives presentations from cached credentials on demand. SD-JWT selective disclosure, BBS+ unlinkable proofs (fresh nonce per presentation), Bulletproof range proofs from Pedersen commitments. All proofs domain-bound and time-limited. Composition of multiple proofs into a single presentation."
+      },
+      {
+        "name": "Policy Engine",
+        "description": "Evaluates every data request as Actor + Predicate + Context = Legitimacy. Three-way output: PERMIT, DENY, ANOMALY. Role hierarchy: Public < Commerce < Financial < Medical < Identity < Trusted Agent. Actor classified by explicit assignment, credential, domain inference, or declaration. ANOMALY triggers escalation with structured reasoning. Pattern tracker records user decisions and auto-suggests rules."
+      },
+      {
+        "name": "MCP Server",
+        "description": "Bridge between personal AI agent and vault. Authenticates agent via Ed25519 session keys (expiring, revocable). Exposes five tools: signet_get_proof, signet_query, signet_request_capability, signet_negotiate_context, signet_check_status. Routes every request through policy engine. Enforces tier logic: Tier 1 auto-serve, Tier 2 conclusions-only, Tier 3 suspend-and-notify. OAuth 2.1 for initial setup. Runs as local process or self-hosted server."
+      },
+      {
+        "name": "Notification Channel",
+        "description": "Webhook-based authorization channel for Tier 3 requests and ANOMALY escalations. Presents structured reasoning: who is asking, what they want, why it is unusual, what options the user has. User responds approve/deny/modify. Timeout defaults to deny (fail-secure). Sub-second delivery target."
+      },
+      {
+        "name": "Developer Console",
+        "description": "Integration surface for external service developers. Four primitives: verify(proof, claim), requestCapability(spec), checkAuthority(signet_id), parseCredential(token). Rust primary crate, TypeScript via WASM and Python via PyO3 bindings. Zero transitive dependencies beyond crypto. 10-line integration target."
+      },
+      {
+        "name": "Audit Trail",
+        "description": "Append-only log stored in vault. Records every disclosure: what was shared, with whom, when, under what policy decision, which proof was presented. Queryable by user. Cannot be tampered with by agent or external service."
+      }
+    ],
+    "affordances": [
+      {
+        "name": "Create Vault",
+        "description": "Generate BIP39 mnemonic, derive master key via SLIP-0010, initialize encrypted store and key hierarchy"
+      },
+      {
+        "name": "Store Data",
+        "description": "Encrypt and store a data item with user-assigned tier classification (defaults provided)"
+      },
+      {
+        "name": "Reclassify Tier",
+        "description": "User changes the tier assignment of a stored data item"
+      },
+      {
+        "name": "Provision Device",
+        "description": "Add a new device via existing-device ceremony, derive per-device Ed25519 key"
+      },
+      {
+        "name": "Issue Credential",
+        "description": "Generate SD-JWT VC or BBS+ credential from vault data with TTL"
+      },
+      {
+        "name": "Pre-compute Attributes",
+        "description": "Generate boolean attributes and Pedersen commitments at credential issuance time"
+      },
+      {
+        "name": "Derive Proof",
+        "description": "Generate a domain-bound, time-limited proof from a cached credential"
+      },
+      {
+        "name": "Compose Proofs",
+        "description": "Bundle multiple proofs into a single presentation"
+      },
+      {
+        "name": "Connect Agent",
+        "description": "Authenticate personal AI agent via Ed25519 session key, establish MCP session with OAuth 2.1"
+      },
+      {
+        "name": "signet_get_proof",
+        "description": "MCP tool: agent requests a proof for an external service"
+      },
+      {
+        "name": "signet_query",
+        "description": "MCP tool: agent queries vault data (Tier 1/2 only, conclusions-only for Tier 2)"
+      },
+      {
+        "name": "signet_request_capability",
+        "description": "MCP tool: agent requests a scoped PASETO capability token"
+      },
+      {
+        "name": "signet_negotiate_context",
+        "description": "MCP tool: agent negotiates what data is needed and why with an external service"
+      },
+      {
+        "name": "signet_check_status",
+        "description": "MCP tool: agent checks status of a pending Tier 3 approval or capability"
+      },
+      {
+        "name": "Evaluate Policy",
+        "description": "Run Actor + Predicate + Context through policy engine, return PERMIT/DENY/ANOMALY"
+      },
+      {
+        "name": "Escalate Anomaly",
+        "description": "Fire structured notification to user with reasoning and options"
+      },
+      {
+        "name": "Approve/Deny Request",
+        "description": "User responds to a Tier 3 or ANOMALY notification"
+      },
+      {
+        "name": "Record Decision Pattern",
+        "description": "Pattern tracker logs user decision for future auto-suggestion"
+      },
+      {
+        "name": "View Audit Log",
+        "description": "User queries the append-only disclosure log"
+      },
+      {
+        "name": "Verify Proof (SDK)",
+        "description": "External developer verifies a proof and extracts claims"
+      },
+      {
+        "name": "Request Capability (SDK)",
+        "description": "External developer requests a scoped capability from a Signet user"
+      },
+      {
+        "name": "Recover Vault",
+        "description": "Restore master key and derived hierarchy from BIP39 mnemonic"
+      }
+    ],
+    "connections": [
+      {
+        "from_place": "Vault Setup",
+        "to_place": "Data Store",
+        "affordance": "Create Vault",
+        "description": "Initializes encrypted store, key hierarchy, and audit log"
+      },
+      {
+        "from_place": "Data Store",
+        "to_place": "Data Store",
+        "affordance": "Store Data",
+        "description": "User adds encrypted data items with tier classification"
+      },
+      {
+        "from_place": "Data Store",
+        "to_place": "Data Store",
+        "affordance": "Reclassify Tier",
+        "description": "User changes tier of existing data, re-encrypts if compartment key changes"
+      },
+      {
+        "from_place": "Vault Setup",
+        "to_place": "Data Store",
+        "affordance": "Provision Device",
+        "description": "New device gets derived key, can access vault"
+      },
+      {
+        "from_place": "Data Store",
+        "to_place": "Credential Forge",
+        "affordance": "Issue Credential",
+        "description": "Vault data becomes a signed credential (SD-JWT or BBS+)"
+      },
+      {
+        "from_place": "Credential Forge",
+        "to_place": "Credential Forge",
+        "affordance": "Pre-compute Attributes",
+        "description": "Boolean attributes and Pedersen commitments generated at issuance"
+      },
+      {
+        "from_place": "Credential Forge",
+        "to_place": "Proof Workshop",
+        "affordance": "Derive Proof",
+        "description": "Cached credential becomes a domain-bound presentation"
+      },
+      {
+        "from_place": "Proof Workshop",
+        "to_place": "Proof Workshop",
+        "affordance": "Compose Proofs",
+        "description": "Multiple proofs bundled into single presentation"
+      },
+      {
+        "from_place": "MCP Server",
+        "to_place": "MCP Server",
+        "affordance": "Connect Agent",
+        "description": "Agent authenticates and establishes session"
+      },
+      {
+        "from_place": "MCP Server",
+        "to_place": "Policy Engine",
+        "affordance": "signet_get_proof",
+        "description": "Agent proof request routed through policy evaluation first"
+      },
+      {
+        "from_place": "MCP Server",
+        "to_place": "Policy Engine",
+        "affordance": "signet_query",
+        "description": "Agent data query routed through policy evaluation first"
+      },
+      {
+        "from_place": "MCP Server",
+        "to_place": "Policy Engine",
+        "affordance": "signet_request_capability",
+        "description": "Capability request routed through policy evaluation"
+      },
+      {
+        "from_place": "MCP Server",
+        "to_place": "Policy Engine",
+        "affordance": "signet_negotiate_context",
+        "description": "Context negotiation checked against policy"
+      },
+      {
+        "from_place": "MCP Server",
+        "to_place": "Proof Workshop",
+        "affordance": "signet_check_status",
+        "description": "Agent polls for pending approval or proof status"
+      },
+      {
+        "from_place": "Policy Engine",
+        "to_place": "Proof Workshop",
+        "affordance": "Evaluate Policy",
+        "description": "PERMIT decisions flow to proof derivation"
+      },
+      {
+        "from_place": "Policy Engine",
+        "to_place": "Notification Channel",
+        "affordance": "Escalate Anomaly",
+        "description": "ANOMALY or Tier 3 requests fire user notification"
+      },
+      {
+        "from_place": "Notification Channel",
+        "to_place": "Policy Engine",
+        "affordance": "Approve/Deny Request",
+        "description": "User decision flows back to unblock or reject the request"
+      },
+      {
+        "from_place": "Policy Engine",
+        "to_place": "Policy Engine",
+        "affordance": "Record Decision Pattern",
+        "description": "User decisions feed pattern tracker for auto-suggestions"
+      },
+      {
+        "from_place": "Proof Workshop",
+        "to_place": "Audit Trail",
+        "affordance": "Derive Proof",
+        "description": "Every proof generation is recorded in audit log"
+      },
+      {
+        "from_place": "Audit Trail",
+        "to_place": "Audit Trail",
+        "affordance": "View Audit Log",
+        "description": "User inspects full disclosure history"
+      },
+      {
+        "from_place": "Developer Console",
+        "to_place": "Proof Workshop",
+        "affordance": "Verify Proof (SDK)",
+        "description": "External developer verifies a presented proof"
+      },
+      {
+        "from_place": "Developer Console",
+        "to_place": "MCP Server",
+        "affordance": "Request Capability (SDK)",
+        "description": "External service requests capability from user's Signet"
+      },
+      {
+        "from_place": "Vault Setup",
+        "to_place": "Data Store",
+        "affordance": "Recover Vault",
+        "description": "BIP39 mnemonic restores master key and full key hierarchy"
+      }
+    ]
+  },
+  "solution_region_map": null,
+  "rabbit_holes": [
+    {
+      "description": "BBS+ library maturity: anoncreds-v2-rs is not yet a stable, widely-audited crate. API changes, bugs, or performance issues could block the entire unlinkable proof path.",
+      "status": "patched",
+      "mitigation": "SD-JWT VC is the baseline interop format and must work independently of BBS+. Implement BBS+ behind a feature flag. If the library proves unstable, the system still functions with SD-JWT selective disclosure — linkable but functional. Allocate time for library evaluation in week 1."
+    },
+    {
+      "description": "Bulletproof range proof performance: Pedersen commitment + Bulletproof range proofs are computationally expensive. The <200ms relaxed SLA may still be hard to hit for complex range proofs on modest hardware, and the dalek bulletproofs crate requires nightly Rust.",
+      "status": "patched",
+      "mitigation": "Pre-compute Pedersen commitments at credential issuance time (amortize cost). Cache proof components where safe. If performance is unacceptable, fall back to pre-computed boolean attributes (age_over_21) which avoid range proofs entirely. Nightly dependency is isolated to this one crate via workspace feature flags."
+    },
+    {
+      "description": "Tier 2 'conclusions-only' enforcement is architecturally ambiguous. The agent process receives decrypted Tier 2 data in memory. Ensuring only derived conclusions (not raw data) leave the MCP boundary requires either output filtering (unreliable with LLMs) or a sandboxed computation environment.",
+      "status": "patched",
+      "mitigation": "For v1, implement structural controls: the MCP server tags Tier 2 data as non-exportable in the session context, and the signet_get_proof / signet_query tools refuse to return raw Tier 2 values — only proof-wrapped conclusions. The agent can reason internally but MCP tools will not serialize raw Tier 2 data in responses. This is a policy enforcement boundary, not a cryptographic guarantee. Document the limitation clearly."
+    },
+    {
+      "description": "Key hierarchy complexity: deriving Ed25519 identity keys, X25519 encryption keys, per-device keys, and Tier 3 compartment keys all from one BIP39 mnemonic via SLIP-0010 + HKDF creates a complex derivation tree. A bug in the derivation path means unrecoverable data loss.",
+      "status": "needs_review",
+      "mitigation": "Define the full derivation path specification as a document before writing code. Use known-answer test vectors for every derivation step. Test round-trip: generate mnemonic -> derive all keys -> recover from mnemonic -> verify all keys match. This is the highest-risk area and gets dedicated review."
+    },
+    {
+      "description": "Self-issued credentials have limited trust value. Without external issuers, credentials are self-asserted — a user can claim anything. This limits the system's utility to contexts where the service trusts the user's Signet vault, which is circular for v1.",
+      "status": "patched",
+      "mitigation": "Accepted as a v1 limitation. Self-issued credentials are useful for: (a) consistent identity across services, (b) audit trail of what was claimed, (c) cryptographic binding of claims to a vault identity. The architecture supports external issuers — the credential format and proof system are the same. Frame v1 as infrastructure that becomes more valuable as issuers join."
+    },
+    {
+      "description": "MCP protocol stability: MCP (Model Context Protocol) is evolving rapidly. The tool interface, authentication model, and session semantics may change, requiring significant rework of signet-mcp.",
+      "status": "patched",
+      "mitigation": "Isolate MCP protocol specifics behind an abstraction layer within signet-mcp. The core logic (policy routing, tier enforcement, session management) should not depend on MCP wire format. If MCP changes, only the transport adapter needs updating. Pin to a specific MCP version for v1."
+    },
+    {
+      "description": "Postgres + S3 multi-tenant backend is a separate product-level effort. Schema design for multi-tenancy, S3 blob lifecycle, tenant isolation, and operational concerns (backups, migrations) could consume the entire 6-week appetite.",
+      "status": "patched",
+      "mitigation": "SQLite + filesystem is the v1 backend. Postgres + S3 is behind a feature flag and scoped to 'compiles and passes basic integration tests.' Do not optimize for multi-tenant operations in this cycle. The storage trait abstraction is the deliverable — the Postgres implementation is a proof that the abstraction works."
+    },
+    {
+      "description": "Cross-language SDK bindings (TypeScript/WASM, Python/PyO3) are each a significant effort with their own build toolchain, CI, packaging, and testing requirements. WASM crypto performance and Python memory safety add complexity.",
+      "status": "patched",
+      "mitigation": "Rust SDK is the primary deliverable. TypeScript and Python bindings are scoped to: verify(proof, claim) works end-to-end in the target language. The other three primitives are Rust-only in v1. Bindings get a fixed 1-week timebox; whatever ships in that week is the v1 surface."
+    },
+    {
+      "description": "Append-only audit log integrity: if the vault is the storage layer and the agent has write access to the vault (to store session data), there may be a path where a compromised agent tampers with audit entries.",
+      "status": "patched",
+      "mitigation": "Audit log entries are hash-chained (each entry includes hash of previous entry) and signed with the vault's identity key, not the agent's session key. Agent sessions have write access only through MCP tools, which append to the log but cannot modify or delete entries. The audit log is structurally append-only at the storage layer (SQLite triggers / Postgres rules)."
+    },
+    {
+      "description": "OAuth 2.1 implementation for MCP setup is a significant protocol surface. Implementing a correct OAuth 2.1 flow (PKCE, token rotation, etc.) in a local-first context is non-trivial and a common source of security bugs.",
+      "status": "needs_review",
+      "mitigation": "Use an established OAuth library (oxide-auth or similar) rather than implementing from scratch. The OAuth flow is only for initial agent provisioning — ongoing sessions use Ed25519 authentication. Keep the OAuth surface minimal: authorization code + PKCE, no implicit flow, no client credentials."
+    }
+  ],
+  "no_gos": [
+    "Mobile platforms (iOS/Android) — out of scope for v1",
+    "Browser/WASM vault runtime — out of scope for v1",
+    "External credential issuer integration (government, bank) — v1 is self-issued credentials only",
+    "Machine learning or LLM-based policy learning — frequency/pattern tracker only",
+    "Listing in Claude/ChatGPT/Gemini connector registries — stretch goal, not launch requirement",
+    "FIPS 140-2/3 certification — aws-lc-rs chosen for quality, not formal FIPS compliance (BBS+ and Bulletproofs are inherently non-FIPS)",
+    "Dynamic runtime switching between SQLite and Postgres — compile-time feature flags only",
+    "Custom cryptographic primitives — established libraries for every operation",
+    "SMS and push notification channels — webhook is primary and sufficient for v1",
+    "Shamir's Secret Sharing social recovery — optional stretch, BIP39 mnemonic is the primary recovery path",
+    "Multi-vault federation or vault-to-vault sync",
+    "Sub-20ms SLA for Bulletproof range proofs — relaxed to <200ms; the <20ms target applies to SD-JWT and BBS+ derivation only"
+  ],
+  "fit_check": null,
+  "status": "shaped"
+}

@@ -1,0 +1,289 @@
+{
+  "component_id": "signet_sdk",
+  "name": "Signet Developer SDK",
+  "description": "Developer-facing SDK for external service integration with four core primitives: verify, requestCapability, checkAuthority, and parseCredential.",
+  "version": 1,
+  "types": [
+    {
+      "name": "Claim",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "attribute",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "The attributed claimed by the proof.",
+          "validators": []
+        },
+        {
+          "name": "value",
+          "type_ref": "any",
+          "required": true,
+          "default": "",
+          "description": "The value associated with the attributed claimed.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Represents a claim consisting of an attribute and its associated value."
+    },
+    {
+      "name": "Proof",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "data",
+          "type_ref": "bytes",
+          "required": true,
+          "default": "",
+          "description": "Serialized data of the proof.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Serialized representation of the proof."
+    },
+    {
+      "name": "CapabilitySpec",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "permissions",
+          "type_ref": "list",
+          "required": true,
+          "default": "",
+          "description": "Permissions requested by the capability.",
+          "validators": []
+        },
+        {
+          "name": "expiration",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Expiration time of the capability in Unix timestamp.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Specifies a capability by describing its permissions and expiration."
+    },
+    {
+      "name": "SignetId",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "id",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Unique identifier for the Signet identity.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Represents a unique identifier for a Signet identity."
+    },
+    {
+      "name": "SignetError",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "InvalidProof",
+        "InvalidClaim",
+        "CapabilityRequestFailed",
+        "AuthorityCheckFailed",
+        "CredentialParseError",
+        "CryptoOperationFailed",
+        "UnauthorizedAccess",
+        "NetworkError"
+      ],
+      "inner_types": [],
+      "description": "Possible errors that may occur during SDK operations."
+    }
+  ],
+  "functions": [
+    {
+      "name": "verify",
+      "description": "Verifies a Signet proof against a claimed attribute.",
+      "inputs": [
+        {
+          "name": "proof",
+          "type_ref": "Proof",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "claim",
+          "type_ref": "Claim",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        }
+      ],
+      "output_type": "Result<bool, SignetError>",
+      "error_cases": [
+        {
+          "name": "InvalidProof",
+          "condition": "Proof data format is invalid or corrupted.",
+          "error_type": "SignetError",
+          "error_data": {}
+        },
+        {
+          "name": "InvalidClaim",
+          "condition": "The claim does not match the verified proof.",
+          "error_type": "SignetError",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "Proof data must be non-empty.",
+        "Claim attribute must be defined."
+      ],
+      "postconditions": [
+        "Returns true if the proof is valid for the claim, otherwise false."
+      ],
+      "idempotent": true,
+      "side_effects": [],
+      "structured_side_effects": [],
+      "performance_budget": null
+    },
+    {
+      "name": "requestCapability",
+      "description": "Requests a scoped capability from a Signet MCP server.",
+      "inputs": [
+        {
+          "name": "spec",
+          "type_ref": "CapabilitySpec",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        }
+      ],
+      "output_type": "Result<str, SignetError>",
+      "error_cases": [
+        {
+          "name": "CapabilityRequestFailed",
+          "condition": "Request to MCP server failed due to network issues or invalid spec.",
+          "error_type": "SignetError",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "CapabilitySpec must contain valid permissions."
+      ],
+      "postconditions": [
+        "Returns a capability token if request is successful."
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "network_call"
+      ],
+      "structured_side_effects": [],
+      "performance_budget": {
+        "p95_latency_ms": 500,
+        "max_memory_mb": 10,
+        "complexity": null
+      }
+    },
+    {
+      "name": "checkAuthority",
+      "description": "Checks whether a Signet identity possesses a specified authority.",
+      "inputs": [
+        {
+          "name": "signet_id",
+          "type_ref": "SignetId",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "authority",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        }
+      ],
+      "output_type": "Result<bool, SignetError>",
+      "error_cases": [
+        {
+          "name": "AuthorityCheckFailed",
+          "condition": "The authority check could not be completed.",
+          "error_type": "SignetError",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "SignetId.id must be non-empty.",
+        "Authority must be defined."
+      ],
+      "postconditions": [
+        "Returns true if the identity has authority, otherwise false."
+      ],
+      "idempotent": true,
+      "side_effects": [],
+      "structured_side_effects": [],
+      "performance_budget": null
+    },
+    {
+      "name": "parseCredential",
+      "description": "Parses and validates an SD-JWT or BBS+ credential.",
+      "inputs": [
+        {
+          "name": "token",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        }
+      ],
+      "output_type": "Result<Claim, SignetError>",
+      "error_cases": [
+        {
+          "name": "CredentialParseError",
+          "condition": "Token is not valid or cannot be parsed.",
+          "error_type": "SignetError",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "Token should be a valid SD-JWT or BBS+ format."
+      ],
+      "postconditions": [
+        "Returns a claim if token is successfully parsed and validated."
+      ],
+      "idempotent": true,
+      "side_effects": [],
+      "structured_side_effects": [],
+      "performance_budget": null
+    }
+  ],
+  "dependencies": [],
+  "dependency_contracts": {
+    "aws-lc-rs": [],
+    "sd-jwt-rust": [],
+    "anoncreds-v2-rs": []
+  },
+  "invariants": [
+    "All operations must return consistent results given the same input.",
+    "Tokens and metadata must remain confidential and not be stored in plaintext."
+  ],
+  "requires": []
+}

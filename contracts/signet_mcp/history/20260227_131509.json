@@ -1,0 +1,3446 @@
+{
+  "component_id": "signet_mcp",
+  "name": "Signet MCP Server",
+  "description": "MCP (Model Context Protocol) server bridging personal AI agent to the vault ecosystem. Authenticates personal agent via Ed25519 session keys (expiring, revocable). OAuth 2.1 with PKCE for initial agent setup/provisioning. Exposes five MCP tools: signet_get_proof, signet_query, signet_request_capability, signet_negotiate_context, signet_check_status. Routes every request through a sequential middleware pipeline (SessionValidator → TierClassifier → PolicyEvaluator → ToolExecutor → AuditRecorder) with per-stage timeouts and fail-secure semantics. Enforces tier logic: Tier 1 auto-serve proofs, Tier 2 decrypt for agent but enforce conclusions-only egress (raw data never transmitted to external services), Tier 3 suspend request and delegate to notification channel. Session management with expiry and revocation. Runs as local process (stdio transport) or self-hosted server (HTTP+SSE via axum/rustls). All disclosures recorded atomically to audit log before response. Hand-rolled JSON-RPC 2.0 dispatcher with strict schema validation. Wire/domain type separation with TryFrom boundaries. No algorithm negotiation. No rmcp dependency.",
+  "version": 1,
+  "types": [
+    {
+      "name": "TransportKind",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "Stdio",
+        "HttpSse"
+      ],
+      "inner_types": [],
+      "description": "Supported transport mechanisms for the MCP server. Stdio for local process, HttpSse for self-hosted server."
+    },
+    {
+      "name": "TransportConfig",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "kind",
+          "type_ref": "TransportKind",
+          "required": true,
+          "default": "",
+          "description": "Which transport to use",
+          "validators": []
+        },
+        {
+          "name": "bind_address",
+          "type_ref": "str",
+          "required": false,
+          "default": "127.0.0.1:3000",
+          "description": "Bind address for HTTP+SSE transport. Ignored for Stdio.",
+          "validators": []
+        },
+        {
+          "name": "tls_cert_path",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "Path to TLS certificate PEM file. Required for HttpSse.",
+          "validators": []
+        },
+        {
+          "name": "tls_key_path",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "Path to TLS private key PEM file. Required for HttpSse.",
+          "validators": []
+        },
+        {
+          "name": "request_timeout_ms",
+          "type_ref": "int",
+          "required": false,
+          "default": "30000",
+          "description": "Overall request timeout in milliseconds. Default 30s.",
+          "validators": []
+        },
+        {
+          "name": "max_concurrent_sessions",
+          "type_ref": "int",
+          "required": false,
+          "default": "64",
+          "description": "Maximum concurrent active sessions",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Configuration for initializing a transport. For Stdio, tls fields are ignored. For HttpSse, TLS is mandatory."
+    },
+    {
+      "name": "Tier",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "Tier1",
+        "Tier2",
+        "Tier3"
+      ],
+      "inner_types": [],
+      "description": "Data sensitivity tier. Tier1: public/provable attributes, auto-served. Tier2: private data, conclusions-only egress. Tier3: compartmented secrets, requires human delegation."
+    },
+    {
+      "name": "McpTool",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "GetProof",
+        "Query",
+        "RequestCapability",
+        "NegotiateContext",
+        "CheckStatus"
+      ],
+      "inner_types": [],
+      "description": "Exhaustive enum of the five MCP tools. Each variant carries a validated domain-level request. Dispatch via match ensures compile-time completeness."
+    },
+    {
+      "name": "SessionId",
+      "kind": "primitive",
+      "fields": [],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Opaque 128-bit session identifier, hex-encoded as a 32-character string. Generated via CSPRNG."
+    },
+    {
+      "name": "RequestId",
+      "kind": "primitive",
+      "fields": [],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Opaque 128-bit request identifier, hex-encoded as a 32-character string. Generated via CSPRNG. Used for JSON-RPC correlation and pending request tracking."
+    },
+    {
+      "name": "PendingRequestId",
+      "kind": "primitive",
+      "fields": [],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Opaque 128-bit identifier for a Tier 3 suspended request, hex-encoded. Used by check_status to poll resolution."
+    },
+    {
+      "name": "Timestamp",
+      "kind": "primitive",
+      "fields": [],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Unix timestamp in seconds (u64). UTC. Used for session expiry, proof expiry, audit records."
+    },
+    {
+      "name": "Ed25519PublicKey",
+      "kind": "primitive",
+      "fields": [],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "32-byte Ed25519 public key. In wire types: base64url-encoded string. In domain types: [u8; 32]. Validated on TryFrom."
+    },
+    {
+      "name": "Ed25519Signature",
+      "kind": "primitive",
+      "fields": [],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "64-byte Ed25519 signature. In wire types: base64url-encoded string. In domain types: [u8; 64]. Validated on TryFrom."
+    },
+    {
+      "name": "Session",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "session_id",
+          "type_ref": "SessionId",
+          "required": true,
+          "default": "",
+          "description": "Unique session identifier",
+          "validators": []
+        },
+        {
+          "name": "agent_public_key",
+          "type_ref": "Ed25519PublicKey",
+          "required": true,
+          "default": "",
+          "description": "Agent's Ed25519 public key bound to this session",
+          "validators": []
+        },
+        {
+          "name": "created_at",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "Session creation time (UTC unix seconds)",
+          "validators": []
+        },
+        {
+          "name": "expires_at",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "Session expiry time (UTC unix seconds). Must be > created_at.",
+          "validators": []
+        },
+        {
+          "name": "revoked",
+          "type_ref": "bool",
+          "required": true,
+          "default": "false",
+          "description": "Whether session has been revoked. Checked on every request.",
+          "validators": []
+        },
+        {
+          "name": "last_activity_at",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "Last successful request timestamp. Updated atomically on each request.",
+          "validators": []
+        },
+        {
+          "name": "negotiate_context_states",
+          "type_ref": "NegotiateContextStateMap",
+          "required": true,
+          "default": "",
+          "description": "Active negotiation states for this session. Cleaned up on session expiry or revocation.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Server-side session record. Does not implement Clone. Debug is redacted (no key material in output). Key material implements Zeroize on Drop. Checked on every request before pipeline entry."
+    },
+    {
+      "name": "NegotiateContextStateMap",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "entries",
+          "type_ref": "list",
+          "required": true,
+          "default": "",
+          "description": "Active negotiation state entries",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Map from negotiation_id (str) to NegotiateContextState. Tracks in-flight context negotiations for a session. Entries are pruned on session expiry/revocation and on negotiation completion/timeout."
+    },
+    {
+      "name": "NegotiateContextStateEntry",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "negotiation_id",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Unique negotiation identifier",
+          "validators": []
+        },
+        {
+          "name": "state",
+          "type_ref": "NegotiateContextState",
+          "required": true,
+          "default": "",
+          "description": "Current state of this negotiation",
+          "validators": []
+        },
+        {
+          "name": "created_at",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "When negotiation was initiated",
+          "validators": []
+        },
+        {
+          "name": "expires_at",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "Negotiation timeout. Expired entries are denied and pruned.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "A single in-flight context negotiation state entry."
+    },
+    {
+      "name": "NegotiateContextState",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "Proposed",
+        "CounterProposed",
+        "Accepted",
+        "Rejected",
+        "Expired",
+        "Completed"
+      ],
+      "inner_types": [],
+      "description": "State machine for context negotiation lifecycle."
+    },
+    {
+      "name": "SessionRegistry",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "sessions",
+          "type_ref": "list",
+          "required": true,
+          "default": "",
+          "description": "Active sessions. Access is synchronized.",
+          "validators": []
+        },
+        {
+          "name": "max_sessions",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Maximum allowed concurrent sessions",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Thread-safe (Send + Sync) server-side session store. Indexed by SessionId. Supports concurrent access. Periodically prunes expired sessions and their negotiate_context_states."
+    },
+    {
+      "name": "OAuthPkceChallenge",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "code_challenge",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Base64url-encoded SHA-256 hash of the code_verifier",
+          "validators": [
+            {
+              "kind": "length",
+              "expression": "len >= 43 && len <= 128",
+              "error_message": "code_challenge must be 43-128 characters (base64url of SHA-256)"
+            }
+          ]
+        },
+        {
+          "name": "code_challenge_method",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Must be exactly 'S256'. No other method accepted.",
+          "validators": [
+            {
+              "kind": "custom",
+              "expression": "value == 'S256'",
+              "error_message": "Only S256 code_challenge_method is accepted — no algorithm negotiation"
+            }
+          ]
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "OAuth 2.1 PKCE challenge parameters. Only S256 method is accepted — no algorithm negotiation."
+    },
+    {
+      "name": "OAuthProvisionRequest",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "agent_public_key",
+          "type_ref": "Ed25519PublicKey",
+          "required": true,
+          "default": "",
+          "description": "Agent's Ed25519 public key to bind to the new session",
+          "validators": []
+        },
+        {
+          "name": "pkce_challenge",
+          "type_ref": "OAuthPkceChallenge",
+          "required": true,
+          "default": "",
+          "description": "PKCE challenge for the authorization flow",
+          "validators": []
+        },
+        {
+          "name": "requested_scopes",
+          "type_ref": "list",
+          "required": true,
+          "default": "",
+          "description": "Requested capability scopes for the session",
+          "validators": []
+        },
+        {
+          "name": "redirect_uri",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "Redirect URI for the OAuth flow. Empty for stdio transport.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Initial agent provisioning request via OAuth 2.1 + PKCE. Used once to establish a session."
+    },
+    {
+      "name": "OAuthProvisionResponse",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "session_id",
+          "type_ref": "SessionId",
+          "required": true,
+          "default": "",
+          "description": "Newly created session identifier",
+          "validators": []
+        },
+        {
+          "name": "expires_at",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "Session expiry timestamp",
+          "validators": []
+        },
+        {
+          "name": "granted_scopes",
+          "type_ref": "list",
+          "required": true,
+          "default": "",
+          "description": "Scopes actually granted (may be subset of requested)",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Response to a successful OAuth provisioning flow."
+    },
+    {
+      "name": "OAuthTokenExchange",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "authorization_code",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Authorization code from the authorization endpoint",
+          "validators": []
+        },
+        {
+          "name": "code_verifier",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Original code verifier. SHA-256 must match the stored code_challenge.",
+          "validators": [
+            {
+              "kind": "length",
+              "expression": "len >= 43 && len <= 128",
+              "error_message": "code_verifier must be 43-128 characters per RFC 7636"
+            }
+          ]
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Token exchange request completing the PKCE flow."
+    },
+    {
+      "name": "JsonRpcRequest",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "jsonrpc",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Must be exactly '2.0'",
+          "validators": [
+            {
+              "kind": "custom",
+              "expression": "value == '2.0'",
+              "error_message": "jsonrpc must be '2.0'"
+            }
+          ]
+        },
+        {
+          "name": "method",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "One of: signet_get_proof, signet_query, signet_request_capability, signet_negotiate_context, signet_check_status",
+          "validators": [
+            {
+              "kind": "custom",
+              "expression": "value in ['signet_get_proof', 'signet_query', 'signet_request_capability', 'signet_negotiate_context', 'signet_check_status']",
+              "error_message": "Unknown method. Only the five registered MCP tools are accepted."
+            }
+          ]
+        },
+        {
+          "name": "params",
+          "type_ref": "dict",
+          "required": true,
+          "default": "",
+          "description": "Method-specific parameters. Validated per-tool after deserialization.",
+          "validators": []
+        },
+        {
+          "name": "id",
+          "type_ref": "RequestId",
+          "required": true,
+          "default": "",
+          "description": "Request correlation identifier",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "JSON-RPC 2.0 request envelope. Wire type with deny_unknown_fields. Only the five registered tool method names are accepted."
+    },
+    {
+      "name": "JsonRpcResponse",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "jsonrpc",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Always '2.0'",
+          "validators": []
+        },
+        {
+          "name": "result",
+          "type_ref": "any",
+          "required": false,
+          "default": "",
+          "description": "Present on success. Absent on error.",
+          "validators": []
+        },
+        {
+          "name": "error",
+          "type_ref": "JsonRpcError",
+          "required": false,
+          "default": "",
+          "description": "Present on error. Absent on success.",
+          "validators": []
+        },
+        {
+          "name": "id",
+          "type_ref": "RequestId",
+          "required": true,
+          "default": "",
+          "description": "Matches request id",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "JSON-RPC 2.0 response envelope."
+    },
+    {
+      "name": "JsonRpcError",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "code",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "JSON-RPC error code. Standard codes plus application-specific codes.",
+          "validators": []
+        },
+        {
+          "name": "message",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Sanitized human-readable error message. Never contains secrets.",
+          "validators": []
+        },
+        {
+          "name": "data",
+          "type_ref": "dict",
+          "required": false,
+          "default": "",
+          "description": "Optional structured error data. Never contains secrets.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "JSON-RPC 2.0 error object. Message is sanitized — no key material or vault data."
+    },
+    {
+      "name": "AuthenticatedRequest",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "session",
+          "type_ref": "Session",
+          "required": true,
+          "default": "",
+          "description": "Validated, non-expired, non-revoked session",
+          "validators": []
+        },
+        {
+          "name": "request_id",
+          "type_ref": "RequestId",
+          "required": true,
+          "default": "",
+          "description": "Correlation ID from the JSON-RPC envelope",
+          "validators": []
+        },
+        {
+          "name": "tool",
+          "type_ref": "McpTool",
+          "required": true,
+          "default": "",
+          "description": "Parsed and validated tool variant",
+          "validators": []
+        },
+        {
+          "name": "signature",
+          "type_ref": "Ed25519Signature",
+          "required": true,
+          "default": "",
+          "description": "Agent's signature over the canonical request body, verified against session public key",
+          "validators": []
+        },
+        {
+          "name": "received_at",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "Server-side receive timestamp for timeout calculation",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "A JSON-RPC request that has been authenticated against a valid session. Constructed only by SessionValidator stage."
+    },
+    {
+      "name": "GetProofRequest",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "credential_id",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Identifier of the credential to generate proof from",
+          "validators": []
+        },
+        {
+          "name": "requested_attributes",
+          "type_ref": "list",
+          "required": true,
+          "default": "",
+          "description": "Attribute names to include in the proof",
+          "validators": []
+        },
+        {
+          "name": "audience",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Domain/identifier of the external service (proof is bound to this audience)",
+          "validators": [
+            {
+              "kind": "length",
+              "expression": "len >= 1 && len <= 512",
+              "error_message": "audience must be 1-512 characters"
+            }
+          ]
+        },
+        {
+          "name": "proof_expiry_seconds",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Proof validity duration in seconds from now",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": "value >= 1 && value <= 86400",
+              "error_message": "proof_expiry_seconds must be 1-86400 (max 24 hours)"
+            }
+          ]
+        },
+        {
+          "name": "nonce",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Challenge nonce from the external service for replay protection",
+          "validators": [
+            {
+              "kind": "length",
+              "expression": "len >= 16 && len <= 256",
+              "error_message": "nonce must be 16-256 characters"
+            }
+          ]
+        },
+        {
+          "name": "predicate_queries",
+          "type_ref": "list",
+          "required": false,
+          "default": "",
+          "description": "Optional predicate-based proof requests (e.g., age >= 21) for range proofs",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Domain-level request for signet_get_proof tool. Requests generation of a cryptographic proof for an external service."
+    },
+    {
+      "name": "PredicateQuery",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "attribute",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Attribute name for the predicate",
+          "validators": []
+        },
+        {
+          "name": "operator",
+          "type_ref": "PredicateOperator",
+          "required": true,
+          "default": "",
+          "description": "Comparison operator",
+          "validators": []
+        },
+        {
+          "name": "threshold",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Threshold value for comparison",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "A predicate-based proof query for range proofs via Pedersen commitments."
+    },
+    {
+      "name": "PredicateOperator",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "GreaterThan",
+        "GreaterThanOrEqual",
+        "LessThan",
+        "LessThanOrEqual"
+      ],
+      "inner_types": [],
+      "description": "Supported predicate operators for range proofs."
+    },
+    {
+      "name": "GetProofResponse",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "proof",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Serialized cryptographic proof (format depends on proof type: BBS+, SD-JWT, or range proof)",
+          "validators": []
+        },
+        {
+          "name": "proof_type",
+          "type_ref": "ProofType",
+          "required": true,
+          "default": "",
+          "description": "Type of proof generated",
+          "validators": []
+        },
+        {
+          "name": "audience",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Audience the proof is bound to",
+          "validators": []
+        },
+        {
+          "name": "expires_at",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "Proof expiry timestamp",
+          "validators": []
+        },
+        {
+          "name": "disclosed_attributes",
+          "type_ref": "list",
+          "required": true,
+          "default": "",
+          "description": "Names of attributes disclosed in the proof",
+          "validators": []
+        },
+        {
+          "name": "audit_record_id",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "ID of the audit record for this disclosure",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Response containing the generated proof. Only returned for Tier 1 classified requests."
+    },
+    {
+      "name": "ProofType",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "BbsPlus",
+        "SdJwt",
+        "RangeProof",
+        "BbsPlusWithRangeProof"
+      ],
+      "inner_types": [],
+      "description": "Type of cryptographic proof generated."
+    },
+    {
+      "name": "QueryRequest",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "query_expression",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Structured query expression against vault data",
+          "validators": []
+        },
+        {
+          "name": "credential_ids",
+          "type_ref": "list",
+          "required": false,
+          "default": "",
+          "description": "Optional filter to specific credentials",
+          "validators": []
+        },
+        {
+          "name": "include_metadata",
+          "type_ref": "bool",
+          "required": false,
+          "default": "false",
+          "description": "Whether to include credential metadata in response",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Domain-level request for signet_query tool. Query vault data within tier constraints."
+    },
+    {
+      "name": "QueryResponse",
+      "kind": "union",
+      "fields": [],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [
+        "Tier1QueryResponse",
+        "Tier2QueryResponse",
+        "Tier3QueryResponse"
+      ],
+      "description": "Tier-parameterized query response. The variant returned depends on TierClassifier output."
+    },
+    {
+      "name": "Tier1QueryResponse",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "tier",
+          "type_ref": "Tier",
+          "required": true,
+          "default": "",
+          "description": "Always Tier1",
+          "validators": []
+        },
+        {
+          "name": "results",
+          "type_ref": "list",
+          "required": true,
+          "default": "",
+          "description": "Query results with attribute values",
+          "validators": []
+        },
+        {
+          "name": "audit_record_id",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Audit record ID",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Tier 1 query response — may contain attribute values directly (public/provable data)."
+    },
+    {
+      "name": "Tier2QueryResponse",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "tier",
+          "type_ref": "Tier",
+          "required": true,
+          "default": "",
+          "description": "Always Tier2",
+          "validators": []
+        },
+        {
+          "name": "conclusions",
+          "type_ref": "list",
+          "required": true,
+          "default": "",
+          "description": "Derived conclusions from the query (never raw data)",
+          "validators": []
+        },
+        {
+          "name": "audit_record_id",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Audit record ID",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Tier 2 query response — contains only Conclusion newtypes. Raw data is NEVER present. The Conclusion type enforces this at the type level."
+    },
+    {
+      "name": "Tier3QueryResponse",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "tier",
+          "type_ref": "Tier",
+          "required": true,
+          "default": "",
+          "description": "Always Tier3",
+          "validators": []
+        },
+        {
+          "name": "pending_request_id",
+          "type_ref": "PendingRequestId",
+          "required": true,
+          "default": "",
+          "description": "ID to check status via signet_check_status",
+          "validators": []
+        },
+        {
+          "name": "notification_channel",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Channel where human will be notified for delegation",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Tier 3 query response — request is suspended. Only a PendingRequestId is returned. No data of any kind."
+    },
+    {
+      "name": "QueryResultItem",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "credential_id",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Source credential identifier",
+          "validators": []
+        },
+        {
+          "name": "attribute_name",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Attribute name",
+          "validators": []
+        },
+        {
+          "name": "attribute_value",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Attribute value (string-encoded)",
+          "validators": []
+        },
+        {
+          "name": "metadata",
+          "type_ref": "dict",
+          "required": false,
+          "default": "",
+          "description": "Optional credential metadata if requested",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "A single query result item containing attribute data (Tier 1 only)."
+    },
+    {
+      "name": "Conclusion",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "statement",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Derived conclusion statement (e.g., 'Income exceeds threshold', 'Identity verified'). Never contains raw attribute values.",
+          "validators": []
+        },
+        {
+          "name": "confidence",
+          "type_ref": "float",
+          "required": true,
+          "default": "",
+          "description": "Confidence level of the conclusion, 0.0-1.0",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": "value >= 0.0 && value <= 1.0",
+              "error_message": "Confidence must be between 0.0 and 1.0"
+            }
+          ]
+        },
+        {
+          "name": "derived_from_attributes",
+          "type_ref": "list",
+          "required": true,
+          "default": "",
+          "description": "Names (not values) of the attributes this conclusion was derived from",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Newtype wrapper for a derived conclusion from Tier 2 data. Contains a human-readable statement derived from raw data, but NEVER the raw data itself. This is the only type that may appear in Tier 2 egress."
+    },
+    {
+      "name": "RequestCapabilityRequest",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "capability_type",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Type of capability being requested (e.g., 'proof_generation', 'data_query')",
+          "validators": []
+        },
+        {
+          "name": "target_audience",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Intended audience/service for the capability token",
+          "validators": []
+        },
+        {
+          "name": "requested_scopes",
+          "type_ref": "list",
+          "required": true,
+          "default": "",
+          "description": "Specific scopes requested within the capability",
+          "validators": []
+        },
+        {
+          "name": "expiry_seconds",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Requested token validity in seconds",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": "value >= 60 && value <= 86400",
+              "error_message": "expiry_seconds must be 60-86400"
+            }
+          ]
+        },
+        {
+          "name": "additional_claims",
+          "type_ref": "dict",
+          "required": false,
+          "default": "",
+          "description": "Optional additional claims to embed in the PASETO token",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Domain-level request for signet_request_capability tool. Requests a PASETO v4 capability token."
+    },
+    {
+      "name": "RequestCapabilityResponse",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "token",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "PASETO v4.local or v4.public token string",
+          "validators": []
+        },
+        {
+          "name": "token_id",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Unique identifier for the token (for revocation/audit)",
+          "validators": []
+        },
+        {
+          "name": "claims",
+          "type_ref": "PasetoClaims",
+          "required": true,
+          "default": "",
+          "description": "Claims embedded in the token",
+          "validators": []
+        },
+        {
+          "name": "expires_at",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "Token expiry timestamp",
+          "validators": []
+        },
+        {
+          "name": "audit_record_id",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Audit record ID",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Response containing the PASETO v4 capability token."
+    },
+    {
+      "name": "PasetoClaims",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "issuer",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "iss claim — Signet vault identifier",
+          "validators": []
+        },
+        {
+          "name": "subject",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "sub claim — session or agent identifier",
+          "validators": []
+        },
+        {
+          "name": "audience",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "aud claim — target service",
+          "validators": []
+        },
+        {
+          "name": "expiration",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "exp claim — token expiry",
+          "validators": []
+        },
+        {
+          "name": "not_before",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "nbf claim — token validity start",
+          "validators": []
+        },
+        {
+          "name": "issued_at",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "iat claim — token creation time",
+          "validators": []
+        },
+        {
+          "name": "token_id",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "jti claim — unique token identifier",
+          "validators": []
+        },
+        {
+          "name": "capability_type",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Signet-specific: type of capability granted",
+          "validators": []
+        },
+        {
+          "name": "scopes",
+          "type_ref": "list",
+          "required": true,
+          "default": "",
+          "description": "Signet-specific: granted scopes",
+          "validators": []
+        },
+        {
+          "name": "session_id",
+          "type_ref": "SessionId",
+          "required": true,
+          "default": "",
+          "description": "Signet-specific: bound session (token is invalidated if session is revoked)",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Structured PASETO v4 token claims following the PASETO registered claims spec plus Signet-specific claims."
+    },
+    {
+      "name": "NegotiateContextRequest",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "negotiation_id",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "Existing negotiation ID for follow-up. Empty to start new negotiation.",
+          "validators": []
+        },
+        {
+          "name": "external_agent_id",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Identifier of the external agent to negotiate with",
+          "validators": []
+        },
+        {
+          "name": "proposed_disclosures",
+          "type_ref": "list",
+          "required": true,
+          "default": "",
+          "description": "Attributes/proofs proposed for disclosure",
+          "validators": []
+        },
+        {
+          "name": "required_reciprocal",
+          "type_ref": "list",
+          "required": false,
+          "default": "",
+          "description": "Attributes required from the external agent in return",
+          "validators": []
+        },
+        {
+          "name": "context_purpose",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Human-readable purpose of the disclosure context",
+          "validators": []
+        },
+        {
+          "name": "negotiation_expiry_seconds",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "How long the negotiation remains valid",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": "value >= 60 && value <= 3600",
+              "error_message": "negotiation_expiry_seconds must be 60-3600 (max 1 hour)"
+            }
+          ]
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Domain-level request for signet_negotiate_context tool. Negotiate disclosure scope with an external agent."
+    },
+    {
+      "name": "ProposedDisclosure",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "attribute_name",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Name of the attribute being proposed",
+          "validators": []
+        },
+        {
+          "name": "disclosure_mode",
+          "type_ref": "DisclosureMode",
+          "required": true,
+          "default": "",
+          "description": "How the attribute would be disclosed",
+          "validators": []
+        },
+        {
+          "name": "credential_id",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Source credential for this attribute",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "A single proposed attribute or proof disclosure in a negotiation."
+    },
+    {
+      "name": "DisclosureMode",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "PlaintextValue",
+        "ZeroKnowledgeProof",
+        "PredicateProof",
+        "HashedCommitment"
+      ],
+      "inner_types": [],
+      "description": "How an attribute is disclosed during negotiation."
+    },
+    {
+      "name": "NegotiateContextResponse",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "negotiation_id",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Negotiation identifier (new or existing)",
+          "validators": []
+        },
+        {
+          "name": "state",
+          "type_ref": "NegotiateContextState",
+          "required": true,
+          "default": "",
+          "description": "Current state of the negotiation",
+          "validators": []
+        },
+        {
+          "name": "accepted_disclosures",
+          "type_ref": "list",
+          "required": true,
+          "default": "",
+          "description": "Attribute names accepted so far",
+          "validators": []
+        },
+        {
+          "name": "counter_proposals",
+          "type_ref": "list",
+          "required": false,
+          "default": "",
+          "description": "Counter-proposals from external agent, if any",
+          "validators": []
+        },
+        {
+          "name": "expires_at",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "When this negotiation expires",
+          "validators": []
+        },
+        {
+          "name": "audit_record_id",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Audit record ID",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Response from a context negotiation step."
+    },
+    {
+      "name": "CheckStatusRequest",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "pending_request_id",
+          "type_ref": "PendingRequestId",
+          "required": true,
+          "default": "",
+          "description": "ID of the pending request to check",
+          "validators": []
+        },
+        {
+          "name": "request_type",
+          "type_ref": "PendingRequestType",
+          "required": true,
+          "default": "",
+          "description": "Type of pending request being checked",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Domain-level request for signet_check_status tool. Check status of a pending Tier 3 request or negotiation."
+    },
+    {
+      "name": "PendingRequestType",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "Tier3Delegation",
+        "NegotiationInProgress",
+        "AnomalyReview"
+      ],
+      "inner_types": [],
+      "description": "Types of requests that can be pending."
+    },
+    {
+      "name": "CheckStatusResponse",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "pending_request_id",
+          "type_ref": "PendingRequestId",
+          "required": true,
+          "default": "",
+          "description": "The checked request ID",
+          "validators": []
+        },
+        {
+          "name": "status",
+          "type_ref": "PendingStatus",
+          "required": true,
+          "default": "",
+          "description": "Current status",
+          "validators": []
+        },
+        {
+          "name": "resolution",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "Resolution details if status is Resolved",
+          "validators": []
+        },
+        {
+          "name": "updated_at",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "Last status update timestamp",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Response for a status check on a pending request."
+    },
+    {
+      "name": "PendingStatus",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "Pending",
+        "InReview",
+        "Resolved",
+        "Denied",
+        "Expired"
+      ],
+      "inner_types": [],
+      "description": "Status of a pending request."
+    },
+    {
+      "name": "PolicyDecision",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "Allow",
+        "Deny",
+        "Anomaly",
+        "RateLimited"
+      ],
+      "inner_types": [],
+      "description": "Decision from the policy engine. Anomaly variant requires explicit human resolution — it is NEVER silently resolved or auto-approved."
+    },
+    {
+      "name": "PolicyEvaluationResult",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "decision",
+          "type_ref": "PolicyDecision",
+          "required": true,
+          "default": "",
+          "description": "The policy decision",
+          "validators": []
+        },
+        {
+          "name": "reason",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Human-readable reason for the decision",
+          "validators": []
+        },
+        {
+          "name": "matched_rules",
+          "type_ref": "list",
+          "required": true,
+          "default": "",
+          "description": "Names of policy rules that matched",
+          "validators": []
+        },
+        {
+          "name": "anomaly_details",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "Detailed anomaly description if decision is Anomaly",
+          "validators": []
+        },
+        {
+          "name": "pending_request_id",
+          "type_ref": "PendingRequestId",
+          "required": false,
+          "default": "",
+          "description": "Assigned pending ID if request is suspended for anomaly review",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Full result from policy evaluation including decision, reasoning, and any anomaly details."
+    },
+    {
+      "name": "PipelineStage",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "SessionValidation",
+        "TierClassification",
+        "PolicyEvaluation",
+        "ToolExecution",
+        "AuditRecording"
+      ],
+      "inner_types": [],
+      "description": "Stages of the request processing pipeline. Each has an independent timeout."
+    },
+    {
+      "name": "PipelineConfig",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "session_validation_timeout_ms",
+          "type_ref": "int",
+          "required": true,
+          "default": "500",
+          "description": "Timeout for session validation stage",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": "value >= 50 && value <= 5000",
+              "error_message": "Session validation timeout must be 50-5000ms"
+            }
+          ]
+        },
+        {
+          "name": "tier_classification_timeout_ms",
+          "type_ref": "int",
+          "required": true,
+          "default": "500",
+          "description": "Timeout for tier classification stage",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": "value >= 50 && value <= 5000",
+              "error_message": "Tier classification timeout must be 50-5000ms"
+            }
+          ]
+        },
+        {
+          "name": "policy_evaluation_timeout_ms",
+          "type_ref": "int",
+          "required": true,
+          "default": "2000",
+          "description": "Timeout for policy evaluation stage",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": "value >= 100 && value <= 10000",
+              "error_message": "Policy evaluation timeout must be 100-10000ms"
+            }
+          ]
+        },
+        {
+          "name": "tool_execution_timeout_ms",
+          "type_ref": "int",
+          "required": true,
+          "default": "15000",
+          "description": "Timeout for tool execution stage",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": "value >= 1000 && value <= 60000",
+              "error_message": "Tool execution timeout must be 1000-60000ms"
+            }
+          ]
+        },
+        {
+          "name": "audit_recording_timeout_ms",
+          "type_ref": "int",
+          "required": true,
+          "default": "2000",
+          "description": "Timeout for audit recording stage",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": "value >= 100 && value <= 10000",
+              "error_message": "Audit recording timeout must be 100-10000ms"
+            }
+          ]
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Configuration for the request processing pipeline timeouts. All timeouts in milliseconds. Any stage timeout results in denial."
+    },
+    {
+      "name": "AuditEntry",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "audit_id",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Unique audit entry identifier",
+          "validators": []
+        },
+        {
+          "name": "session_id",
+          "type_ref": "SessionId",
+          "required": true,
+          "default": "",
+          "description": "Session that produced this disclosure",
+          "validators": []
+        },
+        {
+          "name": "request_id",
+          "type_ref": "RequestId",
+          "required": true,
+          "default": "",
+          "description": "Originating request ID",
+          "validators": []
+        },
+        {
+          "name": "tool",
+          "type_ref": "McpTool",
+          "required": true,
+          "default": "",
+          "description": "Which tool produced the disclosure",
+          "validators": []
+        },
+        {
+          "name": "tier",
+          "type_ref": "Tier",
+          "required": true,
+          "default": "",
+          "description": "Tier classification of the request",
+          "validators": []
+        },
+        {
+          "name": "disclosed_attributes",
+          "type_ref": "list",
+          "required": true,
+          "default": "",
+          "description": "Names of attributes disclosed",
+          "validators": []
+        },
+        {
+          "name": "audience",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Who the disclosure was made to",
+          "validators": []
+        },
+        {
+          "name": "timestamp",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "When the disclosure occurred",
+          "validators": []
+        },
+        {
+          "name": "policy_decision",
+          "type_ref": "PolicyDecision",
+          "required": true,
+          "default": "",
+          "description": "Policy decision that allowed this disclosure",
+          "validators": []
+        },
+        {
+          "name": "proof_type",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "Type of proof if applicable",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Audit log entry recorded for every disclosure-producing operation. Written atomically before response is returned."
+    },
+    {
+      "name": "McpError",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "InvalidJsonRpc",
+        "UnknownMethod",
+        "InvalidParams",
+        "SessionNotFound",
+        "SessionExpired",
+        "SessionRevoked",
+        "SignatureVerificationFailed",
+        "PkceVerificationFailed",
+        "TierAccessDenied",
+        "PolicyDenied",
+        "PolicyAnomaly",
+        "RateLimited",
+        "PipelineTimeout",
+        "CryptoOperationFailed",
+        "VaultUnavailable",
+        "AuditWriteFailed",
+        "NegotiationNotFound",
+        "NegotiationExpired",
+        "PendingRequestNotFound",
+        "InternalError",
+        "TransportError",
+        "TlsRequired"
+      ],
+      "inner_types": [],
+      "description": "Single error enum for all MCP server errors. thiserror-derived. Display impl is sanitized — never contains key material, session secrets, or raw vault data. Crypto failures map to generic CryptoOperationFailed. Detailed errors logged server-side only."
+    },
+    {
+      "name": "McpServerConfig",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "transport",
+          "type_ref": "TransportConfig",
+          "required": true,
+          "default": "",
+          "description": "Transport configuration",
+          "validators": []
+        },
+        {
+          "name": "pipeline",
+          "type_ref": "PipelineConfig",
+          "required": true,
+          "default": "",
+          "description": "Pipeline timeout configuration",
+          "validators": []
+        },
+        {
+          "name": "session_max_lifetime_seconds",
+          "type_ref": "int",
+          "required": true,
+          "default": "86400",
+          "description": "Maximum session lifetime in seconds (default 24h)",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": "value >= 300 && value <= 604800",
+              "error_message": "Session lifetime must be 300-604800 seconds (5min-7days)"
+            }
+          ]
+        },
+        {
+          "name": "session_idle_timeout_seconds",
+          "type_ref": "int",
+          "required": true,
+          "default": "3600",
+          "description": "Session idle timeout in seconds (default 1h)",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": "value >= 60 && value <= 86400",
+              "error_message": "Session idle timeout must be 60-86400 seconds"
+            }
+          ]
+        },
+        {
+          "name": "server_ed25519_public_key",
+          "type_ref": "Ed25519PublicKey",
+          "required": true,
+          "default": "",
+          "description": "Server's Ed25519 public key for identity",
+          "validators": []
+        },
+        {
+          "name": "vault_endpoint",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Endpoint or path to reach the signet_vault",
+          "validators": []
+        },
+        {
+          "name": "enable_metrics",
+          "type_ref": "bool",
+          "required": false,
+          "default": "false",
+          "description": "Whether to enable internal metrics collection",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Top-level configuration for the MCP server."
+    },
+    {
+      "name": "WireGetProofRequest",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "credential_id",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "requested_attributes",
+          "type_ref": "list",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "audience",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "proof_expiry_seconds",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "nonce",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "predicate_queries",
+          "type_ref": "list",
+          "required": false,
+          "default": "",
+          "description": "",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Wire-level (JSON-facing) request for signet_get_proof. serde with deny_unknown_fields. Crypto material is base64url-encoded. Converted to GetProofRequest via TryFrom."
+    },
+    {
+      "name": "WireQueryRequest",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "query_expression",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "credential_ids",
+          "type_ref": "list",
+          "required": false,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "include_metadata",
+          "type_ref": "bool",
+          "required": false,
+          "default": "false",
+          "description": "",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Wire-level (JSON-facing) request for signet_query. serde with deny_unknown_fields."
+    },
+    {
+      "name": "WireRequestCapabilityRequest",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "capability_type",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "target_audience",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "requested_scopes",
+          "type_ref": "list",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "expiry_seconds",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "additional_claims",
+          "type_ref": "dict",
+          "required": false,
+          "default": "",
+          "description": "",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Wire-level (JSON-facing) request for signet_request_capability. serde with deny_unknown_fields."
+    },
+    {
+      "name": "WireNegotiateContextRequest",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "negotiation_id",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "external_agent_id",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "proposed_disclosures",
+          "type_ref": "list",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "required_reciprocal",
+          "type_ref": "list",
+          "required": false,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "context_purpose",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "negotiation_expiry_seconds",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Wire-level (JSON-facing) request for signet_negotiate_context. serde with deny_unknown_fields."
+    },
+    {
+      "name": "WireCheckStatusRequest",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "pending_request_id",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "request_type",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Wire-level (JSON-facing) request for signet_check_status. serde with deny_unknown_fields."
+    }
+  ],
+  "functions": [
+    {
+      "name": "start_server",
+      "description": "Initialize and start the MCP server with the given configuration. Sets up transport, session registry, pipeline, and begins accepting requests. For HttpSse transport, binds TLS listener. For Stdio transport, attaches to stdin/stdout. Blocks until shutdown signal received.",
+      "inputs": [
+        {
+          "name": "config",
+          "type_ref": "McpServerConfig",
+          "required": true,
+          "default": "",
+          "description": "Server configuration including transport, pipeline, and session settings",
+          "validators": []
+        }
+      ],
+      "output_type": "None",
+      "error_cases": [
+        {
+          "name": "transport_bind_failed",
+          "condition": "Cannot bind to configured address or attach to stdio",
+          "error_type": "McpError::TransportError",
+          "error_data": {}
+        },
+        {
+          "name": "tls_config_invalid",
+          "condition": "TLS certificate or key is invalid or missing for HttpSse transport",
+          "error_type": "McpError::TlsRequired",
+          "error_data": {}
+        },
+        {
+          "name": "vault_unreachable",
+          "condition": "Cannot connect to signet_vault at startup",
+          "error_type": "McpError::VaultUnavailable",
+          "error_data": {}
+        },
+        {
+          "name": "config_invalid",
+          "condition": "Configuration values fail validation",
+          "error_type": "McpError::InvalidParams",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "signet_vault is initialized and reachable at config.vault_endpoint",
+        "Policy engine rules are loaded",
+        "For HttpSse transport: TLS cert and key files exist and are valid",
+        "For Stdio transport: stdin/stdout are available",
+        "Server Ed25519 key pair is available"
+      ],
+      "postconditions": [
+        "Server is listening on configured transport",
+        "Session registry is initialized with max_sessions capacity",
+        "Pipeline stages are configured with specified timeouts",
+        "Server gracefully shuts down on termination signal"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Binds network listener (HttpSse) or attaches to stdio",
+        "Starts background session pruning task"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "network_call",
+          "target": "Transport listener (HTTP+TLS or stdio)",
+          "description": "Binds and begins accepting connections"
+        },
+        {
+          "kind": "logging",
+          "target": "Server startup log",
+          "description": "Logs server startup (no secrets in log output)"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "provision_session",
+      "description": "Provision a new agent session via OAuth 2.1 + PKCE. Validates the PKCE challenge (S256 only — no algorithm negotiation), verifies the agent's Ed25519 public key, creates a new Session in the registry. This is the only entry point for establishing sessions.",
+      "inputs": [
+        {
+          "name": "provision_request",
+          "type_ref": "OAuthProvisionRequest",
+          "required": true,
+          "default": "",
+          "description": "OAuth provisioning request with agent key and PKCE challenge",
+          "validators": []
+        }
+      ],
+      "output_type": "OAuthProvisionResponse",
+      "error_cases": [
+        {
+          "name": "invalid_public_key",
+          "condition": "agent_public_key is not a valid 32-byte Ed25519 public key",
+          "error_type": "McpError::InvalidParams",
+          "error_data": {}
+        },
+        {
+          "name": "invalid_pkce_method",
+          "condition": "code_challenge_method is not S256",
+          "error_type": "McpError::PkceVerificationFailed",
+          "error_data": {}
+        },
+        {
+          "name": "session_limit_reached",
+          "condition": "SessionRegistry is at max_sessions capacity",
+          "error_type": "McpError::RateLimited",
+          "error_data": {}
+        },
+        {
+          "name": "invalid_scopes",
+          "condition": "All requested scopes are denied by policy",
+          "error_type": "McpError::PolicyDenied",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "Server is running and accepting connections",
+        "Session registry has capacity (current sessions < max_sessions)",
+        "agent_public_key is a valid Ed25519 public key",
+        "pkce_challenge.code_challenge_method is 'S256'"
+      ],
+      "postconditions": [
+        "A new Session is created in the registry with a CSPRNG-generated SessionId",
+        "Session is bound to the provided agent_public_key",
+        "Session expires_at = now + config.session_max_lifetime_seconds",
+        "Granted scopes are a subset of requested scopes intersected with policy-allowed scopes",
+        "An authorization code is issued for the PKCE exchange"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Creates new session in registry"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "SessionRegistry",
+          "description": "Inserts new Session into the registry"
+        },
+        {
+          "kind": "logging",
+          "target": "Session provisioning log",
+          "description": "Logs session creation (session_id only, no key material)"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "complete_token_exchange",
+      "description": "Complete the OAuth 2.1 PKCE token exchange. Verifies code_verifier against stored code_challenge (SHA-256). On success, activates the session. This prevents interception of the authorization code from being useful without the original verifier.",
+      "inputs": [
+        {
+          "name": "exchange",
+          "type_ref": "OAuthTokenExchange",
+          "required": true,
+          "default": "",
+          "description": "Token exchange with authorization code and code verifier",
+          "validators": []
+        }
+      ],
+      "output_type": "SessionId",
+      "error_cases": [
+        {
+          "name": "invalid_auth_code",
+          "condition": "Authorization code is unknown, expired, or already consumed",
+          "error_type": "McpError::InvalidParams",
+          "error_data": {}
+        },
+        {
+          "name": "pkce_mismatch",
+          "condition": "SHA-256(code_verifier) does not match stored code_challenge",
+          "error_type": "McpError::PkceVerificationFailed",
+          "error_data": {}
+        },
+        {
+          "name": "session_not_found",
+          "condition": "Session associated with auth code no longer exists",
+          "error_type": "McpError::SessionNotFound",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "authorization_code was previously issued by provision_session",
+        "authorization_code has not expired and has not been used",
+        "SHA-256(code_verifier) matches the stored code_challenge"
+      ],
+      "postconditions": [
+        "Session transitions from provisioned to active",
+        "Authorization code is consumed and cannot be reused (one-time use)",
+        "Session is ready to accept authenticated requests"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "SessionRegistry",
+          "description": "Activates session and consumes authorization code"
+        },
+        {
+          "kind": "logging",
+          "target": "Token exchange log",
+          "description": "Logs successful/failed exchange (no secrets)"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "revoke_session",
+      "description": "Revoke an active session. Sets session.revoked = true. Cleans up all negotiate_context_states for the session. All subsequent requests on this session will be rejected. Revocation is immediate and irreversible.",
+      "inputs": [
+        {
+          "name": "session_id",
+          "type_ref": "SessionId",
+          "required": true,
+          "default": "",
+          "description": "Session to revoke",
+          "validators": []
+        },
+        {
+          "name": "agent_signature",
+          "type_ref": "Ed25519Signature",
+          "required": true,
+          "default": "",
+          "description": "Agent's Ed25519 signature over the revocation request, proving possession of the session key",
+          "validators": []
+        }
+      ],
+      "output_type": "bool",
+      "error_cases": [
+        {
+          "name": "session_not_found",
+          "condition": "session_id does not exist in registry",
+          "error_type": "McpError::SessionNotFound",
+          "error_data": {}
+        },
+        {
+          "name": "signature_invalid",
+          "condition": "Agent signature verification fails",
+          "error_type": "McpError::SignatureVerificationFailed",
+          "error_data": {}
+        },
+        {
+          "name": "already_revoked",
+          "condition": "Session was already revoked",
+          "error_type": "McpError::SessionRevoked",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "session_id exists in the registry",
+        "agent_signature is valid against the session's agent_public_key"
+      ],
+      "postconditions": [
+        "Session.revoked is set to true",
+        "All negotiate_context_states for this session are cleaned up",
+        "All pending capability tokens bound to this session are invalidated",
+        "No further requests will be accepted on this session"
+      ],
+      "idempotent": true,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "SessionRegistry",
+          "description": "Marks session as revoked and cleans up negotiation states"
+        },
+        {
+          "kind": "logging",
+          "target": "Session revocation log",
+          "description": "Logs session revocation event"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "dispatch_request",
+      "description": "Main JSON-RPC 2.0 request dispatcher. Parses the JSON-RPC envelope, validates it against the strict schema (deny_unknown_fields), converts wire types to domain types via TryFrom, then routes through the full pipeline: SessionValidator → TierClassifier → PolicyEvaluator → ToolExecutor → AuditRecorder. Each stage has an independent timeout — any timeout results in denial. Returns a JsonRpcResponse. This is the single entry point for all tool invocations.",
+      "inputs": [
+        {
+          "name": "raw_request",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Raw JSON string of the JSON-RPC 2.0 request",
+          "validators": []
+        },
+        {
+          "name": "session_id",
+          "type_ref": "SessionId",
+          "required": true,
+          "default": "",
+          "description": "Session ID from the transport-level authentication",
+          "validators": []
+        },
+        {
+          "name": "request_signature",
+          "type_ref": "Ed25519Signature",
+          "required": true,
+          "default": "",
+          "description": "Agent's Ed25519 signature over the raw_request bytes",
+          "validators": []
+        }
+      ],
+      "output_type": "JsonRpcResponse",
+      "error_cases": [
+        {
+          "name": "invalid_json",
+          "condition": "raw_request is not valid JSON",
+          "error_type": "McpError::InvalidJsonRpc",
+          "error_data": {}
+        },
+        {
+          "name": "invalid_jsonrpc_envelope",
+          "condition": "JSON does not conform to JSON-RPC 2.0 schema or contains unknown fields",
+          "error_type": "McpError::InvalidJsonRpc",
+          "error_data": {}
+        },
+        {
+          "name": "unknown_method",
+          "condition": "method is not one of the five registered tools",
+          "error_type": "McpError::UnknownMethod",
+          "error_data": {}
+        },
+        {
+          "name": "invalid_params",
+          "condition": "params fail TryFrom conversion from wire type to domain type",
+          "error_type": "McpError::InvalidParams",
+          "error_data": {}
+        },
+        {
+          "name": "session_not_found",
+          "condition": "session_id not in registry",
+          "error_type": "McpError::SessionNotFound",
+          "error_data": {}
+        },
+        {
+          "name": "session_expired",
+          "condition": "Session exists but expires_at < now or idle timeout exceeded",
+          "error_type": "McpError::SessionExpired",
+          "error_data": {}
+        },
+        {
+          "name": "session_revoked",
+          "condition": "Session exists but revoked == true",
+          "error_type": "McpError::SessionRevoked",
+          "error_data": {}
+        },
+        {
+          "name": "signature_invalid",
+          "condition": "Ed25519 signature verification fails against session public key",
+          "error_type": "McpError::SignatureVerificationFailed",
+          "error_data": {}
+        },
+        {
+          "name": "tier_access_denied",
+          "condition": "Request classified as Tier 3 and agent cannot access",
+          "error_type": "McpError::TierAccessDenied",
+          "error_data": {}
+        },
+        {
+          "name": "policy_denied",
+          "condition": "PolicyEvaluator returns PolicyDecision::Deny",
+          "error_type": "McpError::PolicyDenied",
+          "error_data": {}
+        },
+        {
+          "name": "policy_anomaly",
+          "condition": "PolicyEvaluator returns PolicyDecision::Anomaly — request is suspended for human review",
+          "error_type": "McpError::PolicyAnomaly",
+          "error_data": {
+            "pending_request_id": "Assigned PendingRequestId for the anomaly review"
+          }
+        },
+        {
+          "name": "rate_limited",
+          "condition": "PolicyEvaluator returns PolicyDecision::RateLimited",
+          "error_type": "McpError::RateLimited",
+          "error_data": {}
+        },
+        {
+          "name": "pipeline_timeout",
+          "condition": "Any pipeline stage exceeds its configured timeout",
+          "error_type": "McpError::PipelineTimeout",
+          "error_data": {
+            "stage": "Name of the stage that timed out"
+          }
+        },
+        {
+          "name": "crypto_failed",
+          "condition": "Any cryptographic operation fails during tool execution",
+          "error_type": "McpError::CryptoOperationFailed",
+          "error_data": {}
+        },
+        {
+          "name": "vault_unavailable",
+          "condition": "Cannot reach signet_vault during tool execution",
+          "error_type": "McpError::VaultUnavailable",
+          "error_data": {}
+        },
+        {
+          "name": "audit_write_failed",
+          "condition": "Audit record cannot be written — response is NOT returned",
+          "error_type": "McpError::AuditWriteFailed",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "Server is running",
+        "raw_request is valid UTF-8"
+      ],
+      "postconditions": [
+        "Response id matches request id",
+        "If successful and disclosure-producing: audit record is written before response is returned",
+        "If any pipeline stage fails or times out: error response is returned with appropriate McpError",
+        "Session.last_activity_at is updated on successful authentication",
+        "Response never contains raw Tier 2 data — only Conclusion types",
+        "Response for Tier 3 requests contains only PendingRequestId"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Executes the requested tool",
+        "Records audit entry for disclosure-producing operations",
+        "Updates session last_activity_at",
+        "May create pending request for Tier 3 or anomaly"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "SessionRegistry",
+          "description": "Updates session.last_activity_at"
+        },
+        {
+          "kind": "mutates_state",
+          "target": "AuditLog (via signet_vault)",
+          "description": "Writes audit entry atomically before returning response"
+        },
+        {
+          "kind": "network_call",
+          "target": "signet_vault",
+          "description": "Calls vault for decryption, proof generation, audit recording"
+        },
+        {
+          "kind": "network_call",
+          "target": "signet_proof",
+          "description": "Calls proof subsystem for BBS+, SD-JWT, or range proof generation"
+        },
+        {
+          "kind": "logging",
+          "target": "Request processing log",
+          "description": "Logs request lifecycle events (no secrets, no raw data)"
+        }
+      ],
+      "performance_budget": {
+        "p95_latency_ms": 500,
+        "max_memory_mb": null,
+        "complexity": "O(1) per pipeline stage, O(n) for multi-attribute proofs where n = number of attributes"
+      }
+    },
+    {
+      "name": "validate_session",
+      "description": "Pipeline stage 1: SessionValidator. Looks up session by ID, verifies it is not expired, not revoked, not idle-timed-out, and that the request signature is valid against the session's Ed25519 public key. Uses constant-time signature verification. Produces an AuthenticatedRequest or denies.",
+      "inputs": [
+        {
+          "name": "session_id",
+          "type_ref": "SessionId",
+          "required": true,
+          "default": "",
+          "description": "Session to validate",
+          "validators": []
+        },
+        {
+          "name": "raw_request_bytes",
+          "type_ref": "bytes",
+          "required": true,
+          "default": "",
+          "description": "Canonical request bytes that were signed",
+          "validators": []
+        },
+        {
+          "name": "signature",
+          "type_ref": "Ed25519Signature",
+          "required": true,
+          "default": "",
+          "description": "Agent's signature to verify",
+          "validators": []
+        },
+        {
+          "name": "current_time",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "Current server time for expiry checks",
+          "validators": []
+        }
+      ],
+      "output_type": "Session",
+      "error_cases": [
+        {
+          "name": "not_found",
+          "condition": "session_id not in registry",
+          "error_type": "McpError::SessionNotFound",
+          "error_data": {}
+        },
+        {
+          "name": "expired",
+          "condition": "current_time >= session.expires_at",
+          "error_type": "McpError::SessionExpired",
+          "error_data": {}
+        },
+        {
+          "name": "idle_expired",
+          "condition": "current_time - session.last_activity_at > idle_timeout",
+          "error_type": "McpError::SessionExpired",
+          "error_data": {}
+        },
+        {
+          "name": "revoked",
+          "condition": "session.revoked == true",
+          "error_type": "McpError::SessionRevoked",
+          "error_data": {}
+        },
+        {
+          "name": "bad_signature",
+          "condition": "Ed25519 signature verification fails",
+          "error_type": "McpError::SignatureVerificationFailed",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "session_id is a valid hex-encoded 128-bit identifier"
+      ],
+      "postconditions": [
+        "Returned Session is non-expired, non-revoked, and signature-verified",
+        "Session.last_activity_at is updated to current_time",
+        "Signature verification used constant-time comparison"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "SessionRegistry",
+          "description": "Updates last_activity_at on success"
+        }
+      ],
+      "performance_budget": {
+        "p95_latency_ms": 5,
+        "max_memory_mb": null,
+        "complexity": "O(1) lookup + O(1) Ed25519 verify"
+      }
+    },
+    {
+      "name": "classify_tier",
+      "description": "Pipeline stage 2: TierClassifier. Determines the data sensitivity tier for the requested operation based on the credential and attributes involved. Delegates to signet_sdk.classify_tier. The tier determines response type constraints.",
+      "inputs": [
+        {
+          "name": "tool",
+          "type_ref": "McpTool",
+          "required": true,
+          "default": "",
+          "description": "The tool being invoked",
+          "validators": []
+        },
+        {
+          "name": "credential_ids",
+          "type_ref": "list",
+          "required": true,
+          "default": "",
+          "description": "Credential IDs involved in the request",
+          "validators": [
+            {
+              "kind": "length",
+              "expression": "len >= 1",
+              "error_message": "At least one credential ID required"
+            }
+          ]
+        },
+        {
+          "name": "requested_attributes",
+          "type_ref": "list",
+          "required": true,
+          "default": "",
+          "description": "Attribute names being accessed",
+          "validators": []
+        }
+      ],
+      "output_type": "Tier",
+      "error_cases": [
+        {
+          "name": "credential_not_found",
+          "condition": "One or more credential_ids not found in vault",
+          "error_type": "McpError::InvalidParams",
+          "error_data": {}
+        },
+        {
+          "name": "attribute_not_found",
+          "condition": "Requested attribute not defined on credential",
+          "error_type": "McpError::InvalidParams",
+          "error_data": {}
+        },
+        {
+          "name": "vault_unavailable",
+          "condition": "Cannot reach vault to look up credential metadata",
+          "error_type": "McpError::VaultUnavailable",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "All credential_ids exist in the vault",
+        "All requested_attributes are defined on the referenced credentials"
+      ],
+      "postconditions": [
+        "Returned tier is the highest (most restrictive) tier among all requested attributes",
+        "If any attribute is Tier 3, result is Tier 3",
+        "If any attribute is Tier 2 (and none Tier 3), result is Tier 2"
+      ],
+      "idempotent": true,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "network_call",
+          "target": "signet_vault / signet_sdk",
+          "description": "Queries credential metadata to determine tier classification"
+        }
+      ],
+      "performance_budget": {
+        "p95_latency_ms": 10,
+        "max_memory_mb": null,
+        "complexity": "O(n) where n = number of requested attributes"
+      }
+    },
+    {
+      "name": "evaluate_policy",
+      "description": "Pipeline stage 3: PolicyEvaluator. Evaluates the request against loaded policy rules. Checks role/predicate matrix, rate limits, anomaly detection. Delegates to signet_sdk.evaluate_policy. Returns a PolicyDecision — Anomaly decisions are NEVER silently resolved.",
+      "inputs": [
+        {
+          "name": "session",
+          "type_ref": "Session",
+          "required": true,
+          "default": "",
+          "description": "Authenticated session",
+          "validators": []
+        },
+        {
+          "name": "tool",
+          "type_ref": "McpTool",
+          "required": true,
+          "default": "",
+          "description": "Tool being invoked",
+          "validators": []
+        },
+        {
+          "name": "tier",
+          "type_ref": "Tier",
+          "required": true,
+          "default": "",
+          "description": "Classified tier for this request",
+          "validators": []
+        },
+        {
+          "name": "request_context",
+          "type_ref": "dict",
+          "required": true,
+          "default": "",
+          "description": "Additional request context (credential_ids, attributes, audience, etc.)",
+          "validators": []
+        }
+      ],
+      "output_type": "PolicyEvaluationResult",
+      "error_cases": [
+        {
+          "name": "policy_engine_error",
+          "condition": "Policy engine encounters an internal error during evaluation",
+          "error_type": "McpError::InternalError",
+          "error_data": {}
+        },
+        {
+          "name": "policy_timeout",
+          "condition": "Policy evaluation exceeds timeout (treated as deny)",
+          "error_type": "McpError::PipelineTimeout",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "Policy rules are loaded and valid",
+        "Session is authenticated and valid"
+      ],
+      "postconditions": [
+        "PolicyDecision::Allow means all policy rules passed",
+        "PolicyDecision::Deny means at least one hard-deny rule matched",
+        "PolicyDecision::Anomaly means anomaly detection triggered — a PendingRequestId is assigned and human notification is sent",
+        "PolicyDecision::RateLimited means rate limit exceeded",
+        "matched_rules contains all rules that evaluated to true"
+      ],
+      "idempotent": true,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "Pending requests store",
+          "description": "Creates pending request entry if anomaly detected"
+        },
+        {
+          "kind": "network_call",
+          "target": "Notification channel",
+          "description": "Sends notification if anomaly detected"
+        },
+        {
+          "kind": "logging",
+          "target": "Policy evaluation log",
+          "description": "Logs policy decision and matched rules"
+        }
+      ],
+      "performance_budget": {
+        "p95_latency_ms": 50,
+        "max_memory_mb": null,
+        "complexity": "O(r) where r = number of policy rules"
+      }
+    },
+    {
+      "name": "execute_get_proof",
+      "description": "Tool executor for signet_get_proof. Generates a domain-bound, time-limited cryptographic proof for an external service. For Tier 1 attributes: generates BBS+, SD-JWT, or range proof. For Tier 2 attributes: generates conclusions-only proof. For Tier 3: suspends to pending. Proof is always bound to the specified audience and nonce.",
+      "inputs": [
+        {
+          "name": "request",
+          "type_ref": "GetProofRequest",
+          "required": true,
+          "default": "",
+          "description": "Validated proof generation request",
+          "validators": []
+        },
+        {
+          "name": "session",
+          "type_ref": "Session",
+          "required": true,
+          "default": "",
+          "description": "Authenticated session",
+          "validators": []
+        },
+        {
+          "name": "tier",
+          "type_ref": "Tier",
+          "required": true,
+          "default": "",
+          "description": "Classified tier for this request",
+          "validators": []
+        }
+      ],
+      "output_type": "GetProofResponse",
+      "error_cases": [
+        {
+          "name": "credential_not_found",
+          "condition": "credential_id not in vault",
+          "error_type": "McpError::InvalidParams",
+          "error_data": {}
+        },
+        {
+          "name": "attribute_not_found",
+          "condition": "Requested attribute not on credential",
+          "error_type": "McpError::InvalidParams",
+          "error_data": {}
+        },
+        {
+          "name": "proof_generation_failed",
+          "condition": "Cryptographic proof generation fails",
+          "error_type": "McpError::CryptoOperationFailed",
+          "error_data": {}
+        },
+        {
+          "name": "vault_unavailable",
+          "condition": "Cannot reach vault for key material",
+          "error_type": "McpError::VaultUnavailable",
+          "error_data": {}
+        },
+        {
+          "name": "tier_access_denied",
+          "condition": "Tier 3 attribute requested — request suspended",
+          "error_type": "McpError::TierAccessDenied",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "Session is valid and authenticated",
+        "Tier classification is complete",
+        "Policy decision is Allow",
+        "credential_id exists in vault",
+        "All requested_attributes exist on the credential",
+        "audience is non-empty",
+        "nonce is at least 16 characters"
+      ],
+      "postconditions": [
+        "Generated proof is cryptographically bound to request.audience",
+        "Generated proof expires at now + request.proof_expiry_seconds",
+        "Generated proof includes the challenge nonce",
+        "For BBS+ proofs: proof is unlinkable across presentations",
+        "For Tier 2: response contains only Conclusion data, never raw attribute values",
+        "For Tier 3: response is Tier3QueryResponse with PendingRequestId only",
+        "Audit entry is recorded before response is returned"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "network_call",
+          "target": "signet_vault",
+          "description": "Retrieves encrypted credential and derives proof keys"
+        },
+        {
+          "kind": "network_call",
+          "target": "signet_proof",
+          "description": "Generates cryptographic proof (BBS+, SD-JWT, or range proof)"
+        },
+        {
+          "kind": "mutates_state",
+          "target": "Audit log",
+          "description": "Records disclosure audit entry"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "execute_query",
+      "description": "Tool executor for signet_query. Queries vault data with tier-enforced response types. Tier 1: returns attribute values. Tier 2: returns Conclusion newtypes only (raw data NEVER egresses). Tier 3: suspends and returns PendingRequestId only.",
+      "inputs": [
+        {
+          "name": "request",
+          "type_ref": "QueryRequest",
+          "required": true,
+          "default": "",
+          "description": "Validated query request",
+          "validators": []
+        },
+        {
+          "name": "session",
+          "type_ref": "Session",
+          "required": true,
+          "default": "",
+          "description": "Authenticated session",
+          "validators": []
+        },
+        {
+          "name": "tier",
+          "type_ref": "Tier",
+          "required": true,
+          "default": "",
+          "description": "Classified tier for this request",
+          "validators": []
+        }
+      ],
+      "output_type": "QueryResponse",
+      "error_cases": [
+        {
+          "name": "invalid_query",
+          "condition": "query_expression is syntactically invalid",
+          "error_type": "McpError::InvalidParams",
+          "error_data": {}
+        },
+        {
+          "name": "vault_unavailable",
+          "condition": "Cannot reach vault for query execution",
+          "error_type": "McpError::VaultUnavailable",
+          "error_data": {}
+        },
+        {
+          "name": "crypto_failed",
+          "condition": "Decryption of vault data fails",
+          "error_type": "McpError::CryptoOperationFailed",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "Session is valid and authenticated",
+        "Policy decision is Allow",
+        "query_expression is syntactically valid"
+      ],
+      "postconditions": [
+        "If Tier 1: response is Tier1QueryResponse with QueryResultItems",
+        "If Tier 2: response is Tier2QueryResponse with Conclusion newtypes only — no raw attribute values",
+        "If Tier 3: response is Tier3QueryResponse with PendingRequestId only — no data",
+        "Audit entry is recorded before response is returned",
+        "One-way data flow maintained — no write-back to vault from query"
+      ],
+      "idempotent": true,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "network_call",
+          "target": "signet_vault",
+          "description": "Executes query against encrypted vault data"
+        },
+        {
+          "kind": "mutates_state",
+          "target": "Audit log",
+          "description": "Records query audit entry"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "execute_request_capability",
+      "description": "Tool executor for signet_request_capability. Generates a PASETO v4 capability token with structured claims. Token is bound to the session and audience. Revocation of the session invalidates the token.",
+      "inputs": [
+        {
+          "name": "request",
+          "type_ref": "RequestCapabilityRequest",
+          "required": true,
+          "default": "",
+          "description": "Validated capability request",
+          "validators": []
+        },
+        {
+          "name": "session",
+          "type_ref": "Session",
+          "required": true,
+          "default": "",
+          "description": "Authenticated session",
+          "validators": []
+        },
+        {
+          "name": "tier",
+          "type_ref": "Tier",
+          "required": true,
+          "default": "",
+          "description": "Classified tier for this request",
+          "validators": []
+        }
+      ],
+      "output_type": "RequestCapabilityResponse",
+      "error_cases": [
+        {
+          "name": "invalid_capability_type",
+          "condition": "capability_type is not recognized",
+          "error_type": "McpError::InvalidParams",
+          "error_data": {}
+        },
+        {
+          "name": "scope_denied",
+          "condition": "Requested scopes exceed session's granted scopes",
+          "error_type": "McpError::PolicyDenied",
+          "error_data": {}
+        },
+        {
+          "name": "token_generation_failed",
+          "condition": "PASETO token generation fails",
+          "error_type": "McpError::CryptoOperationFailed",
+          "error_data": {}
+        },
+        {
+          "name": "tier_access_denied",
+          "condition": "Capability requires higher tier access than allowed",
+          "error_type": "McpError::TierAccessDenied",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "Session is valid and authenticated",
+        "Policy decision is Allow",
+        "Requested scopes are within session's granted scopes",
+        "capability_type is a recognized capability"
+      ],
+      "postconditions": [
+        "PASETO v4 token is generated with all standard claims (iss, sub, aud, exp, nbf, iat, jti)",
+        "Token includes Signet-specific claims (capability_type, scopes, session_id)",
+        "Token.exp = now + request.expiry_seconds",
+        "Token is invalidated if session is revoked",
+        "Audit entry is recorded before response is returned"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "Capability token registry",
+          "description": "Registers token_id for revocation tracking"
+        },
+        {
+          "kind": "mutates_state",
+          "target": "Audit log",
+          "description": "Records capability issuance audit entry"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "execute_negotiate_context",
+      "description": "Tool executor for signet_negotiate_context. Manages disclosure scope negotiation with an external agent. Implements a state machine (Proposed → CounterProposed → Accepted/Rejected → Completed). Negotiation state is stored per-session and cleaned up on session expiry/revocation. New negotiations create state; follow-ups advance existing state.",
+      "inputs": [
+        {
+          "name": "request",
+          "type_ref": "NegotiateContextRequest",
+          "required": true,
+          "default": "",
+          "description": "Validated negotiation request",
+          "validators": []
+        },
+        {
+          "name": "session",
+          "type_ref": "Session",
+          "required": true,
+          "default": "",
+          "description": "Authenticated session",
+          "validators": []
+        },
+        {
+          "name": "tier",
+          "type_ref": "Tier",
+          "required": true,
+          "default": "",
+          "description": "Classified tier for this request",
+          "validators": []
+        }
+      ],
+      "output_type": "NegotiateContextResponse",
+      "error_cases": [
+        {
+          "name": "negotiation_not_found",
+          "condition": "negotiation_id provided but not found in session state",
+          "error_type": "McpError::NegotiationNotFound",
+          "error_data": {}
+        },
+        {
+          "name": "negotiation_expired",
+          "condition": "Negotiation has exceeded its expiry time",
+          "error_type": "McpError::NegotiationExpired",
+          "error_data": {}
+        },
+        {
+          "name": "invalid_state_transition",
+          "condition": "Requested state transition is not valid from current state",
+          "error_type": "McpError::InvalidParams",
+          "error_data": {}
+        },
+        {
+          "name": "external_agent_unreachable",
+          "condition": "Cannot reach external agent for negotiation",
+          "error_type": "McpError::TransportError",
+          "error_data": {}
+        },
+        {
+          "name": "tier_access_denied",
+          "condition": "Proposed disclosures include Tier 3 attributes",
+          "error_type": "McpError::TierAccessDenied",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "Session is valid and authenticated",
+        "Policy decision is Allow",
+        "If negotiation_id is provided: negotiation exists in session.negotiate_context_states and is not expired",
+        "If new negotiation: external_agent_id is reachable"
+      ],
+      "postconditions": [
+        "If new negotiation: NegotiateContextState is created as Proposed in session.negotiate_context_states",
+        "If follow-up: state machine advances according to valid transitions only",
+        "Negotiation expires_at is set and enforced — expired negotiations return NegotiateContextState::Expired",
+        "Audit entry records the negotiation step",
+        "Disclosed attributes in accepted negotiation are restricted to tier-appropriate data"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "Session.negotiate_context_states",
+          "description": "Creates or advances negotiation state machine"
+        },
+        {
+          "kind": "network_call",
+          "target": "External agent",
+          "description": "Communicates negotiation proposal/response to external agent"
+        },
+        {
+          "kind": "mutates_state",
+          "target": "Audit log",
+          "description": "Records negotiation step audit entry"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "execute_check_status",
+      "description": "Tool executor for signet_check_status. Checks the status of a pending Tier 3 delegation, negotiation, or anomaly review request. Read-only operation.",
+      "inputs": [
+        {
+          "name": "request",
+          "type_ref": "CheckStatusRequest",
+          "required": true,
+          "default": "",
+          "description": "Validated status check request",
+          "validators": []
+        },
+        {
+          "name": "session",
+          "type_ref": "Session",
+          "required": true,
+          "default": "",
+          "description": "Authenticated session",
+          "validators": []
+        }
+      ],
+      "output_type": "CheckStatusResponse",
+      "error_cases": [
+        {
+          "name": "pending_not_found",
+          "condition": "pending_request_id not found or not owned by this session",
+          "error_type": "McpError::PendingRequestNotFound",
+          "error_data": {}
+        },
+        {
+          "name": "invalid_type",
+          "condition": "request_type does not match the actual pending request type",
+          "error_type": "McpError::InvalidParams",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "Session is valid and authenticated",
+        "pending_request_id was created in the context of this session"
+      ],
+      "postconditions": [
+        "Response reflects current status of the pending request",
+        "If resolved: resolution details are included",
+        "If expired: status is Expired",
+        "Status check does not modify the pending request"
+      ],
+      "idempotent": true,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "logging",
+          "target": "Status check log",
+          "description": "Logs status check (no audit entry since no disclosure)"
+        }
+      ],
+      "performance_budget": {
+        "p95_latency_ms": 10,
+        "max_memory_mb": null,
+        "complexity": "O(1) lookup"
+      }
+    },
+    {
+      "name": "record_audit_entry",
+      "description": "Pipeline stage 5: AuditRecorder. Atomically writes a disclosure audit entry to signet_vault's audit log. This MUST complete successfully before the tool response is returned to the agent. If audit recording fails, the response is NOT returned — the request is denied. Ensures all disclosures are on the audit chain.",
+      "inputs": [
+        {
+          "name": "entry",
+          "type_ref": "AuditEntry",
+          "required": true,
+          "default": "",
+          "description": "Audit entry to record",
+          "validators": []
+        }
+      ],
+      "output_type": "str",
+      "error_cases": [
+        {
+          "name": "vault_unavailable",
+          "condition": "Cannot reach signet_vault audit subsystem",
+          "error_type": "McpError::AuditWriteFailed",
+          "error_data": {}
+        },
+        {
+          "name": "write_failed",
+          "condition": "Vault accepted but could not durably write the entry",
+          "error_type": "McpError::AuditWriteFailed",
+          "error_data": {}
+        },
+        {
+          "name": "timeout",
+          "condition": "Audit recording exceeds configured timeout",
+          "error_type": "McpError::PipelineTimeout",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "signet_vault audit subsystem is operational",
+        "entry contains valid session_id, request_id, and tool"
+      ],
+      "postconditions": [
+        "Audit entry is durably written to vault audit log",
+        "Returned string is the audit_record_id",
+        "Entry is immutable once written",
+        "Entry is included in future audit trail queries"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "writes_file",
+          "target": "signet_vault audit log",
+          "description": "Durably writes audit entry via signet_vault"
+        },
+        {
+          "kind": "network_call",
+          "target": "signet_vault",
+          "description": "Calls vault audit recording endpoint"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "shutdown_server",
+      "description": "Gracefully shut down the MCP server. Stops accepting new connections, drains in-flight requests (with timeout), cleans up all sessions (Zeroize key material), closes transport. Returns after cleanup is complete.",
+      "inputs": [
+        {
+          "name": "drain_timeout_ms",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Maximum time to wait for in-flight requests to complete before force-closing",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": "value >= 1000 && value <= 60000",
+              "error_message": "drain_timeout must be 1000-60000ms"
+            }
+          ]
+        }
+      ],
+      "output_type": "bool",
+      "error_cases": [
+        {
+          "name": "not_running",
+          "condition": "Server is not currently running",
+          "error_type": "McpError::InternalError",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "Server is running"
+      ],
+      "postconditions": [
+        "No new connections accepted after call",
+        "In-flight requests either complete or are terminated after drain_timeout_ms",
+        "All Session key material is zeroized",
+        "Transport listener is closed",
+        "Returns true if all requests drained cleanly, false if force-terminated"
+      ],
+      "idempotent": true,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "SessionRegistry",
+          "description": "Zeroizes all session key material and clears registry"
+        },
+        {
+          "kind": "mutates_state",
+          "target": "Transport",
+          "description": "Closes transport listener and all connections"
+        },
+        {
+          "kind": "logging",
+          "target": "Shutdown log",
+          "description": "Logs shutdown event with drain statistics"
+        }
+      ],
+      "performance_budget": null
+    }
+  ],
+  "dependencies": [
+    "signet_vault",
+    "signet_cred",
+    "signet_proof",
+    "signet_sdk"
+  ],
+  "dependency_contracts": {
+    "signet_vault": [
+      "encrypt_field",
+      "decrypt_field",
+      "derive_tier_key",
+      "record_audit_entry",
+      "get_audit_trail",
+      "vault_query"
+    ],
+    "signet_cred": [
+      "issue_credential",
+      "verify_credential",
+      "select_disclosure"
+    ],
+    "signet_proof": [
+      "generate_proof",
+      "verify_proof",
+      "generate_range_proof",
+      "bind_proof_to_domain"
+    ],
+    "signet_sdk": [
+      "build_presentation",
+      "evaluate_policy",
+      "classify_tier"
+    ]
+  },
+  "invariants": [
+    "Vault server never has access to plaintext — all encryption/decryption happens client-side in the agent pipeline",
+    "Tier 3 compartment keys are never held by the agent — Tier 3 requests always suspend and delegate",
+    "Agent sessions expire and are revocable — every request checks session validity before processing",
+    "All proofs are domain-bound and time-limited — proof generation always includes audience and expiry",
+    "One-way data flow: vault -> agent -> service, never reverse — no inbound write path from external services",
+    "All disclosures are on the audit chain — audit record is written atomically before response is returned",
+    "ANOMALY decisions are never silently resolved — PolicyDecision::Anomaly requires explicit human resolution",
+    "Pipeline timeout equals deny (fail-secure) — any stage timeout produces McpError::PipelineTimeout and request is denied",
+    "No algorithm negotiation in any protocol — all algorithms are fixed at compile time",
+    "Wire types use deny_unknown_fields — no extra fields accepted in JSON-RPC requests",
+    "Domain types are only constructable via TryFrom<WireType> — invariants enforced at deserialization boundary",
+    "Session key material implements Zeroize on drop — no secret residue in memory",
+    "Tier 2 responses contain only Conclusion newtypes — raw data never appears in Tier 2 egress",
+    "Audit failure equals request denial — if audit write fails the tool response is not returned",
+    "JSON-RPC dispatcher accepts only the five registered tool methods — all other method names are rejected",
+    "Negotiate context state is always cleaned up on session expiry or revocation",
+    "HTTP+SSE transport requires TLS — plaintext HTTP is never accepted",
+    "McpError Display impl never contains key material, session secrets, or raw vault data"
+  ],
+  "requires": [
+    "signet_vault must be initialized and accessible",
+    "Ed25519 key pair available for server identity",
+    "Audit log subsystem in signet_vault must be operational",
+    "Policy engine rules loaded before accepting requests",
+    "For HTTP+SSE transport: TLS certificate and key available",
+    "For stdio transport: stdin/stdout file descriptors available"
+  ]
+}

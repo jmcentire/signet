@@ -1,0 +1,2302 @@
+{
+  "component_id": "signet_proof",
+  "name": "Signet Proof Workshop",
+  "description": "Proof derivation engine operating on cached credentials. Implements SD-JWT selective disclosure presentations, BBS+ unlinkable proofs (fresh internally-generated nonce per presentation for unlinkability), Bulletproof range proofs from Pedersen commitments using dalek bulletproofs (nightly). All proofs are domain-bound (relying party origin/DID + timestamp/nonce) and time-limited. Proof composition combines multiple heterogeneous proofs into a single composite presentation. Typestate pipeline (ProofRequest → ProofPlan → ProofBundle → BoundPresentation) enforces correct sequencing at compile time. An AuditManifest is co-produced with every BoundPresentation to satisfy the audit chain invariant. Performance SLAs: <20ms for SD-JWT and BBS+ derivation, <200ms for Bulletproof range proofs. BBS+ unlinkability invariant is statistically tested (N≥1000, chi-squared + K-S). Serialization: deterministic CBOR (ciborium) for composite presentations, SD-JWT compact serialization for its component. Security: Zeroizing<> wrappers on all secret material, RevealedClaims newtype prevents accidental full-credential leakage, Debug impls redact secrets, no algorithm negotiation, pipeline timeout = deny (fail-secure).",
+  "version": 3,
+  "types": [
+    {
+      "name": "RpIdentifier",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "Origin(str)",
+        "Did(str)"
+      ],
+      "inner_types": [],
+      "description": "Relying party identifier — either a web origin URL or a DID. Covers both web-based and decentralized identity-based verifiers."
+    },
+    {
+      "name": "Nonce",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "value",
+          "type_ref": "bytes",
+          "required": true,
+          "default": "",
+          "description": "32 bytes of cryptographically random nonce data. Wrapped in Zeroizing<> in implementation.",
+          "validators": [
+            {
+              "kind": "length",
+              "expression": "len == 32",
+              "error_message": "Nonce must be exactly 32 bytes"
+            }
+          ]
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Cryptographic nonce — 32 bytes of random data. Used for challenge-response freshness and domain binding. Constant-time equality comparison. Debug impl redacts value."
+    },
+    {
+      "name": "Timestamp",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "seconds_since_epoch",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Seconds since Unix epoch (1970-01-01T00:00:00Z). Must be positive.",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": "value > 0",
+              "error_message": "Timestamp must be a positive Unix epoch value"
+            }
+          ]
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Unix timestamp in seconds (UTC). Used for proof issuance and expiry times."
+    },
+    {
+      "name": "DomainBinding",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "rp_identifier",
+          "type_ref": "RpIdentifier",
+          "required": true,
+          "default": "",
+          "description": "The relying party this proof is bound to — web origin or DID.",
+          "validators": []
+        },
+        {
+          "name": "challenge_nonce",
+          "type_ref": "Nonce",
+          "required": true,
+          "default": "",
+          "description": "Challenge nonce from the relying party for freshness.",
+          "validators": []
+        },
+        {
+          "name": "issued_at",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "Timestamp when this proof was created.",
+          "validators": []
+        },
+        {
+          "name": "expires_at",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "Timestamp when this proof expires. Must be strictly after issued_at.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Binds every proof to a specific relying party, challenge, and time window. Required (never optional) for all proof generation operations. Enforces Invariant #4: all proofs are domain-bound and time-limited."
+    },
+    {
+      "name": "Predicate",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "Gte(int)",
+        "Lte(int)",
+        "InRange(int, int)"
+      ],
+      "inner_types": [],
+      "description": "Range predicate for Bulletproof range proofs. Defines the assertion to be proven about a committed value without revealing the value itself."
+    },
+    {
+      "name": "TimeBudget",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "remaining_ms",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Remaining wall-clock milliseconds for proof generation. Must be positive.",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": "value > 0",
+              "error_message": "TimeBudget remaining_ms must be positive"
+            }
+          ]
+        },
+        {
+          "name": "started_at_ms",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Monotonic clock timestamp (ms) when budget tracking began.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Tracks remaining wall-clock time across composed proofs. Exceeding the budget results in ProofError::TimeBudgetExceeded (fail-secure, Invariant #8). Monotonically decreasing — each proof operation deducts elapsed time."
+    },
+    {
+      "name": "RevealedClaims",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "paths",
+          "type_ref": "ClaimPathList",
+          "required": true,
+          "default": "",
+          "description": "Ordered list of claim paths to reveal. Must be non-empty and must not include all claims in the source credential.",
+          "validators": [
+            {
+              "kind": "length",
+              "expression": "len >= 1",
+              "error_message": "RevealedClaims must contain at least one claim path"
+            }
+          ]
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Newtype wrapper around a list of claim paths to selectively disclose. Prevents accidental full-credential leakage by requiring explicit construction. Maximum claim count enforced. Each ClaimPath references signet_cred::ClaimPath."
+    },
+    {
+      "name": "ClaimPathList",
+      "kind": "list",
+      "fields": [],
+      "item_type": "str",
+      "variants": [],
+      "inner_types": [],
+      "description": "Ordered list of claim path strings referencing signet_cred::ClaimPath."
+    },
+    {
+      "name": "PedersenWitness",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "value",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "The secret committed value (u64 range). Zeroized after use.",
+          "validators": []
+        },
+        {
+          "name": "blinding_factor",
+          "type_ref": "bytes",
+          "required": true,
+          "default": "",
+          "description": "32-byte scalar blinding factor. Zeroized after use. Wrapped in Zeroizing<>.",
+          "validators": [
+            {
+              "kind": "length",
+              "expression": "len == 32",
+              "error_message": "Blinding factor must be exactly 32 bytes"
+            }
+          ]
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Witness for a Pedersen commitment — the secret value and blinding factor. Both fields are Zeroizing<> in implementation. Debug impl fully redacts."
+    },
+    {
+      "name": "PedersenCommitment",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "commitment_bytes",
+          "type_ref": "bytes",
+          "required": true,
+          "default": "",
+          "description": "Compressed Ristretto point (32 bytes) representing the commitment.",
+          "validators": [
+            {
+              "kind": "length",
+              "expression": "len == 32",
+              "error_message": "Pedersen commitment must be 32 bytes (compressed Ristretto point)"
+            }
+          ]
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "A Pedersen commitment point — the public commitment to a hidden value."
+    },
+    {
+      "name": "SdJwtPresentation",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "compact_serialization",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "SD-JWT presentation in compact serialization format (tilde-delimited).",
+          "validators": []
+        },
+        {
+          "name": "disclosed_claim_names",
+          "type_ref": "ClaimPathList",
+          "required": true,
+          "default": "",
+          "description": "List of claim names that were disclosed in this presentation.",
+          "validators": []
+        },
+        {
+          "name": "domain_binding",
+          "type_ref": "DomainBinding",
+          "required": true,
+          "default": "",
+          "description": "The domain binding this presentation is bound to.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "An SD-JWT selective disclosure presentation in compact serialization format. Contains the issuer JWT, selected disclosure values, and key binding JWT."
+    },
+    {
+      "name": "BbsProof",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "proof_bytes",
+          "type_ref": "bytes",
+          "required": true,
+          "default": "",
+          "description": "Serialized BBS+ proof of knowledge.",
+          "validators": []
+        },
+        {
+          "name": "disclosed_indices",
+          "type_ref": "IntList",
+          "required": true,
+          "default": "",
+          "description": "Indices of messages (claims) disclosed in the proof.",
+          "validators": []
+        },
+        {
+          "name": "domain_binding",
+          "type_ref": "DomainBinding",
+          "required": true,
+          "default": "",
+          "description": "The domain binding this proof is bound to.",
+          "validators": []
+        },
+        {
+          "name": "embedded_nonce_hash",
+          "type_ref": "bytes",
+          "required": true,
+          "default": "",
+          "description": "SHA-256 hash of the internally-generated nonce (for audit, not the nonce itself). 32 bytes.",
+          "validators": [
+            {
+              "kind": "length",
+              "expression": "len == 32",
+              "error_message": "Nonce hash must be 32 bytes (SHA-256)"
+            }
+          ]
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "A BBS+ unlinkable zero-knowledge proof. Nonce is generated internally and embedded — never caller-supplied. Two independent presentations of the same credential are computationally unlinkable."
+    },
+    {
+      "name": "IntList",
+      "kind": "list",
+      "fields": [],
+      "item_type": "int",
+      "variants": [],
+      "inner_types": [],
+      "description": "List of integer values."
+    },
+    {
+      "name": "RangeProofEntry",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "proof_bytes",
+          "type_ref": "bytes",
+          "required": true,
+          "default": "",
+          "description": "Serialized Bulletproof range proof.",
+          "validators": []
+        },
+        {
+          "name": "commitment",
+          "type_ref": "PedersenCommitment",
+          "required": true,
+          "default": "",
+          "description": "The Pedersen commitment the proof is about.",
+          "validators": []
+        },
+        {
+          "name": "predicate",
+          "type_ref": "Predicate",
+          "required": true,
+          "default": "",
+          "description": "The predicate proven (Gte, Lte, or InRange).",
+          "validators": []
+        },
+        {
+          "name": "domain_binding",
+          "type_ref": "DomainBinding",
+          "required": true,
+          "default": "",
+          "description": "The domain binding this proof is bound to.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "A Bulletproof range proof demonstrating a committed value satisfies a predicate without revealing the value."
+    },
+    {
+      "name": "ProofEntry",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "SdJwt(SdJwtPresentation)",
+        "Bbs(BbsProof)",
+        "Range(RangeProofEntry)"
+      ],
+      "inner_types": [],
+      "description": "Tagged union of proof types for composition. #[non_exhaustive] to allow future proof types without breaking changes."
+    },
+    {
+      "name": "ProofEntryList",
+      "kind": "list",
+      "fields": [],
+      "item_type": "ProofEntry",
+      "variants": [],
+      "inner_types": [],
+      "description": "Ordered list of ProofEntry variants for composition."
+    },
+    {
+      "name": "ProofRequest",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "request_id",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Unique identifier for this proof request.",
+          "validators": []
+        },
+        {
+          "name": "domain_binding",
+          "type_ref": "DomainBinding",
+          "required": true,
+          "default": "",
+          "description": "Required domain binding for the entire request.",
+          "validators": []
+        },
+        {
+          "name": "requested_disclosures",
+          "type_ref": "DisclosureRequestList",
+          "required": true,
+          "default": "",
+          "description": "List of individual disclosure requests from the RP.",
+          "validators": []
+        },
+        {
+          "name": "time_budget",
+          "type_ref": "TimeBudget",
+          "required": true,
+          "default": "",
+          "description": "Time budget for the entire proof generation pipeline.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Typestate stage 1: Incoming proof request from a relying party. Parsed and validated but not yet planned. Immutable after construction."
+    },
+    {
+      "name": "DisclosureRequest",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "SelectiveDisclosure(SdJwtDisclosureRequest)",
+        "UnlinkableProof(BbsDisclosureRequest)",
+        "RangeAssertion(RangeDisclosureRequest)"
+      ],
+      "inner_types": [],
+      "description": "A single disclosure request — SD-JWT selective disclosure, BBS+ proof, or range proof."
+    },
+    {
+      "name": "DisclosureRequestList",
+      "kind": "list",
+      "fields": [],
+      "item_type": "DisclosureRequest",
+      "variants": [],
+      "inner_types": [],
+      "description": "List of disclosure requests in a proof request."
+    },
+    {
+      "name": "SdJwtDisclosureRequest",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "credential_handle",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Handle referencing the cached SD-JWT credential (from signet_cred).",
+          "validators": []
+        },
+        {
+          "name": "claim_paths",
+          "type_ref": "RevealedClaims",
+          "required": true,
+          "default": "",
+          "description": "Claims to selectively disclose.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Request to produce an SD-JWT selective disclosure presentation."
+    },
+    {
+      "name": "BbsDisclosureRequest",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "credential_handle",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Handle referencing the cached BBS+ credential (from signet_cred).",
+          "validators": []
+        },
+        {
+          "name": "disclosed_indices",
+          "type_ref": "IntList",
+          "required": true,
+          "default": "",
+          "description": "Indices of messages/claims to disclose in the proof.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Request to produce a BBS+ unlinkable proof. Note: no nonce field — nonce is generated internally to enforce unlinkability."
+    },
+    {
+      "name": "RangeDisclosureRequest",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "credential_handle",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Handle referencing the credential containing the committed attribute.",
+          "validators": []
+        },
+        {
+          "name": "attribute_name",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Name of the attribute to prove a range predicate about.",
+          "validators": []
+        },
+        {
+          "name": "predicate",
+          "type_ref": "Predicate",
+          "required": true,
+          "default": "",
+          "description": "The range predicate to prove (Gte, Lte, InRange).",
+          "validators": []
+        },
+        {
+          "name": "witness",
+          "type_ref": "PedersenWitness",
+          "required": true,
+          "default": "",
+          "description": "The witness (value + blinding factor) for the Pedersen commitment. Zeroized after proof generation.",
+          "validators": []
+        },
+        {
+          "name": "commitment",
+          "type_ref": "PedersenCommitment",
+          "required": true,
+          "default": "",
+          "description": "The public Pedersen commitment for this attribute.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Request to produce a Bulletproof range proof for a committed value."
+    },
+    {
+      "name": "ProofPlan",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "request_id",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Carried forward from ProofRequest.",
+          "validators": []
+        },
+        {
+          "name": "domain_binding",
+          "type_ref": "DomainBinding",
+          "required": true,
+          "default": "",
+          "description": "Domain binding for all proofs in this plan.",
+          "validators": []
+        },
+        {
+          "name": "planned_entries",
+          "type_ref": "PlannedEntryList",
+          "required": true,
+          "default": "",
+          "description": "Resolved and validated proof generation entries.",
+          "validators": []
+        },
+        {
+          "name": "remaining_budget",
+          "type_ref": "TimeBudget",
+          "required": true,
+          "default": "",
+          "description": "Remaining time budget after planning phase.",
+          "validators": []
+        },
+        {
+          "name": "estimated_total_ms",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Estimated total generation time in ms based on proof types.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Typestate stage 2: A validated and resolved plan for proof generation. All credential handles have been resolved to cached credentials, all predicates validated, and the time budget has been checked for feasibility. Immutable after construction."
+    },
+    {
+      "name": "PlannedEntry",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "SdJwtPlan(ResolvedSdJwtPlan)",
+        "BbsPlan(ResolvedBbsPlan)",
+        "RangePlan(ResolvedRangePlan)"
+      ],
+      "inner_types": [],
+      "description": "A resolved, validated proof generation plan entry with all inputs verified."
+    },
+    {
+      "name": "PlannedEntryList",
+      "kind": "list",
+      "fields": [],
+      "item_type": "PlannedEntry",
+      "variants": [],
+      "inner_types": [],
+      "description": "List of planned proof entries."
+    },
+    {
+      "name": "ResolvedSdJwtPlan",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "credential_handle",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Handle to the cached SD-JWT credential.",
+          "validators": []
+        },
+        {
+          "name": "revealed_claims",
+          "type_ref": "RevealedClaims",
+          "required": true,
+          "default": "",
+          "description": "Validated claim paths to reveal.",
+          "validators": []
+        },
+        {
+          "name": "estimated_ms",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Estimated generation time in ms.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Resolved SD-JWT proof plan with cached credential data."
+    },
+    {
+      "name": "ResolvedBbsPlan",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "credential_handle",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Handle to the cached BBS+ credential.",
+          "validators": []
+        },
+        {
+          "name": "disclosed_indices",
+          "type_ref": "IntList",
+          "required": true,
+          "default": "",
+          "description": "Validated message indices to disclose.",
+          "validators": []
+        },
+        {
+          "name": "estimated_ms",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Estimated generation time in ms.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Resolved BBS+ proof plan with cached credential data."
+    },
+    {
+      "name": "ResolvedRangePlan",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "credential_handle",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Handle to the credential with committed attribute.",
+          "validators": []
+        },
+        {
+          "name": "attribute_name",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Attribute name for the range proof.",
+          "validators": []
+        },
+        {
+          "name": "predicate",
+          "type_ref": "Predicate",
+          "required": true,
+          "default": "",
+          "description": "Validated range predicate.",
+          "validators": []
+        },
+        {
+          "name": "witness",
+          "type_ref": "PedersenWitness",
+          "required": true,
+          "default": "",
+          "description": "Witness value. Zeroized after proof generation.",
+          "validators": []
+        },
+        {
+          "name": "commitment",
+          "type_ref": "PedersenCommitment",
+          "required": true,
+          "default": "",
+          "description": "Public Pedersen commitment.",
+          "validators": []
+        },
+        {
+          "name": "estimated_ms",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Estimated generation time in ms.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Resolved Bulletproof range proof plan."
+    },
+    {
+      "name": "ProofBundle",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "request_id",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Carried forward from ProofPlan.",
+          "validators": []
+        },
+        {
+          "name": "domain_binding",
+          "type_ref": "DomainBinding",
+          "required": true,
+          "default": "",
+          "description": "Domain binding for all proofs.",
+          "validators": []
+        },
+        {
+          "name": "entries",
+          "type_ref": "ProofEntryList",
+          "required": true,
+          "default": "",
+          "description": "Generated proof entries.",
+          "validators": []
+        },
+        {
+          "name": "remaining_budget",
+          "type_ref": "TimeBudget",
+          "required": true,
+          "default": "",
+          "description": "Remaining time budget after proof generation.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Typestate stage 3: All individual proofs have been generated but not yet composed into a bound presentation. Contains heterogeneous proof entries ready for composition."
+    },
+    {
+      "name": "BoundPresentation",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "request_id",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Carried forward from original ProofRequest.",
+          "validators": []
+        },
+        {
+          "name": "domain_binding",
+          "type_ref": "DomainBinding",
+          "required": true,
+          "default": "",
+          "description": "The domain binding this presentation is bound to.",
+          "validators": []
+        },
+        {
+          "name": "entries",
+          "type_ref": "ProofEntryList",
+          "required": true,
+          "default": "",
+          "description": "The composed proof entries.",
+          "validators": []
+        },
+        {
+          "name": "cbor_encoded",
+          "type_ref": "bytes",
+          "required": true,
+          "default": "",
+          "description": "Deterministic CBOR serialization of the composite presentation.",
+          "validators": []
+        },
+        {
+          "name": "created_at",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "Timestamp when the presentation was finalized.",
+          "validators": []
+        },
+        {
+          "name": "expires_at",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "Timestamp when this presentation expires (minimum of domain_binding.expires_at and all individual proof expiries).",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Typestate stage 4 (terminal): A fully composed, domain-bound, time-limited presentation ready for transmission to the relying party. Serialized as deterministic CBOR. Co-produced with an AuditManifest."
+    },
+    {
+      "name": "AuditManifest",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "request_id",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Links to the originating ProofRequest.",
+          "validators": []
+        },
+        {
+          "name": "rp_identifier",
+          "type_ref": "RpIdentifier",
+          "required": true,
+          "default": "",
+          "description": "Which relying party received the presentation.",
+          "validators": []
+        },
+        {
+          "name": "disclosed_claim_summary",
+          "type_ref": "ClaimSummaryList",
+          "required": true,
+          "default": "",
+          "description": "Summary of what was disclosed (claim names, proof types) — never the actual values.",
+          "validators": []
+        },
+        {
+          "name": "proof_types_used",
+          "type_ref": "StrList",
+          "required": true,
+          "default": "",
+          "description": "List of proof type names used (e.g., 'sd-jwt', 'bbs+', 'bulletproof').",
+          "validators": []
+        },
+        {
+          "name": "issued_at",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "When the presentation was created.",
+          "validators": []
+        },
+        {
+          "name": "expires_at",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "When the presentation expires.",
+          "validators": []
+        },
+        {
+          "name": "presentation_hash",
+          "type_ref": "bytes",
+          "required": true,
+          "default": "",
+          "description": "SHA-256 hash of the BoundPresentation CBOR bytes for integrity linking.",
+          "validators": [
+            {
+              "kind": "length",
+              "expression": "len == 32",
+              "error_message": "Presentation hash must be 32 bytes (SHA-256)"
+            }
+          ]
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Audit record co-produced with every BoundPresentation. Records what was disclosed, to whom, and when. Written to the audit chain (Invariant #6: all disclosures are on the audit chain)."
+    },
+    {
+      "name": "ClaimSummary",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "credential_handle",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Handle of the credential the claim belongs to.",
+          "validators": []
+        },
+        {
+          "name": "claim_name",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Name/path of the disclosed claim.",
+          "validators": []
+        },
+        {
+          "name": "proof_type",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Type of proof used (sd-jwt, bbs+, bulletproof).",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Summary of a disclosed claim for audit purposes. Contains the claim name and proof type but never the claim value."
+    },
+    {
+      "name": "ClaimSummaryList",
+      "kind": "list",
+      "fields": [],
+      "item_type": "ClaimSummary",
+      "variants": [],
+      "inner_types": [],
+      "description": "List of claim disclosure summaries for audit."
+    },
+    {
+      "name": "StrList",
+      "kind": "list",
+      "fields": [],
+      "item_type": "str",
+      "variants": [],
+      "inner_types": [],
+      "description": "List of strings."
+    },
+    {
+      "name": "PresentationWithAudit",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "presentation",
+          "type_ref": "BoundPresentation",
+          "required": true,
+          "default": "",
+          "description": "The finalized, domain-bound presentation.",
+          "validators": []
+        },
+        {
+          "name": "audit_manifest",
+          "type_ref": "AuditManifest",
+          "required": true,
+          "default": "",
+          "description": "The audit manifest to be written to the audit chain.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Composite return type co-producing a BoundPresentation with its AuditManifest. Ensures Invariant #6: no presentation can be created without a corresponding audit record."
+    },
+    {
+      "name": "ProofError",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "CredentialNotFound(str)",
+        "CredentialExpired(str)",
+        "CredentialTypeMismatch(str)",
+        "InvalidClaimPath(str)",
+        "ClaimPathNotSelective(str)",
+        "FullDisclosurePrevented(str)",
+        "InvalidPredicate(str)",
+        "PredicateNotSatisfied(str)",
+        "InvalidDomainBinding(str)",
+        "DomainBindingExpired",
+        "NonceRejected",
+        "TimeBudgetExceeded",
+        "SdJwtDerivationFailed",
+        "BbsProofGenerationFailed",
+        "RangeProofGenerationFailed",
+        "BatchRangeProofFailed",
+        "CborSerializationFailed",
+        "CompositionFailed(str)",
+        "WitnessCommitmentMismatch",
+        "InternalCryptoError",
+        "AuditWriteFailed(str)",
+        "MinimumTtlViolation(str)"
+      ],
+      "inner_types": [],
+      "description": "Error type for the signet-proof crate. #[non_exhaustive], thiserror-derived. Crypto failure variants are intentionally opaque — no inner details to prevent oracle attacks. No raw key material in any variant."
+    },
+    {
+      "name": "BatchRangeRequest",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "entries",
+          "type_ref": "BatchRangeEntryList",
+          "required": true,
+          "default": "",
+          "description": "Individual range proof requests to batch together. Must contain at least 2 entries (single entries should use the non-batch API).",
+          "validators": []
+        },
+        {
+          "name": "domain_binding",
+          "type_ref": "DomainBinding",
+          "required": true,
+          "default": "",
+          "description": "Shared domain binding for all range proofs in the batch.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Request for batched Bulletproof range proof generation. Multiple range proofs sharing the same domain binding are generated in a single Bulletproof proving pass for efficiency."
+    },
+    {
+      "name": "BatchRangeEntry",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "attribute_name",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Name of the attribute.",
+          "validators": []
+        },
+        {
+          "name": "predicate",
+          "type_ref": "Predicate",
+          "required": true,
+          "default": "",
+          "description": "Range predicate to prove.",
+          "validators": []
+        },
+        {
+          "name": "witness",
+          "type_ref": "PedersenWitness",
+          "required": true,
+          "default": "",
+          "description": "Witness for the Pedersen commitment. Zeroized after use.",
+          "validators": []
+        },
+        {
+          "name": "commitment",
+          "type_ref": "PedersenCommitment",
+          "required": true,
+          "default": "",
+          "description": "Public Pedersen commitment.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "A single entry in a batch range proof request."
+    },
+    {
+      "name": "BatchRangeEntryList",
+      "kind": "list",
+      "fields": [],
+      "item_type": "BatchRangeEntry",
+      "variants": [],
+      "inner_types": [],
+      "description": "List of batch range proof entries."
+    },
+    {
+      "name": "RangeProofEntryList",
+      "kind": "list",
+      "fields": [],
+      "item_type": "RangeProofEntry",
+      "variants": [],
+      "inner_types": [],
+      "description": "List of range proof result entries."
+    },
+    {
+      "name": "ProofEngineConfig",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "default_ttl_seconds",
+          "type_ref": "int",
+          "required": true,
+          "default": "300",
+          "description": "Default time-to-live for generated proofs in seconds.",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": "value >= 10 && value <= 3600",
+              "error_message": "Default TTL must be between 10 and 3600 seconds"
+            }
+          ]
+        },
+        {
+          "name": "minimum_remaining_ttl_seconds",
+          "type_ref": "int",
+          "required": true,
+          "default": "5",
+          "description": "Minimum remaining TTL required on domain binding before proof generation is allowed. Prevents generating proofs that expire before delivery.",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": "value >= 1 && value <= 60",
+              "error_message": "Minimum remaining TTL must be between 1 and 60 seconds"
+            }
+          ]
+        },
+        {
+          "name": "sd_jwt_budget_ms",
+          "type_ref": "int",
+          "required": true,
+          "default": "20",
+          "description": "Per-proof time budget estimate for SD-JWT derivation in ms.",
+          "validators": []
+        },
+        {
+          "name": "bbs_budget_ms",
+          "type_ref": "int",
+          "required": true,
+          "default": "20",
+          "description": "Per-proof time budget estimate for BBS+ proof generation in ms.",
+          "validators": []
+        },
+        {
+          "name": "range_proof_budget_ms",
+          "type_ref": "int",
+          "required": true,
+          "default": "200",
+          "description": "Per-proof time budget estimate for Bulletproof range proof in ms.",
+          "validators": []
+        },
+        {
+          "name": "max_proofs_per_presentation",
+          "type_ref": "int",
+          "required": true,
+          "default": "16",
+          "description": "Maximum number of proof entries in a single composite presentation.",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": "value >= 1 && value <= 64",
+              "error_message": "Max proofs per presentation must be between 1 and 64"
+            }
+          ]
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Configuration for the ProofEngine. Immutable after construction."
+    }
+  ],
+  "functions": [
+    {
+      "name": "create_proof_engine",
+      "description": "Constructs and returns a new ProofEngine instance with the given configuration. The ProofEngine bundles SelectiveDisclosure, UnlinkableProver, RangeProver, and ProofComposer capabilities into a single entry point for the typestate pipeline.",
+      "inputs": [
+        {
+          "name": "config",
+          "type_ref": "ProofEngineConfig",
+          "required": true,
+          "default": "",
+          "description": "Engine configuration. Uses defaults if not customized.",
+          "validators": []
+        }
+      ],
+      "output_type": "ProofEngineConfig",
+      "error_cases": [],
+      "preconditions": [
+        "config.default_ttl_seconds is within [10, 3600]",
+        "config.minimum_remaining_ttl_seconds is within [1, 60]",
+        "config.max_proofs_per_presentation is within [1, 64]"
+      ],
+      "postconditions": [
+        "Returned engine is ready for proof generation",
+        "Engine holds no secret material at rest"
+      ],
+      "idempotent": true,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "validate_proof_request",
+      "description": "Typestate transition: ProofRequest → ProofPlan. Validates the incoming proof request: checks domain binding validity (not expired, minimum remaining TTL), resolves all credential handles via signet_cred, validates claim paths against credential schemas, checks predicate validity, estimates total proof generation time against the time budget, and produces an immutable ProofPlan. This is the planning/validation phase — no cryptographic operations are performed.",
+      "inputs": [
+        {
+          "name": "config",
+          "type_ref": "ProofEngineConfig",
+          "required": true,
+          "default": "",
+          "description": "Engine configuration for budget estimation.",
+          "validators": []
+        },
+        {
+          "name": "request",
+          "type_ref": "ProofRequest",
+          "required": true,
+          "default": "",
+          "description": "The incoming proof request to validate and plan.",
+          "validators": []
+        }
+      ],
+      "output_type": "ProofPlan",
+      "error_cases": [
+        {
+          "name": "domain_binding_expired",
+          "condition": "DomainBinding.expires_at <= current time",
+          "error_type": "ProofError::DomainBindingExpired",
+          "error_data": {}
+        },
+        {
+          "name": "minimum_ttl_violated",
+          "condition": "Remaining TTL on domain binding < config.minimum_remaining_ttl_seconds",
+          "error_type": "ProofError::MinimumTtlViolation",
+          "error_data": {}
+        },
+        {
+          "name": "credential_not_found",
+          "condition": "A credential handle cannot be resolved via signet_cred",
+          "error_type": "ProofError::CredentialNotFound",
+          "error_data": {}
+        },
+        {
+          "name": "credential_expired",
+          "condition": "A referenced credential has expired",
+          "error_type": "ProofError::CredentialExpired",
+          "error_data": {}
+        },
+        {
+          "name": "credential_type_mismatch",
+          "condition": "SD-JWT request references BBS+ credential or vice versa",
+          "error_type": "ProofError::CredentialTypeMismatch",
+          "error_data": {}
+        },
+        {
+          "name": "invalid_claim_path",
+          "condition": "A claim path does not exist in the credential schema",
+          "error_type": "ProofError::InvalidClaimPath",
+          "error_data": {}
+        },
+        {
+          "name": "full_disclosure_prevented",
+          "condition": "RevealedClaims covers all claims in the credential (would defeat selective disclosure)",
+          "error_type": "ProofError::FullDisclosurePrevented",
+          "error_data": {}
+        },
+        {
+          "name": "invalid_predicate",
+          "condition": "Predicate is malformed (e.g., InRange where lower >= upper)",
+          "error_type": "ProofError::InvalidPredicate",
+          "error_data": {}
+        },
+        {
+          "name": "time_budget_exceeded",
+          "condition": "Estimated total generation time exceeds remaining time budget",
+          "error_type": "ProofError::TimeBudgetExceeded",
+          "error_data": {}
+        },
+        {
+          "name": "invalid_domain_binding",
+          "condition": "DomainBinding fields are invalid (e.g., empty RP identifier)",
+          "error_type": "ProofError::InvalidDomainBinding",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "request.domain_binding.expires_at > request.domain_binding.issued_at",
+        "request.domain_binding has not expired (expires_at > now)",
+        "request.domain_binding remaining TTL >= config.minimum_remaining_ttl_seconds",
+        "request.time_budget.remaining_ms > 0",
+        "request.requested_disclosures is non-empty",
+        "Number of requested disclosures <= config.max_proofs_per_presentation"
+      ],
+      "postconditions": [
+        "All credential handles in ProofPlan are resolvable via signet_cred",
+        "All claim paths are valid for their respective credentials",
+        "All predicates are well-formed (e.g., InRange lower < upper)",
+        "ProofPlan.estimated_total_ms <= ProofPlan.remaining_budget.remaining_ms",
+        "ProofPlan.remaining_budget.remaining_ms < request.time_budget.remaining_ms (planning time deducted)",
+        "No cryptographic operations have been performed",
+        "No secret material is held"
+      ],
+      "idempotent": true,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "execute_proof_plan",
+      "description": "Typestate transition: ProofPlan → ProofBundle. Executes all proof generation operations described in the ProofPlan. Generates SD-JWT presentations, BBS+ proofs (with internally-generated nonces), and Bulletproof range proofs. Tracks wall-clock time and fails securely if the time budget is exceeded at any checkpoint. All witness/blinding data is zeroized after use. This is the cryptographic hot path.",
+      "inputs": [
+        {
+          "name": "plan",
+          "type_ref": "ProofPlan",
+          "required": true,
+          "default": "",
+          "description": "The validated proof plan to execute.",
+          "validators": []
+        }
+      ],
+      "output_type": "ProofBundle",
+      "error_cases": [
+        {
+          "name": "time_budget_exceeded",
+          "condition": "Wall-clock time exceeded remaining_budget during generation",
+          "error_type": "ProofError::TimeBudgetExceeded",
+          "error_data": {}
+        },
+        {
+          "name": "domain_binding_expired",
+          "condition": "Domain binding expired during proof generation",
+          "error_type": "ProofError::DomainBindingExpired",
+          "error_data": {}
+        },
+        {
+          "name": "sd_jwt_derivation_failed",
+          "condition": "SD-JWT selective disclosure derivation failed (opaque)",
+          "error_type": "ProofError::SdJwtDerivationFailed",
+          "error_data": {}
+        },
+        {
+          "name": "bbs_proof_generation_failed",
+          "condition": "BBS+ proof of knowledge generation failed (opaque)",
+          "error_type": "ProofError::BbsProofGenerationFailed",
+          "error_data": {}
+        },
+        {
+          "name": "range_proof_generation_failed",
+          "condition": "Bulletproof range proof generation failed (opaque)",
+          "error_type": "ProofError::RangeProofGenerationFailed",
+          "error_data": {}
+        },
+        {
+          "name": "witness_commitment_mismatch",
+          "condition": "Witness does not match the provided Pedersen commitment",
+          "error_type": "ProofError::WitnessCommitmentMismatch",
+          "error_data": {}
+        },
+        {
+          "name": "predicate_not_satisfied",
+          "condition": "Witness value does not satisfy the predicate (holder cannot prove a false claim)",
+          "error_type": "ProofError::PredicateNotSatisfied",
+          "error_data": {}
+        },
+        {
+          "name": "internal_crypto_error",
+          "condition": "Unexpected internal cryptographic error (opaque, no details)",
+          "error_type": "ProofError::InternalCryptoError",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "plan is a valid ProofPlan (produced by validate_proof_request)",
+        "plan.remaining_budget.remaining_ms > 0",
+        "plan.domain_binding has not expired since planning"
+      ],
+      "postconditions": [
+        "ProofBundle contains exactly len(plan.planned_entries) proof entries",
+        "All SD-JWT presentations use compact serialization format",
+        "All BBS+ proofs used internally-generated nonces (never caller-supplied)",
+        "All range proofs verify against their commitments and predicates",
+        "All proofs are domain-bound to plan.domain_binding",
+        "All PedersenWitness blinding_factor fields have been zeroized",
+        "All BBS+ nonces have been zeroized after proof generation",
+        "ProofBundle.remaining_budget reflects actual elapsed time",
+        "If any proof generation fails, no partial ProofBundle is returned (atomic)"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Generates cryptographic random nonces (BBS+)",
+        "Reads system monotonic clock for time budget tracking",
+        "Zeroizes secret material in memory after use"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "memory:witness_data",
+          "description": "Zeroizes PedersenWitness blinding factors and BBS+ nonces after use"
+        },
+        {
+          "kind": "mutates_state",
+          "target": "system:csprng",
+          "description": "Draws random bytes for BBS+ nonce generation"
+        }
+      ],
+      "performance_budget": {
+        "p95_latency_ms": 250,
+        "max_memory_mb": null,
+        "complexity": "O(n) where n = number of planned entries, dominated by Bulletproof range proofs at ~200ms each"
+      }
+    },
+    {
+      "name": "compose_presentation",
+      "description": "Typestate transition: ProofBundle → PresentationWithAudit (BoundPresentation + AuditManifest). Composes all proof entries in the bundle into a single BoundPresentation with deterministic CBOR serialization. Co-produces an AuditManifest recording what was disclosed (Invariant #6). Validates the final presentation has not expired (minimum-remaining-TTL check). The AuditManifest must be written to the audit chain by the caller via signet_audit before the presentation is transmitted.",
+      "inputs": [
+        {
+          "name": "config",
+          "type_ref": "ProofEngineConfig",
+          "required": true,
+          "default": "",
+          "description": "Engine configuration for TTL validation.",
+          "validators": []
+        },
+        {
+          "name": "bundle",
+          "type_ref": "ProofBundle",
+          "required": true,
+          "default": "",
+          "description": "The proof bundle to compose into a final presentation.",
+          "validators": []
+        }
+      ],
+      "output_type": "PresentationWithAudit",
+      "error_cases": [
+        {
+          "name": "time_budget_exceeded",
+          "condition": "Composition exceeds remaining time budget",
+          "error_type": "ProofError::TimeBudgetExceeded",
+          "error_data": {}
+        },
+        {
+          "name": "domain_binding_expired",
+          "condition": "Domain binding expired during composition",
+          "error_type": "ProofError::DomainBindingExpired",
+          "error_data": {}
+        },
+        {
+          "name": "minimum_ttl_violated",
+          "condition": "Resulting presentation would have less than minimum_remaining_ttl_seconds before expiry",
+          "error_type": "ProofError::MinimumTtlViolation",
+          "error_data": {}
+        },
+        {
+          "name": "cbor_serialization_failed",
+          "condition": "Deterministic CBOR encoding failed",
+          "error_type": "ProofError::CborSerializationFailed",
+          "error_data": {}
+        },
+        {
+          "name": "composition_failed",
+          "condition": "Proof entry composition failed (e.g., conflicting domain bindings)",
+          "error_type": "ProofError::CompositionFailed",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "bundle is a valid ProofBundle (produced by execute_proof_plan)",
+        "bundle.remaining_budget.remaining_ms > 0",
+        "bundle.domain_binding has not expired",
+        "bundle.entries is non-empty"
+      ],
+      "postconditions": [
+        "BoundPresentation.cbor_encoded is deterministic CBOR of the composite presentation",
+        "BoundPresentation.expires_at <= bundle.domain_binding.expires_at",
+        "BoundPresentation.expires_at is the minimum expiry across all proof entries and domain binding",
+        "AuditManifest.presentation_hash == SHA-256(BoundPresentation.cbor_encoded)",
+        "AuditManifest.disclosed_claim_summary lists every disclosed claim (no omissions)",
+        "AuditManifest contains no actual claim values (only names and types)",
+        "AuditManifest.rp_identifier matches bundle.domain_binding.rp_identifier",
+        "SD-JWT entries retain compact serialization within the CBOR envelope",
+        "No secret material is present in the BoundPresentation or AuditManifest"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Reads system clock for timestamp generation",
+        "Computes SHA-256 hash of CBOR-encoded presentation"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": "Pure computation — audit manifest is returned, not written (caller writes via signet_audit)"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "derive_sd_jwt_presentation",
+      "description": "SelectiveDisclosure trait: Derives an SD-JWT selective disclosure presentation from a cached SD-JWT credential. Selects the specified claims for disclosure and produces a key-binding JWT bound to the domain. Uses sd-jwt-rust (OpenWallet Foundation). This is the standalone SD-JWT derivation for use outside the typestate pipeline.",
+      "inputs": [
+        {
+          "name": "credential_handle",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Handle referencing the cached SD-JWT credential from signet_cred.",
+          "validators": []
+        },
+        {
+          "name": "revealed_claims",
+          "type_ref": "RevealedClaims",
+          "required": true,
+          "default": "",
+          "description": "Claims to selectively disclose. Must be a proper subset of the credential's claims.",
+          "validators": []
+        },
+        {
+          "name": "domain_binding",
+          "type_ref": "DomainBinding",
+          "required": true,
+          "default": "",
+          "description": "Required domain binding for the presentation.",
+          "validators": []
+        }
+      ],
+      "output_type": "SdJwtPresentation",
+      "error_cases": [
+        {
+          "name": "credential_not_found",
+          "condition": "credential_handle does not resolve",
+          "error_type": "ProofError::CredentialNotFound",
+          "error_data": {}
+        },
+        {
+          "name": "credential_expired",
+          "condition": "Referenced credential has expired",
+          "error_type": "ProofError::CredentialExpired",
+          "error_data": {}
+        },
+        {
+          "name": "credential_type_mismatch",
+          "condition": "credential_handle references a non-SD-JWT credential",
+          "error_type": "ProofError::CredentialTypeMismatch",
+          "error_data": {}
+        },
+        {
+          "name": "invalid_claim_path",
+          "condition": "A claim path does not exist in the credential",
+          "error_type": "ProofError::InvalidClaimPath",
+          "error_data": {}
+        },
+        {
+          "name": "claim_path_not_selective",
+          "condition": "A claim path references a non-selectively-disclosable claim",
+          "error_type": "ProofError::ClaimPathNotSelective",
+          "error_data": {}
+        },
+        {
+          "name": "full_disclosure_prevented",
+          "condition": "All claims would be disclosed",
+          "error_type": "ProofError::FullDisclosurePrevented",
+          "error_data": {}
+        },
+        {
+          "name": "domain_binding_expired",
+          "condition": "DomainBinding has expired",
+          "error_type": "ProofError::DomainBindingExpired",
+          "error_data": {}
+        },
+        {
+          "name": "sd_jwt_derivation_failed",
+          "condition": "Internal SD-JWT derivation error (opaque)",
+          "error_type": "ProofError::SdJwtDerivationFailed",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "credential_handle resolves to a valid, non-expired SD-JWT credential",
+        "revealed_claims.paths are valid claim paths in the credential",
+        "revealed_claims does not cover all claims (full disclosure prevented)",
+        "domain_binding has not expired",
+        "domain_binding.expires_at > domain_binding.issued_at"
+      ],
+      "postconditions": [
+        "Returned SdJwtPresentation.compact_serialization is valid SD-JWT compact format",
+        "Only the specified claims are disclosed",
+        "Key binding JWT is bound to domain_binding.rp_identifier and domain_binding.challenge_nonce",
+        "Presentation verifies against the issuer's public key"
+      ],
+      "idempotent": true,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": {
+        "p95_latency_ms": 20,
+        "max_memory_mb": null,
+        "complexity": "O(c) where c = number of claims in credential"
+      }
+    },
+    {
+      "name": "generate_bbs_proof",
+      "description": "UnlinkableProver trait: Generates a BBS+ unlinkable zero-knowledge proof from a cached BBS+ credential. The nonce is generated internally (never caller-supplied) to enforce unlinkability — this is a critical security property. Two calls with the same inputs produce unlinkable proofs. Uses anoncreds-v2-rs.",
+      "inputs": [
+        {
+          "name": "credential_handle",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Handle referencing the cached BBS+ credential from signet_cred.",
+          "validators": []
+        },
+        {
+          "name": "disclosed_indices",
+          "type_ref": "IntList",
+          "required": true,
+          "default": "",
+          "description": "Indices of messages/claims to disclose in the proof. Remaining messages are hidden.",
+          "validators": []
+        },
+        {
+          "name": "domain_binding",
+          "type_ref": "DomainBinding",
+          "required": true,
+          "default": "",
+          "description": "Required domain binding for the proof.",
+          "validators": []
+        }
+      ],
+      "output_type": "BbsProof",
+      "error_cases": [
+        {
+          "name": "credential_not_found",
+          "condition": "credential_handle does not resolve",
+          "error_type": "ProofError::CredentialNotFound",
+          "error_data": {}
+        },
+        {
+          "name": "credential_expired",
+          "condition": "Referenced credential has expired",
+          "error_type": "ProofError::CredentialExpired",
+          "error_data": {}
+        },
+        {
+          "name": "credential_type_mismatch",
+          "condition": "credential_handle references a non-BBS+ credential",
+          "error_type": "ProofError::CredentialTypeMismatch",
+          "error_data": {}
+        },
+        {
+          "name": "full_disclosure_prevented",
+          "condition": "All messages would be disclosed",
+          "error_type": "ProofError::FullDisclosurePrevented",
+          "error_data": {}
+        },
+        {
+          "name": "domain_binding_expired",
+          "condition": "DomainBinding has expired",
+          "error_type": "ProofError::DomainBindingExpired",
+          "error_data": {}
+        },
+        {
+          "name": "bbs_proof_generation_failed",
+          "condition": "Internal BBS+ proof generation error (opaque — no oracle)",
+          "error_type": "ProofError::BbsProofGenerationFailed",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "credential_handle resolves to a valid, non-expired BBS+ credential",
+        "disclosed_indices are valid indices within the credential's message count",
+        "disclosed_indices is a proper subset (not all messages disclosed)",
+        "domain_binding has not expired",
+        "domain_binding.expires_at > domain_binding.issued_at"
+      ],
+      "postconditions": [
+        "Returned BbsProof verifies against the issuer's BBS+ public key",
+        "Only messages at disclosed_indices are revealed",
+        "Proof uses an internally-generated 32-byte random nonce",
+        "BbsProof.embedded_nonce_hash = SHA-256(internally_generated_nonce)",
+        "Internal nonce has been zeroized after proof generation",
+        "Proof is domain-bound to domain_binding.rp_identifier and domain_binding.challenge_nonce",
+        "Two sequential calls with identical inputs produce computationally unlinkable proofs (statistical property)"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Generates 32 bytes of cryptographic randomness for internal nonce",
+        "Zeroizes internal nonce after proof generation"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "system:csprng",
+          "description": "Draws 32 random bytes for internal nonce generation"
+        },
+        {
+          "kind": "mutates_state",
+          "target": "memory:nonce",
+          "description": "Zeroizes internal nonce after embedding in proof"
+        }
+      ],
+      "performance_budget": {
+        "p95_latency_ms": 20,
+        "max_memory_mb": null,
+        "complexity": "O(m) where m = number of messages in credential"
+      }
+    },
+    {
+      "name": "generate_range_proof",
+      "description": "RangeProver trait: Generates a Bulletproof range proof from a Pedersen commitment witness, proving the committed value satisfies the given predicate without revealing the value. Uses dalek bulletproofs (nightly). Witness is zeroized after proof generation.",
+      "inputs": [
+        {
+          "name": "witness",
+          "type_ref": "PedersenWitness",
+          "required": true,
+          "default": "",
+          "description": "The secret value and blinding factor for the Pedersen commitment. Zeroized after use.",
+          "validators": []
+        },
+        {
+          "name": "commitment",
+          "type_ref": "PedersenCommitment",
+          "required": true,
+          "default": "",
+          "description": "The public Pedersen commitment to prove about.",
+          "validators": []
+        },
+        {
+          "name": "predicate",
+          "type_ref": "Predicate",
+          "required": true,
+          "default": "",
+          "description": "The range predicate to prove (Gte, Lte, InRange).",
+          "validators": []
+        },
+        {
+          "name": "domain_binding",
+          "type_ref": "DomainBinding",
+          "required": true,
+          "default": "",
+          "description": "Required domain binding for the proof.",
+          "validators": []
+        }
+      ],
+      "output_type": "RangeProofEntry",
+      "error_cases": [
+        {
+          "name": "witness_commitment_mismatch",
+          "condition": "Witness does not correspond to the given commitment",
+          "error_type": "ProofError::WitnessCommitmentMismatch",
+          "error_data": {}
+        },
+        {
+          "name": "predicate_not_satisfied",
+          "condition": "Witness value does not satisfy the predicate",
+          "error_type": "ProofError::PredicateNotSatisfied",
+          "error_data": {}
+        },
+        {
+          "name": "invalid_predicate",
+          "condition": "Predicate is malformed (e.g., InRange lower >= upper)",
+          "error_type": "ProofError::InvalidPredicate",
+          "error_data": {}
+        },
+        {
+          "name": "domain_binding_expired",
+          "condition": "DomainBinding has expired",
+          "error_type": "ProofError::DomainBindingExpired",
+          "error_data": {}
+        },
+        {
+          "name": "range_proof_generation_failed",
+          "condition": "Internal Bulletproof range proof generation error (opaque)",
+          "error_type": "ProofError::RangeProofGenerationFailed",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "witness.value satisfies predicate (cannot prove a false statement)",
+        "witness matches commitment (re-computing commitment from witness yields commitment)",
+        "predicate is well-formed (InRange: lower < upper; Gte/Lte: value in u64 range)",
+        "domain_binding has not expired",
+        "domain_binding.expires_at > domain_binding.issued_at"
+      ],
+      "postconditions": [
+        "Returned RangeProofEntry.proof_bytes verifies against commitment and predicate",
+        "Proof is domain-bound to domain_binding",
+        "witness.blinding_factor has been zeroized",
+        "witness.value has been zeroized",
+        "No witness material appears in the returned proof or error"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Zeroizes witness material after proof generation"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "memory:witness_data",
+          "description": "Zeroizes PedersenWitness value and blinding_factor after proof generation"
+        }
+      ],
+      "performance_budget": {
+        "p95_latency_ms": 200,
+        "max_memory_mb": null,
+        "complexity": "O(log n) where n = range size in bits (64-bit Bulletproof)"
+      }
+    },
+    {
+      "name": "batch_range_prove",
+      "description": "RangeProver trait (batch): Generates multiple Bulletproof range proofs in a single proving pass for efficiency. All proofs share the same domain binding. Uses dalek bulletproofs aggregated proving. More efficient than individual proofs when 2+ range proofs are needed. All witnesses are zeroized after proof generation.",
+      "inputs": [
+        {
+          "name": "batch_request",
+          "type_ref": "BatchRangeRequest",
+          "required": true,
+          "default": "",
+          "description": "Batch of range proof requests sharing a domain binding. Must contain >= 2 entries.",
+          "validators": []
+        }
+      ],
+      "output_type": "RangeProofEntryList",
+      "error_cases": [
+        {
+          "name": "too_few_entries",
+          "condition": "batch_request.entries.len() < 2",
+          "error_type": "ProofError::InvalidPredicate",
+          "error_data": {}
+        },
+        {
+          "name": "witness_commitment_mismatch",
+          "condition": "Any witness does not match its commitment",
+          "error_type": "ProofError::WitnessCommitmentMismatch",
+          "error_data": {}
+        },
+        {
+          "name": "predicate_not_satisfied",
+          "condition": "Any witness does not satisfy its predicate",
+          "error_type": "ProofError::PredicateNotSatisfied",
+          "error_data": {}
+        },
+        {
+          "name": "invalid_predicate",
+          "condition": "Any predicate is malformed",
+          "error_type": "ProofError::InvalidPredicate",
+          "error_data": {}
+        },
+        {
+          "name": "domain_binding_expired",
+          "condition": "Domain binding has expired",
+          "error_type": "ProofError::DomainBindingExpired",
+          "error_data": {}
+        },
+        {
+          "name": "batch_range_proof_failed",
+          "condition": "Internal batch Bulletproof generation error (opaque)",
+          "error_type": "ProofError::BatchRangeProofFailed",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "batch_request.entries.len() >= 2",
+        "All witnesses satisfy their respective predicates",
+        "All witnesses match their respective commitments",
+        "All predicates are well-formed",
+        "batch_request.domain_binding has not expired"
+      ],
+      "postconditions": [
+        "Returned list has same length as batch_request.entries",
+        "Each RangeProofEntry independently verifies against its commitment and predicate",
+        "All proofs are domain-bound to batch_request.domain_binding",
+        "All witness blinding factors and values have been zeroized",
+        "Total generation time < N * 200ms (batch efficiency)"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Zeroizes all witness material after proof generation"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "memory:witness_data",
+          "description": "Zeroizes all PedersenWitness values and blinding_factors after batch proof generation"
+        }
+      ],
+      "performance_budget": {
+        "p95_latency_ms": 500,
+        "max_memory_mb": null,
+        "complexity": "O(n * log b) where n = number of proofs, b = range size in bits (aggregated Bulletproof)"
+      }
+    },
+    {
+      "name": "run_proof_pipeline",
+      "description": "ProofEngine convenience method: Runs the full typestate pipeline ProofRequest → ProofPlan → ProofBundle → PresentationWithAudit in a single call. Internally calls validate_proof_request, execute_proof_plan, and compose_presentation in sequence. Fails securely at any stage. This is the primary entry point for most callers.",
+      "inputs": [
+        {
+          "name": "config",
+          "type_ref": "ProofEngineConfig",
+          "required": true,
+          "default": "",
+          "description": "Engine configuration.",
+          "validators": []
+        },
+        {
+          "name": "request",
+          "type_ref": "ProofRequest",
+          "required": true,
+          "default": "",
+          "description": "The proof request to process.",
+          "validators": []
+        }
+      ],
+      "output_type": "PresentationWithAudit",
+      "error_cases": [
+        {
+          "name": "domain_binding_expired",
+          "condition": "DomainBinding expired at any pipeline stage",
+          "error_type": "ProofError::DomainBindingExpired",
+          "error_data": {}
+        },
+        {
+          "name": "minimum_ttl_violated",
+          "condition": "Remaining TTL below minimum at any stage",
+          "error_type": "ProofError::MinimumTtlViolation",
+          "error_data": {}
+        },
+        {
+          "name": "credential_not_found",
+          "condition": "Any credential handle cannot be resolved",
+          "error_type": "ProofError::CredentialNotFound",
+          "error_data": {}
+        },
+        {
+          "name": "credential_expired",
+          "condition": "Any referenced credential has expired",
+          "error_type": "ProofError::CredentialExpired",
+          "error_data": {}
+        },
+        {
+          "name": "credential_type_mismatch",
+          "condition": "Credential type does not match request type",
+          "error_type": "ProofError::CredentialTypeMismatch",
+          "error_data": {}
+        },
+        {
+          "name": "invalid_claim_path",
+          "condition": "A claim path does not exist in the credential",
+          "error_type": "ProofError::InvalidClaimPath",
+          "error_data": {}
+        },
+        {
+          "name": "full_disclosure_prevented",
+          "condition": "Full disclosure attempted",
+          "error_type": "ProofError::FullDisclosurePrevented",
+          "error_data": {}
+        },
+        {
+          "name": "invalid_predicate",
+          "condition": "A predicate is malformed",
+          "error_type": "ProofError::InvalidPredicate",
+          "error_data": {}
+        },
+        {
+          "name": "predicate_not_satisfied",
+          "condition": "A witness does not satisfy its predicate",
+          "error_type": "ProofError::PredicateNotSatisfied",
+          "error_data": {}
+        },
+        {
+          "name": "time_budget_exceeded",
+          "condition": "Time budget exceeded at any stage (fail-secure)",
+          "error_type": "ProofError::TimeBudgetExceeded",
+          "error_data": {}
+        },
+        {
+          "name": "witness_commitment_mismatch",
+          "condition": "A witness does not match its commitment",
+          "error_type": "ProofError::WitnessCommitmentMismatch",
+          "error_data": {}
+        },
+        {
+          "name": "sd_jwt_derivation_failed",
+          "condition": "SD-JWT derivation failed (opaque)",
+          "error_type": "ProofError::SdJwtDerivationFailed",
+          "error_data": {}
+        },
+        {
+          "name": "bbs_proof_generation_failed",
+          "condition": "BBS+ proof generation failed (opaque)",
+          "error_type": "ProofError::BbsProofGenerationFailed",
+          "error_data": {}
+        },
+        {
+          "name": "range_proof_generation_failed",
+          "condition": "Range proof generation failed (opaque)",
+          "error_type": "ProofError::RangeProofGenerationFailed",
+          "error_data": {}
+        },
+        {
+          "name": "cbor_serialization_failed",
+          "condition": "CBOR serialization failed",
+          "error_type": "ProofError::CborSerializationFailed",
+          "error_data": {}
+        },
+        {
+          "name": "composition_failed",
+          "condition": "Proof composition failed",
+          "error_type": "ProofError::CompositionFailed",
+          "error_data": {}
+        },
+        {
+          "name": "internal_crypto_error",
+          "condition": "Unexpected cryptographic error (opaque)",
+          "error_type": "ProofError::InternalCryptoError",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "All preconditions of validate_proof_request apply",
+        "All preconditions of execute_proof_plan apply",
+        "All preconditions of compose_presentation apply"
+      ],
+      "postconditions": [
+        "All postconditions of validate_proof_request, execute_proof_plan, and compose_presentation apply",
+        "AuditManifest is co-produced (caller must write to audit chain before transmitting presentation)",
+        "All secret material has been zeroized",
+        "If any stage fails, no partial results are returned (atomic pipeline)"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "All side effects of validate_proof_request, execute_proof_plan, and compose_presentation"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "memory:witness_data",
+          "description": "Zeroizes all secret material after pipeline completion"
+        },
+        {
+          "kind": "mutates_state",
+          "target": "system:csprng",
+          "description": "Draws random bytes for BBS+ nonce generation"
+        }
+      ],
+      "performance_budget": {
+        "p95_latency_ms": 500,
+        "max_memory_mb": null,
+        "complexity": "O(n) where n = number of proof entries, dominated by Bulletproof range proofs"
+      }
+    },
+    {
+      "name": "validate_domain_binding",
+      "description": "Validates a DomainBinding for correctness and liveness. Checks that expires_at > issued_at, that the binding has not expired, that the remaining TTL meets the minimum threshold, and that the RP identifier is well-formed. Utility function used internally by all proof generation functions.",
+      "inputs": [
+        {
+          "name": "domain_binding",
+          "type_ref": "DomainBinding",
+          "required": true,
+          "default": "",
+          "description": "The domain binding to validate.",
+          "validators": []
+        },
+        {
+          "name": "minimum_remaining_ttl_seconds",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Minimum remaining TTL required in seconds.",
+          "validators": []
+        }
+      ],
+      "output_type": "bool",
+      "error_cases": [
+        {
+          "name": "domain_binding_expired",
+          "condition": "expires_at <= current time",
+          "error_type": "ProofError::DomainBindingExpired",
+          "error_data": {}
+        },
+        {
+          "name": "minimum_ttl_violated",
+          "condition": "Remaining TTL < minimum_remaining_ttl_seconds",
+          "error_type": "ProofError::MinimumTtlViolation",
+          "error_data": {}
+        },
+        {
+          "name": "invalid_domain_binding",
+          "condition": "expires_at <= issued_at, or RP identifier is empty/malformed",
+          "error_type": "ProofError::InvalidDomainBinding",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "minimum_remaining_ttl_seconds >= 1"
+      ],
+      "postconditions": [
+        "Returns true only if all validation checks pass",
+        "No side effects"
+      ],
+      "idempotent": true,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "serialize_presentation_cbor",
+      "description": "Serializes a BoundPresentation to deterministic CBOR using ciborium. Produces canonical byte ordering for reproducible hashing. SD-JWT entries within the CBOR retain their compact serialization as string values.",
+      "inputs": [
+        {
+          "name": "presentation",
+          "type_ref": "BoundPresentation",
+          "required": true,
+          "default": "",
+          "description": "The presentation to serialize.",
+          "validators": []
+        }
+      ],
+      "output_type": "bytes",
+      "error_cases": [
+        {
+          "name": "cbor_serialization_failed",
+          "condition": "CBOR encoding failed",
+          "error_type": "ProofError::CborSerializationFailed",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "presentation is a valid BoundPresentation",
+        "presentation.entries is non-empty"
+      ],
+      "postconditions": [
+        "Output is valid deterministic CBOR",
+        "Deserializing the output produces an equivalent BoundPresentation",
+        "SD-JWT entries are represented as CBOR text strings in compact serialization",
+        "Output is reproducible (same input always produces identical bytes)"
+      ],
+      "idempotent": true,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "deserialize_presentation_cbor",
+      "description": "Deserializes a BoundPresentation from CBOR bytes. Validates structural integrity but does not verify cryptographic proofs (verification is the relying party's responsibility).",
+      "inputs": [
+        {
+          "name": "cbor_bytes",
+          "type_ref": "bytes",
+          "required": true,
+          "default": "",
+          "description": "CBOR-encoded presentation bytes.",
+          "validators": []
+        }
+      ],
+      "output_type": "BoundPresentation",
+      "error_cases": [
+        {
+          "name": "cbor_deserialization_failed",
+          "condition": "Input is not valid CBOR or does not match BoundPresentation schema",
+          "error_type": "ProofError::CborSerializationFailed",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "cbor_bytes is non-empty",
+        "cbor_bytes is valid CBOR"
+      ],
+      "postconditions": [
+        "Returned BoundPresentation is structurally valid",
+        "Cryptographic proofs are NOT verified (structural deserialization only)",
+        "Re-serializing produces bytes identical to input (round-trip)"
+      ],
+      "idempotent": true,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    }
+  ],
+  "dependencies": [
+    "signet_cred",
+    "signet_vault",
+    "signet_audit"
+  ],
+  "dependency_contracts": {
+    "signet_cred": [
+      "CachedCredential",
+      "CredentialHandle",
+      "ClaimPath",
+      "IssuerPublicKey",
+      "BbsPublicKey",
+      "SdJwtCredential",
+      "BbsCredential"
+    ],
+    "signet_vault": [
+      "VaultSealedKey",
+      "KeyDerivationContext"
+    ],
+    "signet_audit": [
+      "AuditEntry",
+      "AuditChainWriter"
+    ]
+  },
+  "invariants": [
+    "INV-01: All proofs are domain-bound — no proof generation function can be called without a valid, non-expired DomainBinding. DomainBinding is a required parameter (never optional) on every proof generation path.",
+    "INV-02: All proofs are time-limited — every proof has an explicit expires_at and the pipeline checks remaining TTL at every stage. Pipeline timeout = deny (fail-secure).",
+    "INV-03: BBS+ nonces are always generated internally — the UnlinkableProver trait signature has no nonce input parameter. Two presentations of the same credential are computationally unlinkable. Statistically tested with N≥1000 proofs using chi-squared and K-S tests.",
+    "INV-04: No full credential disclosure — RevealedClaims newtype and disclosed_indices validation prevent disclosing all claims/messages. FullDisclosurePrevented error enforced at validation time.",
+    "INV-05: All secret material is zeroized after use — PedersenWitness blinding_factor and value, BBS+ internal nonces, and any intermediate secret scalars are wrapped in Zeroizing<> and zeroized on drop.",
+    "INV-06: Every BoundPresentation co-produces an AuditManifest — PresentationWithAudit return type makes it impossible to obtain a presentation without an audit record. Caller must write AuditManifest to signet_audit before transmitting.",
+    "INV-07: Crypto failure errors are opaque — SdJwtDerivationFailed, BbsProofGenerationFailed, RangeProofGenerationFailed, and InternalCryptoError carry no inner details. No raw key material in any error variant. Prevents oracle attacks.",
+    "INV-08: Typestate pipeline prevents misuse — ProofRequest, ProofPlan, ProofBundle, and BoundPresentation are distinct types with no public constructors. Each can only be produced by the preceding pipeline stage.",
+    "INV-09: No algorithm negotiation — proof types and algorithms are fixed at compile time. No runtime algorithm selection or negotiation in any protocol path.",
+    "INV-10: One-way data flow — proofs flow vault → agent → service (RP). The proof engine never accepts or processes data flowing from service back toward the vault.",
+    "INV-11: Debug impls redact all secret material — PedersenWitness, Nonce, and any type containing secrets implement Debug with redacted output (e.g., 'PedersenWitness { value: [REDACTED], blinding_factor: [REDACTED] }').",
+    "INV-12: Atomic pipeline — if any stage of the typestate pipeline fails, no partial results are returned. All-or-nothing proof generation.",
+    "INV-13: Deterministic CBOR serialization — same BoundPresentation always serializes to identical bytes via ciborium deterministic encoding. Required for reproducible AuditManifest.presentation_hash.",
+    "INV-14: Tier 3 compartment keys never held by agent — proof engine operates on cached credentials and derived proofs only. No Tier 3 vault decryption keys are accessible to the proof engine.",
+    "INV-15: Witness-commitment consistency checked before proof generation — generate_range_proof and batch_range_prove verify that each witness matches its commitment before attempting proof generation. WitnessCommitmentMismatch returned on mismatch."
+  ],
+  "requires": [
+    "signet_cred: provides CachedCredential, CredentialHandle, ClaimPath, IssuerPublicKey, BbsPublicKey, SdJwtCredential, BbsCredential",
+    "signet_vault: provides VaultSealedKey and KeyDerivationContext for compartmentalized key access",
+    "signet_audit: provides AuditChainWriter for recording all disclosures on the audit chain (Invariant #6)",
+    "aws-lc-rs: FIPS-path primitives for HKDF-SHA-256 domain binding derivation",
+    "anoncreds-v2-rs: BBS+ signature and proof primitives",
+    "dalek bulletproofs (nightly): Pedersen commitments and range proof generation",
+    "sd-jwt-rust (OpenWallet Foundation): SD-JWT selective disclosure presentation",
+    "ciborium: deterministic CBOR serialization for composite presentations",
+    "rusty_paseto: PASETO v4 capability token validation for agent session verification",
+    "thiserror: ergonomic error type derivation",
+    "zeroize: Zeroizing<> wrapper for secret material"
+  ]
+}

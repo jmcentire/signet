@@ -1,0 +1,2269 @@
+{
+  "component_id": "signet_notify",
+  "name": "Signet Notification Channel",
+  "description": "Webhook-based authorization channel for Tier 3 requests and ANOMALY escalations. Presents structured reasoning payload: who is asking, what they want, why it is unusual, what options the user has. Accepts user response: approve, deny, or modify (with scope adjustment). Timeout defaults to deny (fail-secure). Sub-second delivery target for webhooks. Implements webhook delivery with retry logic, HMAC-SHA256 signature verification for callback authenticity. Response propagation back to the suspended policy decision. SMS and push channels are out of scope for v1.",
+  "version": 1,
+  "types": [
+    {
+      "name": "ChallengeId",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "value",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "URL-safe base64-encoded 128-bit random identifier",
+          "validators": [
+            {
+              "kind": "length",
+              "expression": "len >= 16 && len <= 64",
+              "error_message": "ChallengeId must be between 16 and 64 characters"
+            },
+            {
+              "kind": "regex",
+              "expression": "^[A-Za-z0-9_-]+$",
+              "error_message": "ChallengeId must be URL-safe base64"
+            }
+          ]
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Newtype wrapper around a unique challenge identifier string. Not interchangeable with DeliveryId or EventId. Generated as a cryptographically random 128-bit value encoded as URL-safe base64. Implements Display, Clone, Eq, Hash, Serialize, Deserialize."
+    },
+    {
+      "name": "DeliveryId",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "value",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "URL-safe base64-encoded 128-bit random identifier",
+          "validators": [
+            {
+              "kind": "length",
+              "expression": "len >= 16 && len <= 64",
+              "error_message": "DeliveryId must be between 16 and 64 characters"
+            },
+            {
+              "kind": "regex",
+              "expression": "^[A-Za-z0-9_-]+$",
+              "error_message": "DeliveryId must be URL-safe base64"
+            }
+          ]
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Newtype wrapper around a unique webhook delivery attempt identifier. Not interchangeable with ChallengeId or EventId. Generated per delivery attempt. Implements Display, Clone, Eq, Hash, Serialize, Deserialize."
+    },
+    {
+      "name": "EventId",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "value",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "URL-safe base64-encoded 128-bit random identifier",
+          "validators": [
+            {
+              "kind": "length",
+              "expression": "len >= 16 && len <= 64",
+              "error_message": "EventId must be between 16 and 64 characters"
+            },
+            {
+              "kind": "regex",
+              "expression": "^[A-Za-z0-9_-]+$",
+              "error_message": "EventId must be URL-safe base64"
+            }
+          ]
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Newtype wrapper around a unique notification event identifier. Correlates the logical authorization event across retries and audit records. Not interchangeable with ChallengeId or DeliveryId. Implements Display, Clone, Eq, Hash, Serialize, Deserialize."
+    },
+    {
+      "name": "Timestamp",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "rfc3339",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "RFC 3339 formatted UTC timestamp string",
+          "validators": [
+            {
+              "kind": "regex",
+              "expression": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$",
+              "error_message": "Timestamp must be RFC 3339 UTC format"
+            }
+          ]
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "RFC 3339 formatted timestamp. Serialized as a string in JSON. Uses the `time` crate OffsetDateTime internally."
+    },
+    {
+      "name": "Duration",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "seconds",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Duration in seconds, must be non-negative",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": "value >= 0",
+              "error_message": "Duration must be non-negative"
+            }
+          ]
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "A non-negative duration in whole seconds, used for timeouts and TTLs."
+    },
+    {
+      "name": "ScopeEntry",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "resource",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Hierarchical resource path (e.g., 'vault.financial.tax_returns')",
+          "validators": [
+            {
+              "kind": "length",
+              "expression": "len >= 1 && len <= 512",
+              "error_message": "Resource path must be between 1 and 512 characters"
+            }
+          ]
+        },
+        {
+          "name": "action",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Action on the resource (e.g., 'read', 'prove', 'disclose')",
+          "validators": [
+            {
+              "kind": "length",
+              "expression": "len >= 1 && len <= 128",
+              "error_message": "Action must be between 1 and 128 characters"
+            }
+          ]
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "A single scope permission entry, representing a resource path and an action. Used within ScopeSet for subset validation on Modify responses."
+    },
+    {
+      "name": "ScopeSet",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "entries",
+          "type_ref": "ScopeEntryList",
+          "required": true,
+          "default": "",
+          "description": "The scope entries in this set, deduplicated by (resource, action) pair",
+          "validators": [
+            {
+              "kind": "length",
+              "expression": "len >= 1",
+              "error_message": "ScopeSet must contain at least one entry"
+            }
+          ]
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "An ordered, deduplicated set of ScopeEntry values. First-class type that enforces subset validation: a modified scope must be a strict subset of the originally requested scope. Prevents privilege escalation on Modify responses. Implements PartialOrd for subset checks."
+    },
+    {
+      "name": "ScopeEntryList",
+      "kind": "list",
+      "fields": [],
+      "item_type": "ScopeEntry",
+      "variants": [],
+      "inner_types": [],
+      "description": "A list of ScopeEntry values."
+    },
+    {
+      "name": "RequesterInfo",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "service_name",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Human-readable name of the requesting service",
+          "validators": [
+            {
+              "kind": "length",
+              "expression": "len >= 1 && len <= 256",
+              "error_message": "Service name must be between 1 and 256 characters"
+            }
+          ]
+        },
+        {
+          "name": "service_identifier",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Unique machine identifier for the requesting service (e.g., DID, domain)",
+          "validators": []
+        },
+        {
+          "name": "agent_session_id",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Identifier of the agent session mediating this request",
+          "validators": []
+        },
+        {
+          "name": "request_timestamp",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "When the original request was received by the agent",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Structured information about who is making the request. Presented to the user as part of the authorization reasoning payload."
+    },
+    {
+      "name": "AnomalyContext",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "anomaly_type",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Category of the anomaly (e.g., 'role_mismatch', 'unusual_time', 'excessive_scope', 'frequency_spike')",
+          "validators": []
+        },
+        {
+          "name": "severity",
+          "type_ref": "AnomalySeverity",
+          "required": true,
+          "default": "",
+          "description": "Severity classification of the anomaly",
+          "validators": []
+        },
+        {
+          "name": "explanation",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Human-readable explanation of why this is anomalous",
+          "validators": [
+            {
+              "kind": "length",
+              "expression": "len >= 1 && len <= 2048",
+              "error_message": "Explanation must be between 1 and 2048 characters"
+            }
+          ]
+        },
+        {
+          "name": "evidence_summary",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Summary of the evidence that triggered the anomaly detection, with no raw credential data",
+          "validators": []
+        },
+        {
+          "name": "policy_rule_id",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Identifier of the policy rule that triggered the escalation",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Structured context explaining why a request was flagged as anomalous. Presented to the user for informed decision-making."
+    },
+    {
+      "name": "AnomalySeverity",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "Low",
+        "Medium",
+        "High",
+        "Critical"
+      ],
+      "inner_types": [],
+      "description": "Severity levels for anomaly escalations. Determines default timeout and UI urgency hints."
+    },
+    {
+      "name": "AvailableActions",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "can_approve",
+          "type_ref": "bool",
+          "required": true,
+          "default": "",
+          "description": "Whether the user may approve the request as-is",
+          "validators": []
+        },
+        {
+          "name": "can_deny",
+          "type_ref": "bool",
+          "required": true,
+          "default": "",
+          "description": "Whether the user may deny the request (always true)",
+          "validators": []
+        },
+        {
+          "name": "can_modify",
+          "type_ref": "bool",
+          "required": true,
+          "default": "",
+          "description": "Whether the user may modify (reduce) the scope",
+          "validators": []
+        },
+        {
+          "name": "suggested_scope",
+          "type_ref": "OptionalScopeSet",
+          "required": false,
+          "default": "",
+          "description": "If can_modify is true, a suggested reduced scope the user might accept. Absent if modification is not available.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Describes the set of actions available to the user for a given authorization request. Always includes approve and deny; may include modify with a suggested reduced scope."
+    },
+    {
+      "name": "OptionalScopeSet",
+      "kind": "optional",
+      "fields": [],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [
+        "ScopeSet"
+      ],
+      "description": "An optional ScopeSet, present when scope modification is available."
+    },
+    {
+      "name": "Tier3AccessPayload",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "requester",
+          "type_ref": "RequesterInfo",
+          "required": true,
+          "default": "",
+          "description": "Who is asking for access",
+          "validators": []
+        },
+        {
+          "name": "compartment_label",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Human-readable label for the Tier 3 compartment (e.g., 'Medical Records', 'Financial Documents')",
+          "validators": []
+        },
+        {
+          "name": "requested_scope",
+          "type_ref": "ScopeSet",
+          "required": true,
+          "default": "",
+          "description": "Exact scope of data access being requested",
+          "validators": []
+        },
+        {
+          "name": "justification",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Machine-generated or service-provided justification for the request",
+          "validators": [
+            {
+              "kind": "length",
+              "expression": "len >= 1 && len <= 4096",
+              "error_message": "Justification must be between 1 and 4096 characters"
+            }
+          ]
+        },
+        {
+          "name": "available_actions",
+          "type_ref": "AvailableActions",
+          "required": true,
+          "default": "",
+          "description": "Actions the user can take on this request",
+          "validators": []
+        },
+        {
+          "name": "expires_at",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "When this authorization request expires (deny on timeout)",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Payload for a Tier 3 compartment access authorization request. Contains all structured reasoning for the user."
+    },
+    {
+      "name": "AnomalyEscalationPayload",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "requester",
+          "type_ref": "RequesterInfo",
+          "required": true,
+          "default": "",
+          "description": "Who is asking",
+          "validators": []
+        },
+        {
+          "name": "original_tier",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "The tier of the original request that was flagged (1 or 2, since Tier 3 always requires explicit auth)",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": "value >= 1 && value <= 2",
+              "error_message": "Original tier for anomaly escalation must be 1 or 2"
+            }
+          ]
+        },
+        {
+          "name": "requested_scope",
+          "type_ref": "ScopeSet",
+          "required": true,
+          "default": "",
+          "description": "Scope of the flagged request",
+          "validators": []
+        },
+        {
+          "name": "anomaly_context",
+          "type_ref": "AnomalyContext",
+          "required": true,
+          "default": "",
+          "description": "Structured explanation of the anomaly",
+          "validators": []
+        },
+        {
+          "name": "available_actions",
+          "type_ref": "AvailableActions",
+          "required": true,
+          "default": "",
+          "description": "Actions the user can take",
+          "validators": []
+        },
+        {
+          "name": "expires_at",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "When this escalation expires (deny on timeout)",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Payload for an anomaly escalation authorization request. Contains structured reasoning about why the request is unusual."
+    },
+    {
+      "name": "AuthorizationRequest",
+      "kind": "enum",
+      "fields": [
+        {
+          "name": "event_id",
+          "type_ref": "EventId",
+          "required": true,
+          "default": "",
+          "description": "Unique event identifier correlating this authorization across retries and audit",
+          "validators": []
+        },
+        {
+          "name": "challenge_id",
+          "type_ref": "ChallengeId",
+          "required": true,
+          "default": "",
+          "description": "Challenge identifier for callback correlation",
+          "validators": []
+        },
+        {
+          "name": "payload",
+          "type_ref": "AuthorizationRequestPayload",
+          "required": true,
+          "default": "",
+          "description": "Variant-specific payload: Tier3AccessPayload or AnomalyEscalationPayload",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [
+        "Tier3Access",
+        "AnomalyEscalation"
+      ],
+      "inner_types": [],
+      "description": "Internally-tagged serde enum representing an authorization request. Serialized with serde tag='request_type' and snake_case rename. Two variants: Tier3Access and AnomalyEscalation."
+    },
+    {
+      "name": "AuthorizationRequestPayload",
+      "kind": "union",
+      "fields": [],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [
+        "Tier3AccessPayload",
+        "AnomalyEscalationPayload"
+      ],
+      "description": "Union of authorization request payload variants, discriminated by the AuthorizationRequest tag."
+    },
+    {
+      "name": "AuthorizationResponse",
+      "kind": "enum",
+      "fields": [
+        {
+          "name": "reason",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "Human-readable reason for denial. Present only for Deny variant. Optional even for Deny.",
+          "validators": []
+        },
+        {
+          "name": "adjusted_scope",
+          "type_ref": "ScopeSet",
+          "required": false,
+          "default": "",
+          "description": "Adjusted (reduced) scope. Present only for Modify variant. Must be a strict subset of the original requested_scope.",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [
+        "Approve",
+        "Deny",
+        "Modify"
+      ],
+      "inner_types": [],
+      "description": "Wire-format response from the user via webhook callback. Deserialized with deny_unknown_fields. Three variants: Approve (no additional data), Deny (with optional reason string), Modify (with adjusted_scope that must be a subset of the original requested_scope)."
+    },
+    {
+      "name": "DenialReason",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "Timeout",
+        "ExplicitDeny",
+        "DeliveryFailure"
+      ],
+      "inner_types": [],
+      "description": "Internal reason for a denial decision. Distinguishes timeout-based denials (fail-secure), explicit user denials, and delivery failures."
+    },
+    {
+      "name": "AuthorizationDecision",
+      "kind": "enum",
+      "fields": [
+        {
+          "name": "challenge_id",
+          "type_ref": "ChallengeId",
+          "required": true,
+          "default": "",
+          "description": "The challenge this decision resolves",
+          "validators": []
+        },
+        {
+          "name": "event_id",
+          "type_ref": "EventId",
+          "required": true,
+          "default": "",
+          "description": "Correlation event identifier",
+          "validators": []
+        },
+        {
+          "name": "decided_at",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "When the decision was finalized",
+          "validators": []
+        },
+        {
+          "name": "denial_reason",
+          "type_ref": "OptionalDenialReason",
+          "required": false,
+          "default": "",
+          "description": "Present for Denied variant, absent for Approved/Modified",
+          "validators": []
+        },
+        {
+          "name": "denial_message",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "Human-readable denial reason from user, if provided. Empty for Approved/Modified and auto-denials.",
+          "validators": []
+        },
+        {
+          "name": "adjusted_scope",
+          "type_ref": "OptionalScopeSet",
+          "required": false,
+          "default": "",
+          "description": "Present for Modified variant, absent for Approved/Denied",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [
+        "Approved",
+        "Denied",
+        "Modified"
+      ],
+      "inner_types": [],
+      "description": "Internal validated decision type returned by ChallengeHandle::resolve(). Distinct from the wire-format AuthorizationResponse. Carries full provenance for audit."
+    },
+    {
+      "name": "OptionalDenialReason",
+      "kind": "optional",
+      "fields": [],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [
+        "DenialReason"
+      ],
+      "description": "An optional DenialReason."
+    },
+    {
+      "name": "ChallengeHandle",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "challenge_id",
+          "type_ref": "ChallengeId",
+          "required": true,
+          "default": "",
+          "description": "The challenge identifier this handle tracks",
+          "validators": []
+        },
+        {
+          "name": "event_id",
+          "type_ref": "EventId",
+          "required": true,
+          "default": "",
+          "description": "Correlation event identifier",
+          "validators": []
+        },
+        {
+          "name": "deadline",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "Absolute deadline after which this challenge resolves as Denied",
+          "validators": []
+        },
+        {
+          "name": "original_scope",
+          "type_ref": "ScopeSet",
+          "required": true,
+          "default": "",
+          "description": "The original requested scope, retained for subset validation of Modify responses",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Fail-secure handle to a pending authorization challenge. Wraps a tokio oneshot receiver with a deadline. Consumed (moved) on resolution to prevent double-resolution. If the deadline expires before a response is received, resolves as Denied with DenialReason::Timeout. Once resolved, the handle is gone — it cannot be polled again."
+    },
+    {
+      "name": "WebhookSignatureHeaders",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "webhook_id",
+          "type_ref": "DeliveryId",
+          "required": true,
+          "default": "",
+          "description": "Value of Signet-Webhook-Id header. Unique per delivery attempt.",
+          "validators": []
+        },
+        {
+          "name": "webhook_timestamp",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "Value of Signet-Webhook-Timestamp header. Time of this delivery attempt.",
+          "validators": []
+        },
+        {
+          "name": "webhook_signature",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Value of Signet-Webhook-Signature header. HMAC-SHA256 over (webhook_id || webhook_timestamp || body), base64-encoded.",
+          "validators": [
+            {
+              "kind": "regex",
+              "expression": "^v1,[A-Za-z0-9+/=]+$",
+              "error_message": "Webhook signature must be versioned base64 (v1,<base64>)"
+            }
+          ]
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "The three Signet-namespaced headers included with every webhook delivery for HMAC signature verification."
+    },
+    {
+      "name": "WebhookSecret",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "key_bytes",
+          "type_ref": "bytes",
+          "required": true,
+          "default": "",
+          "description": "Raw HMAC key material. Zeroized on drop.",
+          "validators": [
+            {
+              "kind": "length",
+              "expression": "len >= 32",
+              "error_message": "Webhook secret must be at least 256 bits (32 bytes)"
+            }
+          ]
+        },
+        {
+          "name": "key_id",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Identifier for this key, used to select the correct key during rotation",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "HMAC signing secret for webhook signatures. Implements Zeroize and ZeroizeOnDrop — secret material is zeroed from memory when this value is dropped. 256-bit minimum entropy."
+    },
+    {
+      "name": "EndpointConfig",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "url",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "HTTPS URL of the webhook endpoint. Must be HTTPS.",
+          "validators": [
+            {
+              "kind": "regex",
+              "expression": "^https://",
+              "error_message": "Webhook endpoint must use HTTPS"
+            },
+            {
+              "kind": "length",
+              "expression": "len >= 9 && len <= 2048",
+              "error_message": "Webhook URL must be between 9 and 2048 characters"
+            }
+          ]
+        },
+        {
+          "name": "current_secret",
+          "type_ref": "WebhookSecret",
+          "required": true,
+          "default": "",
+          "description": "Current HMAC signing secret",
+          "validators": []
+        },
+        {
+          "name": "previous_secret",
+          "type_ref": "OptionalWebhookSecret",
+          "required": false,
+          "default": "",
+          "description": "Previous HMAC signing secret, valid during rotation window. Absent if not rotating.",
+          "validators": []
+        },
+        {
+          "name": "timeout",
+          "type_ref": "Duration",
+          "required": true,
+          "default": "",
+          "description": "Per-request HTTP timeout for webhook delivery",
+          "validators": []
+        },
+        {
+          "name": "max_retries",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Maximum number of retry attempts before giving up",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": "value >= 0 && value <= 10",
+              "error_message": "Max retries must be between 0 and 10"
+            }
+          ]
+        },
+        {
+          "name": "circuit_breaker_threshold",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Number of consecutive failures before the circuit breaker opens",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": "value >= 1 && value <= 100",
+              "error_message": "Circuit breaker threshold must be between 1 and 100"
+            }
+          ]
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Configuration for a webhook delivery endpoint. Supports dual-secret rotation: both current_secret and previous_secret are valid for signature verification during rotation windows. Circuit breaker tracks health."
+    },
+    {
+      "name": "OptionalWebhookSecret",
+      "kind": "optional",
+      "fields": [],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [
+        "WebhookSecret"
+      ],
+      "description": "An optional WebhookSecret, used for the previous secret during rotation."
+    },
+    {
+      "name": "EndpointHealth",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "consecutive_failures",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Number of consecutive delivery failures",
+          "validators": []
+        },
+        {
+          "name": "circuit_state",
+          "type_ref": "CircuitState",
+          "required": true,
+          "default": "",
+          "description": "Current circuit breaker state",
+          "validators": []
+        },
+        {
+          "name": "last_success",
+          "type_ref": "OptionalTimestamp",
+          "required": false,
+          "default": "",
+          "description": "Timestamp of the last successful delivery, if any",
+          "validators": []
+        },
+        {
+          "name": "last_failure",
+          "type_ref": "OptionalTimestamp",
+          "required": false,
+          "default": "",
+          "description": "Timestamp of the last failed delivery, if any",
+          "validators": []
+        },
+        {
+          "name": "total_deliveries",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Total number of delivery attempts",
+          "validators": []
+        },
+        {
+          "name": "total_failures",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Total number of failed delivery attempts",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Health status of a webhook endpoint, tracked by the circuit breaker."
+    },
+    {
+      "name": "OptionalTimestamp",
+      "kind": "optional",
+      "fields": [],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [
+        "Timestamp"
+      ],
+      "description": "An optional Timestamp."
+    },
+    {
+      "name": "CircuitState",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "Closed",
+        "Open",
+        "HalfOpen"
+      ],
+      "inner_types": [],
+      "description": "Circuit breaker states for webhook endpoint health."
+    },
+    {
+      "name": "RetryPolicy",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "initial_delay",
+          "type_ref": "Duration",
+          "required": true,
+          "default": "",
+          "description": "Initial delay before the first retry",
+          "validators": []
+        },
+        {
+          "name": "max_delay",
+          "type_ref": "Duration",
+          "required": true,
+          "default": "",
+          "description": "Maximum delay between retries (cap on exponential growth)",
+          "validators": []
+        },
+        {
+          "name": "backoff_factor",
+          "type_ref": "float",
+          "required": true,
+          "default": "",
+          "description": "Multiplicative factor for exponential backoff (e.g., 2.0)",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": "value >= 1.0 && value <= 10.0",
+              "error_message": "Backoff factor must be between 1.0 and 10.0"
+            }
+          ]
+        },
+        {
+          "name": "jitter_fraction",
+          "type_ref": "float",
+          "required": true,
+          "default": "",
+          "description": "Fraction of the delay to randomize as jitter (0.0 to 1.0)",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": "value >= 0.0 && value <= 1.0",
+              "error_message": "Jitter fraction must be between 0.0 and 1.0"
+            }
+          ]
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Exponential backoff retry configuration with jitter. Retries are bounded by both max_retries and the challenge deadline (whichever comes first)."
+    },
+    {
+      "name": "DeliveryAttempt",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "delivery_id",
+          "type_ref": "DeliveryId",
+          "required": true,
+          "default": "",
+          "description": "Unique identifier for this delivery attempt",
+          "validators": []
+        },
+        {
+          "name": "challenge_id",
+          "type_ref": "ChallengeId",
+          "required": true,
+          "default": "",
+          "description": "Challenge this delivery is for",
+          "validators": []
+        },
+        {
+          "name": "attempt_number",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "1-indexed attempt number",
+          "validators": [
+            {
+              "kind": "range",
+              "expression": "value >= 1",
+              "error_message": "Attempt number must be at least 1"
+            }
+          ]
+        },
+        {
+          "name": "attempted_at",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "When this attempt was made",
+          "validators": []
+        },
+        {
+          "name": "outcome",
+          "type_ref": "DeliveryOutcome",
+          "required": true,
+          "default": "",
+          "description": "Outcome of this delivery attempt",
+          "validators": []
+        },
+        {
+          "name": "http_status",
+          "type_ref": "OptionalInt",
+          "required": false,
+          "default": "",
+          "description": "HTTP status code returned, if the request completed",
+          "validators": []
+        },
+        {
+          "name": "latency_ms",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Round-trip latency in milliseconds",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Record of a single webhook delivery attempt, used for audit and debugging."
+    },
+    {
+      "name": "OptionalInt",
+      "kind": "optional",
+      "fields": [],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [
+        "int"
+      ],
+      "description": "An optional integer."
+    },
+    {
+      "name": "DeliveryOutcome",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "Success",
+        "HttpError",
+        "Timeout",
+        "ConnectionError",
+        "CircuitBreakerOpen"
+      ],
+      "inner_types": [],
+      "description": "Outcome of a single webhook delivery attempt."
+    },
+    {
+      "name": "DeliveryReport",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "challenge_id",
+          "type_ref": "ChallengeId",
+          "required": true,
+          "default": "",
+          "description": "Challenge this report covers",
+          "validators": []
+        },
+        {
+          "name": "event_id",
+          "type_ref": "EventId",
+          "required": true,
+          "default": "",
+          "description": "Correlation event identifier",
+          "validators": []
+        },
+        {
+          "name": "final_outcome",
+          "type_ref": "DeliveryOutcome",
+          "required": true,
+          "default": "",
+          "description": "Final outcome after all retries",
+          "validators": []
+        },
+        {
+          "name": "attempts",
+          "type_ref": "DeliveryAttemptList",
+          "required": true,
+          "default": "",
+          "description": "All delivery attempts in order",
+          "validators": []
+        },
+        {
+          "name": "total_duration_ms",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Total wall-clock time across all attempts in milliseconds",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Full delivery report for a challenge, aggregating all attempts."
+    },
+    {
+      "name": "DeliveryAttemptList",
+      "kind": "list",
+      "fields": [],
+      "item_type": "DeliveryAttempt",
+      "variants": [],
+      "inner_types": [],
+      "description": "A list of DeliveryAttempt records."
+    },
+    {
+      "name": "CallbackPayload",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "challenge_token",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "PASETO v4.local token encoding the challenge_id and expiration. Verified via rusty_paseto.",
+          "validators": [
+            {
+              "kind": "regex",
+              "expression": "^v4\\.local\\.",
+              "error_message": "Challenge token must be a PASETO v4.local token"
+            }
+          ]
+        },
+        {
+          "name": "response",
+          "type_ref": "AuthorizationResponse",
+          "required": true,
+          "default": "",
+          "description": "The user's authorization decision",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Payload received on the callback endpoint from the user's webhook consumer. Contains the PASETO challenge token for verification and the user's authorization response."
+    },
+    {
+      "name": "NotifyError",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "DeliveryFailed",
+        "ChallengeNotFound",
+        "ChallengeExpired",
+        "ChallengeAlreadyResolved",
+        "InvalidCallbackToken",
+        "InvalidSignature",
+        "InvalidResponse",
+        "ScopeEscalation",
+        "EndpointUnavailable",
+        "CircuitBreakerOpen",
+        "ConfigurationError",
+        "InternalError"
+      ],
+      "inner_types": [],
+      "description": "Error type for the signet-notify crate. Derived via thiserror. All messages are generic to prevent secret leakage and timing oracles. Crypto failures produce the same generic error regardless of cause."
+    },
+    {
+      "name": "NotifyResult",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "value",
+          "type_ref": "any",
+          "required": true,
+          "default": "",
+          "description": "Success value of generic type T",
+          "validators": []
+        },
+        {
+          "name": "error",
+          "type_ref": "OptionalNotifyError",
+          "required": false,
+          "default": "",
+          "description": "Error, if the operation failed",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Type alias representation: Result<T, NotifyError>. All public functions return this type."
+    },
+    {
+      "name": "OptionalNotifyError",
+      "kind": "optional",
+      "fields": [],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [
+        "NotifyError"
+      ],
+      "description": "An optional NotifyError."
+    },
+    {
+      "name": "ChallengeRegistrySnapshot",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "active_challenges",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Number of currently pending challenges",
+          "validators": []
+        },
+        {
+          "name": "expired_challenges_cleaned",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Number of expired challenges cleaned up since last snapshot",
+          "validators": []
+        },
+        {
+          "name": "total_challenges_issued",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Total challenges issued since registry creation",
+          "validators": []
+        },
+        {
+          "name": "total_challenges_resolved",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Total challenges resolved (by response, timeout, or cleanup)",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Diagnostic snapshot of the ChallengeRegistry state. No secret material is included."
+    }
+  ],
+  "functions": [
+    {
+      "name": "notify",
+      "description": "Primary integration point for the policy engine. Sends an authorization request through the notification channel and returns a ChallengeHandle that will resolve to an AuthorizationDecision. This is the sole method on the NotificationChannel trait. The returned ChallengeHandle is fail-secure: if no response is received by the deadline, it resolves as Denied with DenialReason::Timeout. The method is async and initiates webhook delivery but does not wait for the user's response.",
+      "inputs": [
+        {
+          "name": "request",
+          "type_ref": "AuthorizationRequest",
+          "required": true,
+          "default": "",
+          "description": "The authorization request to send to the user",
+          "validators": []
+        }
+      ],
+      "output_type": "ChallengeHandle",
+      "error_cases": [
+        {
+          "name": "endpoint_unavailable",
+          "condition": "No valid endpoint configuration is available",
+          "error_type": "NotifyError::EndpointUnavailable",
+          "error_data": {}
+        },
+        {
+          "name": "circuit_breaker_open",
+          "condition": "The endpoint circuit breaker is in Open state and no half-open probe is due",
+          "error_type": "NotifyError::CircuitBreakerOpen",
+          "error_data": {}
+        },
+        {
+          "name": "expired_request",
+          "condition": "request.payload.expires_at is in the past or too close to now to be useful",
+          "error_type": "NotifyError::ChallengeExpired",
+          "error_data": {}
+        },
+        {
+          "name": "configuration_error",
+          "condition": "Endpoint configuration is invalid (e.g., non-HTTPS URL, missing secret)",
+          "error_type": "NotifyError::ConfigurationError",
+          "error_data": {}
+        },
+        {
+          "name": "internal_error",
+          "condition": "Unexpected internal failure (e.g., channel creation failed)",
+          "error_type": "NotifyError::InternalError",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "request.event_id is unique (not previously used)",
+        "request.challenge_id is unique (not previously used)",
+        "request.payload.expires_at is in the future",
+        "request.payload.requested_scope is non-empty",
+        "Endpoint configuration is present and valid",
+        "Circuit breaker is not in Open state (or half-open probe is due)"
+      ],
+      "postconditions": [
+        "A ChallengeHandle is returned that will resolve to exactly one AuthorizationDecision",
+        "The challenge is registered in the ChallengeRegistry",
+        "Webhook delivery has been initiated (but not necessarily completed)",
+        "An EventId-correlated audit record has been created",
+        "The ChallengeHandle deadline matches request.payload.expires_at",
+        "If the ChallengeHandle is dropped without calling resolve(), the challenge is cleaned up"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Initiates async HTTP POST to the configured webhook endpoint",
+        "Registers challenge in the ChallengeRegistry",
+        "Creates audit record for the notification event"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "network_call",
+          "target": "Configured webhook HTTPS endpoint",
+          "description": "HTTP POST with JSON payload and HMAC signature headers"
+        },
+        {
+          "kind": "mutates_state",
+          "target": "ChallengeRegistry",
+          "description": "Inserts challenge_id -> oneshot::Sender mapping"
+        },
+        {
+          "kind": "logging",
+          "target": "Audit log",
+          "description": "Records notification event with event_id, challenge_id, request type, timestamp. No payload content logged."
+        }
+      ],
+      "performance_budget": {
+        "p95_latency_ms": 50,
+        "max_memory_mb": 1,
+        "complexity": "O(1)"
+      }
+    },
+    {
+      "name": "resolve",
+      "description": "Consumes the ChallengeHandle and returns the final AuthorizationDecision. Races the internal oneshot receiver against the deadline. If the deadline expires first, returns Denied with DenialReason::Timeout. If the sender is dropped (delivery failure), returns Denied with DenialReason::DeliveryFailure. The handle is moved (consumed) — this method can only be called once. After resolution, the challenge is removed from the registry.",
+      "inputs": [
+        {
+          "name": "handle",
+          "type_ref": "ChallengeHandle",
+          "required": true,
+          "default": "",
+          "description": "The challenge handle to resolve. Consumed by this call.",
+          "validators": []
+        }
+      ],
+      "output_type": "AuthorizationDecision",
+      "error_cases": [],
+      "preconditions": [
+        "handle has not been previously resolved (enforced by move semantics)",
+        "handle is a valid ChallengeHandle obtained from notify()"
+      ],
+      "postconditions": [
+        "Exactly one AuthorizationDecision is returned",
+        "The ChallengeHandle is consumed and cannot be used again",
+        "The challenge is removed from the ChallengeRegistry",
+        "If deadline expired, decision is Denied with DenialReason::Timeout",
+        "If sender was dropped, decision is Denied with DenialReason::DeliveryFailure",
+        "If response was Modify, the adjusted_scope has been validated as a subset of original_scope",
+        "decided_at timestamp reflects the actual resolution time",
+        "ANOMALY escalations that timeout produce a Denied decision (never silently resolved)"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Removes challenge from ChallengeRegistry",
+        "Records resolution in audit log"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "ChallengeRegistry",
+          "description": "Removes the challenge_id entry on resolution"
+        },
+        {
+          "kind": "logging",
+          "target": "Audit log",
+          "description": "Records authorization decision with event_id, challenge_id, decision variant, decided_at. No scope content logged."
+        }
+      ],
+      "performance_budget": {
+        "p95_latency_ms": null,
+        "max_memory_mb": null,
+        "complexity": "O(1)"
+      }
+    },
+    {
+      "name": "handle_callback",
+      "description": "Processes an incoming webhook callback from the user. Verifies the PASETO v4 challenge token, validates the response (including subset check for Modify), and completes the oneshot channel to unblock the corresponding ChallengeHandle::resolve(). This is the entry point for the callback HTTP handler.",
+      "inputs": [
+        {
+          "name": "challenge_id",
+          "type_ref": "ChallengeId",
+          "required": true,
+          "default": "",
+          "description": "The challenge being responded to, extracted from the callback URL or payload",
+          "validators": []
+        },
+        {
+          "name": "callback",
+          "type_ref": "CallbackPayload",
+          "required": true,
+          "default": "",
+          "description": "The callback payload containing the PASETO token and user response",
+          "validators": []
+        }
+      ],
+      "output_type": "None",
+      "error_cases": [
+        {
+          "name": "challenge_not_found",
+          "condition": "No pending challenge with the given challenge_id exists in the registry",
+          "error_type": "NotifyError::ChallengeNotFound",
+          "error_data": {}
+        },
+        {
+          "name": "challenge_expired",
+          "condition": "The challenge deadline has passed",
+          "error_type": "NotifyError::ChallengeExpired",
+          "error_data": {}
+        },
+        {
+          "name": "challenge_already_resolved",
+          "condition": "The challenge has already received a response",
+          "error_type": "NotifyError::ChallengeAlreadyResolved",
+          "error_data": {}
+        },
+        {
+          "name": "invalid_token",
+          "condition": "The PASETO v4 challenge token is invalid, expired, or does not match the challenge_id",
+          "error_type": "NotifyError::InvalidCallbackToken",
+          "error_data": {}
+        },
+        {
+          "name": "invalid_response",
+          "condition": "The AuthorizationResponse fails deserialization or validation (e.g., unknown fields, invalid variant)",
+          "error_type": "NotifyError::InvalidResponse",
+          "error_data": {}
+        },
+        {
+          "name": "scope_escalation",
+          "condition": "A Modify response contains an adjusted_scope that is not a strict subset of the original requested_scope",
+          "error_type": "NotifyError::ScopeEscalation",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "challenge_id corresponds to a currently pending challenge in the registry",
+        "callback.challenge_token is a valid PASETO v4.local token",
+        "The challenge has not expired",
+        "The challenge has not already been resolved"
+      ],
+      "postconditions": [
+        "The oneshot sender for the challenge has been completed with the validated response",
+        "The corresponding ChallengeHandle::resolve() will now return with the user's decision",
+        "If response is Modify, adjusted_scope is a strict subset of original requested_scope",
+        "The callback PASETO token has been consumed (replay protection)"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Completes the oneshot channel sender for the challenge",
+        "Records callback receipt in audit log"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "ChallengeRegistry oneshot::Sender",
+          "description": "Sends the validated AuthorizationResponse through the oneshot channel"
+        },
+        {
+          "kind": "logging",
+          "target": "Audit log",
+          "description": "Records callback receipt with challenge_id, response variant, timestamp. No scope or token content logged."
+        }
+      ],
+      "performance_budget": {
+        "p95_latency_ms": 10,
+        "max_memory_mb": null,
+        "complexity": "O(n) where n is the number of scope entries for subset validation"
+      }
+    },
+    {
+      "name": "verify_webhook_signature",
+      "description": "Verifies the HMAC-SHA256 signature of an incoming webhook callback request. Uses constant-time comparison to prevent timing attacks. Supports dual-secret verification during key rotation: tries current_secret first, falls back to previous_secret if present.",
+      "inputs": [
+        {
+          "name": "headers",
+          "type_ref": "WebhookSignatureHeaders",
+          "required": true,
+          "default": "",
+          "description": "The three Signet-namespaced headers from the HTTP request",
+          "validators": []
+        },
+        {
+          "name": "body",
+          "type_ref": "bytes",
+          "required": true,
+          "default": "",
+          "description": "Raw HTTP request body bytes",
+          "validators": []
+        },
+        {
+          "name": "endpoint_config",
+          "type_ref": "EndpointConfig",
+          "required": true,
+          "default": "",
+          "description": "Endpoint configuration containing the signing secret(s)",
+          "validators": []
+        }
+      ],
+      "output_type": "bool",
+      "error_cases": [
+        {
+          "name": "invalid_signature_format",
+          "condition": "The webhook_signature header is malformed or uses an unsupported version prefix",
+          "error_type": "NotifyError::InvalidSignature",
+          "error_data": {}
+        },
+        {
+          "name": "configuration_error",
+          "condition": "The endpoint_config has no valid secrets configured",
+          "error_type": "NotifyError::ConfigurationError",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "headers.webhook_signature is well-formed (v1,<base64>)",
+        "headers.webhook_timestamp is within acceptable clock skew tolerance (±5 minutes)",
+        "endpoint_config.current_secret.key_bytes is at least 32 bytes"
+      ],
+      "postconditions": [
+        "Returns true if and only if the signature matches the body signed with either current_secret or previous_secret",
+        "Comparison is constant-time regardless of which byte differs",
+        "Stale timestamps (beyond tolerance) always return false even if signature is valid"
+      ],
+      "idempotent": true,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": "Pure computation, no side effects"
+        }
+      ],
+      "performance_budget": {
+        "p95_latency_ms": 1,
+        "max_memory_mb": null,
+        "complexity": "O(n) where n is the body length"
+      }
+    },
+    {
+      "name": "sign_webhook_payload",
+      "description": "Generates HMAC-SHA256 signature headers for an outgoing webhook delivery. Creates the DeliveryId, timestamps the delivery, computes the HMAC over (delivery_id || timestamp || body), and returns the complete set of signature headers.",
+      "inputs": [
+        {
+          "name": "body",
+          "type_ref": "bytes",
+          "required": true,
+          "default": "",
+          "description": "Serialized JSON request body to sign",
+          "validators": []
+        },
+        {
+          "name": "secret",
+          "type_ref": "WebhookSecret",
+          "required": true,
+          "default": "",
+          "description": "The HMAC signing secret to use",
+          "validators": []
+        }
+      ],
+      "output_type": "WebhookSignatureHeaders",
+      "error_cases": [
+        {
+          "name": "internal_error",
+          "condition": "HMAC computation fails (e.g., aws-lc-rs error)",
+          "error_type": "NotifyError::InternalError",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "secret.key_bytes is at least 32 bytes",
+        "body is valid UTF-8 JSON"
+      ],
+      "postconditions": [
+        "Returned headers contain a fresh DeliveryId",
+        "webhook_timestamp reflects the current time",
+        "webhook_signature is HMAC-SHA256(secret, delivery_id || timestamp || body) base64-encoded with v1 prefix",
+        "verify_webhook_signature(returned_headers, body, config_with_same_secret) returns true"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": "Pure computation except for DeliveryId generation which reads from CSPRNG"
+        }
+      ],
+      "performance_budget": {
+        "p95_latency_ms": 1,
+        "max_memory_mb": null,
+        "complexity": "O(n) where n is the body length"
+      }
+    },
+    {
+      "name": "deliver_webhook",
+      "description": "Delivers a signed webhook payload to the configured endpoint with retry logic. Uses exponential backoff with jitter, bounded by both max_retries and the challenge deadline. Updates endpoint health (circuit breaker) based on outcomes. Returns a full DeliveryReport. Sub-second delivery target for the first attempt.",
+      "inputs": [
+        {
+          "name": "challenge_id",
+          "type_ref": "ChallengeId",
+          "required": true,
+          "default": "",
+          "description": "Challenge this delivery is for",
+          "validators": []
+        },
+        {
+          "name": "event_id",
+          "type_ref": "EventId",
+          "required": true,
+          "default": "",
+          "description": "Correlation event identifier",
+          "validators": []
+        },
+        {
+          "name": "payload_json",
+          "type_ref": "bytes",
+          "required": true,
+          "default": "",
+          "description": "Serialized JSON body of the AuthorizationRequest",
+          "validators": []
+        },
+        {
+          "name": "endpoint",
+          "type_ref": "EndpointConfig",
+          "required": true,
+          "default": "",
+          "description": "Target endpoint configuration",
+          "validators": []
+        },
+        {
+          "name": "retry_policy",
+          "type_ref": "RetryPolicy",
+          "required": true,
+          "default": "",
+          "description": "Retry configuration for this delivery",
+          "validators": []
+        },
+        {
+          "name": "deadline",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "Absolute deadline for all delivery attempts (matches challenge deadline)",
+          "validators": []
+        }
+      ],
+      "output_type": "DeliveryReport",
+      "error_cases": [
+        {
+          "name": "endpoint_unavailable",
+          "condition": "DNS resolution or TCP connection fails on all attempts",
+          "error_type": "NotifyError::EndpointUnavailable",
+          "error_data": {}
+        },
+        {
+          "name": "circuit_breaker_open",
+          "condition": "Circuit breaker is in Open state before first attempt",
+          "error_type": "NotifyError::CircuitBreakerOpen",
+          "error_data": {}
+        },
+        {
+          "name": "delivery_failed",
+          "condition": "All retry attempts exhausted or deadline reached without successful delivery",
+          "error_type": "NotifyError::DeliveryFailed",
+          "error_data": {}
+        },
+        {
+          "name": "internal_error",
+          "condition": "Unexpected failure during signing or HTTP client operation",
+          "error_type": "NotifyError::InternalError",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "payload_json is valid UTF-8 JSON",
+        "endpoint.url is a valid HTTPS URL",
+        "endpoint.current_secret.key_bytes is at least 32 bytes",
+        "deadline is in the future",
+        "Circuit breaker is not in Open state (checked before first attempt)"
+      ],
+      "postconditions": [
+        "DeliveryReport contains at least one DeliveryAttempt",
+        "All delivery attempts occurred before the deadline",
+        "final_outcome reflects the outcome of the last attempt",
+        "Endpoint health (circuit breaker) has been updated based on outcomes",
+        "If all attempts fail and deadline has not passed, retries followed exponential backoff with jitter",
+        "Each attempt used a fresh DeliveryId and HMAC signature"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Makes HTTP POST requests to the webhook endpoint",
+        "Updates endpoint health / circuit breaker state",
+        "Records delivery attempts in audit log"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "network_call",
+          "target": "endpoint.url",
+          "description": "HTTP POST with JSON body and Signet-Webhook-* signature headers per attempt"
+        },
+        {
+          "kind": "mutates_state",
+          "target": "EndpointHealth",
+          "description": "Updates consecutive_failures, circuit_state, last_success/last_failure, totals"
+        },
+        {
+          "kind": "logging",
+          "target": "Audit log",
+          "description": "Records each delivery attempt with delivery_id, attempt_number, outcome, latency. No payload content logged."
+        }
+      ],
+      "performance_budget": {
+        "p95_latency_ms": 500,
+        "max_memory_mb": null,
+        "complexity": "O(retries)"
+      }
+    },
+    {
+      "name": "create_challenge_token",
+      "description": "Creates a PASETO v4.local token encoding the challenge_id and expiration for callback verification. The token is included in the webhook payload so the user's webhook consumer can present it on callback, proving the callback is authentic and tied to a specific challenge.",
+      "inputs": [
+        {
+          "name": "challenge_id",
+          "type_ref": "ChallengeId",
+          "required": true,
+          "default": "",
+          "description": "The challenge to encode in the token",
+          "validators": []
+        },
+        {
+          "name": "expires_at",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "Token expiration, matching the challenge deadline",
+          "validators": []
+        },
+        {
+          "name": "symmetric_key",
+          "type_ref": "bytes",
+          "required": true,
+          "default": "",
+          "description": "PASETO v4.local symmetric encryption key (256-bit). Zeroized after use.",
+          "validators": [
+            {
+              "kind": "length",
+              "expression": "len == 32",
+              "error_message": "PASETO v4.local key must be exactly 32 bytes (256 bits)"
+            }
+          ]
+        }
+      ],
+      "output_type": "str",
+      "error_cases": [
+        {
+          "name": "internal_error",
+          "condition": "PASETO token creation fails (e.g., rusty_paseto error)",
+          "error_type": "NotifyError::InternalError",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "symmetric_key is exactly 32 bytes",
+        "expires_at is in the future",
+        "challenge_id is valid and non-empty"
+      ],
+      "postconditions": [
+        "Returned string is a valid PASETO v4.local token",
+        "Token claims include challenge_id and exp (expiration)",
+        "Token can be verified by verify_challenge_token with the same symmetric_key",
+        "symmetric_key input is zeroized from caller's memory after use"
+      ],
+      "idempotent": true,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": "Pure computation"
+        }
+      ],
+      "performance_budget": {
+        "p95_latency_ms": 5,
+        "max_memory_mb": null,
+        "complexity": "O(1)"
+      }
+    },
+    {
+      "name": "verify_challenge_token",
+      "description": "Verifies a PASETO v4.local challenge token from a webhook callback. Decrypts the token, validates expiration, and extracts the challenge_id. Returns the challenge_id if valid. Uses constant-time operations internally (provided by rusty_paseto).",
+      "inputs": [
+        {
+          "name": "token",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "The PASETO v4.local token string to verify",
+          "validators": [
+            {
+              "kind": "regex",
+              "expression": "^v4\\.local\\.",
+              "error_message": "Token must be a PASETO v4.local token"
+            }
+          ]
+        },
+        {
+          "name": "expected_challenge_id",
+          "type_ref": "ChallengeId",
+          "required": true,
+          "default": "",
+          "description": "The challenge_id we expect to find in the token (must match)",
+          "validators": []
+        },
+        {
+          "name": "symmetric_key",
+          "type_ref": "bytes",
+          "required": true,
+          "default": "",
+          "description": "PASETO v4.local symmetric decryption key (256-bit). Zeroized after use.",
+          "validators": [
+            {
+              "kind": "length",
+              "expression": "len == 32",
+              "error_message": "PASETO v4.local key must be exactly 32 bytes (256 bits)"
+            }
+          ]
+        }
+      ],
+      "output_type": "ChallengeId",
+      "error_cases": [
+        {
+          "name": "invalid_token",
+          "condition": "Token decryption fails, is malformed, or claims are invalid",
+          "error_type": "NotifyError::InvalidCallbackToken",
+          "error_data": {}
+        },
+        {
+          "name": "challenge_id_mismatch",
+          "condition": "Token's challenge_id does not match expected_challenge_id",
+          "error_type": "NotifyError::InvalidCallbackToken",
+          "error_data": {}
+        },
+        {
+          "name": "token_expired",
+          "condition": "Token's exp claim is in the past",
+          "error_type": "NotifyError::InvalidCallbackToken",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "token is a well-formed PASETO v4.local string",
+        "symmetric_key is exactly 32 bytes",
+        "expected_challenge_id is valid and non-empty"
+      ],
+      "postconditions": [
+        "Returned ChallengeId matches expected_challenge_id and the token's embedded challenge_id",
+        "Token has not expired (exp claim is in the future)",
+        "Token was encrypted with the provided symmetric_key",
+        "symmetric_key input is zeroized from caller's memory after use"
+      ],
+      "idempotent": true,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": "Pure computation"
+        }
+      ],
+      "performance_budget": {
+        "p95_latency_ms": 5,
+        "max_memory_mb": null,
+        "complexity": "O(1)"
+      }
+    },
+    {
+      "name": "validate_scope_subset",
+      "description": "Validates that a proposed adjusted scope is a strict subset of the original requested scope. Used to prevent privilege escalation on Modify responses. A strict subset means every entry in adjusted_scope appears in original_scope, and adjusted_scope has fewer entries than original_scope.",
+      "inputs": [
+        {
+          "name": "original_scope",
+          "type_ref": "ScopeSet",
+          "required": true,
+          "default": "",
+          "description": "The originally requested scope",
+          "validators": []
+        },
+        {
+          "name": "adjusted_scope",
+          "type_ref": "ScopeSet",
+          "required": true,
+          "default": "",
+          "description": "The proposed adjusted (reduced) scope from a Modify response",
+          "validators": []
+        }
+      ],
+      "output_type": "bool",
+      "error_cases": [],
+      "preconditions": [
+        "original_scope is non-empty",
+        "adjusted_scope is non-empty"
+      ],
+      "postconditions": [
+        "Returns true if and only if adjusted_scope is a strict subset of original_scope",
+        "Strict subset means: every (resource, action) pair in adjusted_scope exists in original_scope, AND adjusted_scope has strictly fewer entries",
+        "An equal set returns false (not strictly less)"
+      ],
+      "idempotent": true,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": "Pure computation"
+        }
+      ],
+      "performance_budget": {
+        "p95_latency_ms": 1,
+        "max_memory_mb": null,
+        "complexity": "O(n * m) where n is adjusted_scope entries and m is original_scope entries; O(n + m) with hash set optimization"
+      }
+    },
+    {
+      "name": "register_challenge",
+      "description": "Registers a new challenge in the ChallengeRegistry. Creates a oneshot channel pair, stores the sender keyed by challenge_id, and returns the ChallengeHandle wrapping the receiver. Called internally by notify().",
+      "inputs": [
+        {
+          "name": "challenge_id",
+          "type_ref": "ChallengeId",
+          "required": true,
+          "default": "",
+          "description": "Unique identifier for this challenge",
+          "validators": []
+        },
+        {
+          "name": "event_id",
+          "type_ref": "EventId",
+          "required": true,
+          "default": "",
+          "description": "Correlation event identifier",
+          "validators": []
+        },
+        {
+          "name": "deadline",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "Absolute deadline for this challenge",
+          "validators": []
+        },
+        {
+          "name": "original_scope",
+          "type_ref": "ScopeSet",
+          "required": true,
+          "default": "",
+          "description": "The original requested scope, retained for Modify subset validation",
+          "validators": []
+        }
+      ],
+      "output_type": "ChallengeHandle",
+      "error_cases": [
+        {
+          "name": "duplicate_challenge",
+          "condition": "A challenge with this challenge_id is already registered",
+          "error_type": "NotifyError::InternalError",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "challenge_id is not already registered in the ChallengeRegistry",
+        "deadline is in the future"
+      ],
+      "postconditions": [
+        "ChallengeRegistry contains an entry mapping challenge_id to the oneshot::Sender",
+        "Returned ChallengeHandle wraps the corresponding oneshot::Receiver",
+        "ChallengeHandle.deadline matches the provided deadline",
+        "ChallengeHandle.original_scope matches the provided original_scope",
+        "total_challenges_issued is incremented by 1"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "ChallengeRegistry",
+          "description": "Inserts challenge_id -> oneshot::Sender<AuthorizationResponse> mapping"
+        }
+      ],
+      "performance_budget": {
+        "p95_latency_ms": 1,
+        "max_memory_mb": null,
+        "complexity": "O(1)"
+      }
+    },
+    {
+      "name": "cleanup_expired_challenges",
+      "description": "Scans the ChallengeRegistry for expired challenges and removes them. Drops the oneshot::Sender for each expired challenge, which causes the corresponding ChallengeHandle::resolve() to return Denied with DenialReason::DeliveryFailure if it hasn't already resolved. Should be called periodically (e.g., on a timer).",
+      "inputs": [
+        {
+          "name": "now",
+          "type_ref": "Timestamp",
+          "required": true,
+          "default": "",
+          "description": "Current time to compare against challenge deadlines",
+          "validators": []
+        }
+      ],
+      "output_type": "int",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "All challenges with deadline < now have been removed from the registry",
+        "Their oneshot::Senders have been dropped",
+        "Returned int is the count of challenges cleaned up",
+        "expired_challenges_cleaned counter is incremented by the returned count"
+      ],
+      "idempotent": true,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "ChallengeRegistry",
+          "description": "Removes all expired challenge entries and drops their senders"
+        },
+        {
+          "kind": "logging",
+          "target": "Audit log",
+          "description": "Logs count of expired challenges cleaned up, with their challenge_ids"
+        }
+      ],
+      "performance_budget": {
+        "p95_latency_ms": null,
+        "max_memory_mb": null,
+        "complexity": "O(n) where n is the number of registered challenges"
+      }
+    },
+    {
+      "name": "get_registry_snapshot",
+      "description": "Returns a diagnostic snapshot of the ChallengeRegistry state. No secret material is included. Used for monitoring and health checks.",
+      "inputs": [],
+      "output_type": "ChallengeRegistrySnapshot",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "Returned snapshot reflects the registry state at the time of the call",
+        "No secret or sensitive material is included in the snapshot"
+      ],
+      "idempotent": true,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": "Read-only snapshot"
+        }
+      ],
+      "performance_budget": {
+        "p95_latency_ms": 1,
+        "max_memory_mb": null,
+        "complexity": "O(1)"
+      }
+    },
+    {
+      "name": "get_endpoint_health",
+      "description": "Returns the current health status of the configured webhook endpoint. Used for monitoring, circuit breaker decisions, and operational alerting.",
+      "inputs": [
+        {
+          "name": "endpoint",
+          "type_ref": "EndpointConfig",
+          "required": true,
+          "default": "",
+          "description": "The endpoint to query health for",
+          "validators": []
+        }
+      ],
+      "output_type": "EndpointHealth",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "Returned health reflects the current circuit breaker state and delivery statistics",
+        "No secret material is included in the health report"
+      ],
+      "idempotent": true,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": "Read-only query"
+        }
+      ],
+      "performance_budget": {
+        "p95_latency_ms": 1,
+        "max_memory_mb": null,
+        "complexity": "O(1)"
+      }
+    },
+    {
+      "name": "rotate_webhook_secret",
+      "description": "Rotates the webhook signing secret for an endpoint. Moves the current_secret to previous_secret and installs a new current_secret. Both secrets remain valid for signature verification during the rotation window. The previous previous_secret (if any) is zeroized and dropped.",
+      "inputs": [
+        {
+          "name": "endpoint",
+          "type_ref": "EndpointConfig",
+          "required": true,
+          "default": "",
+          "description": "The endpoint configuration to rotate secrets for",
+          "validators": []
+        },
+        {
+          "name": "new_secret",
+          "type_ref": "WebhookSecret",
+          "required": true,
+          "default": "",
+          "description": "The new signing secret to install as current_secret",
+          "validators": []
+        }
+      ],
+      "output_type": "EndpointConfig",
+      "error_cases": [
+        {
+          "name": "duplicate_key_id",
+          "condition": "new_secret.key_id matches the current secret's key_id",
+          "error_type": "NotifyError::ConfigurationError",
+          "error_data": {}
+        },
+        {
+          "name": "weak_secret",
+          "condition": "new_secret.key_bytes is less than 32 bytes",
+          "error_type": "NotifyError::ConfigurationError",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "new_secret.key_bytes is at least 32 bytes",
+        "new_secret.key_id is different from endpoint.current_secret.key_id"
+      ],
+      "postconditions": [
+        "Returned config has new_secret as current_secret",
+        "Returned config has the old current_secret as previous_secret",
+        "The old previous_secret (if any) has been zeroized from memory",
+        "Both current_secret and previous_secret are valid for verify_webhook_signature"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "EndpointConfig secrets",
+          "description": "Rotates current_secret -> previous_secret, installs new current_secret, zeroizes old previous_secret"
+        },
+        {
+          "kind": "logging",
+          "target": "Audit log",
+          "description": "Records secret rotation event with old and new key_ids. No key material logged."
+        }
+      ],
+      "performance_budget": {
+        "p95_latency_ms": 1,
+        "max_memory_mb": null,
+        "complexity": "O(1)"
+      }
+    }
+  ],
+  "dependencies": [],
+  "dependency_contracts": {},
+  "invariants": [
+    "Pipeline timeout = deny (fail-secure): Any ChallengeHandle that reaches its deadline without a response MUST resolve as Denied with DenialReason::Timeout. There is no code path that resolves to Approved or Modified on timeout.",
+    "ANOMALY decisions are never silently resolved: Every AnomalyEscalation authorization request MUST produce an auditable AuthorizationDecision. The decision is never discarded, swallowed, or resolved without an audit record.",
+    "One-way data flow: Webhook payloads flow vault -> agent -> service (outbound notification). Callback responses flow service -> agent (inbound decision). No notification channel operation transmits vault plaintext or credential material.",
+    "No algorithm negotiation: HMAC-SHA256 is the only webhook signature algorithm. PASETO v4.local is the only token format. These are not configurable or negotiable per-endpoint.",
+    "Constant-time operations for all secret-dependent code paths: HMAC verification uses constant-time comparison. PASETO token verification uses constant-time operations (provided by rusty_paseto). No early-exit on signature mismatch.",
+    "Zero secrets in memory after use: All WebhookSecret instances implement ZeroizeOnDrop. PASETO symmetric keys are zeroized after token creation/verification. No secret material persists in memory beyond its operational scope.",
+    "Errors must not leak sensitive information: NotifyError variants contain generic messages. No raw key material, token content, or cryptographic intermediate values appear in error messages or logs.",
+    "Scope subset validation prevents privilege escalation: A Modify response's adjusted_scope MUST be a strict subset of the original requested_scope. Equal or superset scopes are rejected with ScopeEscalation error.",
+    "ChallengeHandle is consumed on resolution: Move semantics ensure resolve() can only be called once per handle. Double-resolution is a compile-time error, not a runtime check.",
+    "Webhook endpoints must use HTTPS: EndpointConfig.url is validated to start with 'https://'. HTTP endpoints are rejected at configuration time.",
+    "All disclosures are on the audit chain: Every notify(), resolve(), handle_callback(), and secret rotation produces an audit log entry with correlation IDs (event_id, challenge_id). No authorization decision occurs without an audit trail.",
+    "Newtype IDs are not interchangeable: ChallengeId, DeliveryId, and EventId are distinct types. Using the wrong ID type in an API call is a compile-time error."
+  ],
+  "requires": [
+    "tokio (async runtime, oneshot channels, timers)",
+    "serde / serde_json (serialization with snake_case rename, deny_unknown_fields)",
+    "thiserror (error derivation)",
+    "aws-lc-rs (HMAC-SHA256 for webhook signatures)",
+    "rusty_paseto (PASETO v4 challenge callback tokens)",
+    "zeroize (ZeroizeOnDrop for secret material)",
+    "time (RFC 3339 timestamp formatting)"
+  ]
+}
