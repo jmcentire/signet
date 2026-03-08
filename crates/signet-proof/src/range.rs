@@ -247,7 +247,10 @@ fn compute_range_proof(
         }
     }
     transcript.append_message(b"domain-nonce", &domain_binding.nonce.0);
-    transcript.append_u64(b"domain-issued", domain_binding.issued_at.seconds_since_epoch);
+    transcript.append_u64(
+        b"domain-issued",
+        domain_binding.issued_at.seconds_since_epoch,
+    );
 
     // Generators
     let g = RISTRETTO_BASEPOINT_POINT;

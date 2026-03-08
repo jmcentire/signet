@@ -67,15 +67,17 @@ struct VerifyRequest {
 }
 
 /// POST /verify -- proof verification
-async fn handle_verify(
-    Json(req): Json<VerifyRequest>,
-) -> impl IntoResponse {
+async fn handle_verify(Json(req): Json<VerifyRequest>) -> impl IntoResponse {
     let proof = signet_sdk::Proof::new(req.proof.into_bytes());
     let claim = signet_sdk::Claim::new(
-        req.claim.get("attribute")
+        req.claim
+            .get("attribute")
             .and_then(|v| v.as_str())
             .unwrap_or("unknown"),
-        req.claim.get("value").cloned().unwrap_or(serde_json::Value::Null),
+        req.claim
+            .get("value")
+            .cloned()
+            .unwrap_or(serde_json::Value::Null),
     );
 
     match signet_sdk::verify(&proof, &claim) {
@@ -98,10 +100,11 @@ async fn handle_verify(
 }
 
 /// GET /health -- server info
-async fn handle_health(
-    State(state): State<Arc<AppState>>,
-) -> Json<serde_json::Value> {
-    let signet_id = state.root.signer.as_ref()
+async fn handle_health(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
+    let signet_id = state
+        .root
+        .signer
+        .as_ref()
         .map(|s| s.signet_id().as_str().to_string())
         .unwrap_or_else(|| "not initialized".to_string());
 
@@ -123,9 +126,7 @@ async fn handle_health(
 }
 
 /// GET /.well-known/signet.json -- service discovery
-async fn handle_well_known(
-    State(state): State<Arc<AppState>>,
-) -> Json<serde_json::Value> {
+async fn handle_well_known(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
     let (signet_id, public_key_hex) = match state.root.signer.as_ref() {
         Some(signer) => {
             let id = signer.signet_id().as_str().to_string();
@@ -179,9 +180,7 @@ async fn handle_well_known(
 // ---------------------------------------------------------------------------
 
 /// POST /auth/challenge -- issue a nonce for Ed25519 challenge-response auth
-async fn handle_auth_challenge(
-    State(state): State<Arc<AppState>>,
-) -> impl IntoResponse {
+async fn handle_auth_challenge(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     match &state.tenant_manager {
         Some(tm) => {
             let challenge = tm.create_challenge();
@@ -203,10 +202,7 @@ async fn handle_auth_verify(
 ) -> impl IntoResponse {
     match &state.tenant_manager {
         Some(tm) => match tm.verify_challenge(&req) {
-            Ok(session) => (
-                StatusCode::OK,
-                Json(serde_json::json!(session)),
-            ),
+            Ok(session) => (StatusCode::OK, Json(serde_json::json!(session))),
             Err(e) => (
                 StatusCode::UNAUTHORIZED,
                 Json(serde_json::json!({
@@ -244,23 +240,41 @@ async fn handle_vault_put(
 ) -> impl IntoResponse {
     let tm = match &state.tenant_manager {
         Some(tm) => tm,
-        None => return (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "multi-tenant mode not enabled"}))),
+        None => {
+            return (
+                StatusCode::NOT_FOUND,
+                Json(serde_json::json!({"error": "multi-tenant mode not enabled"})),
+            )
+        }
     };
 
     let token = match extract_session_token(&headers) {
         Some(t) => t,
-        None => return (StatusCode::UNAUTHORIZED, Json(serde_json::json!({"error": "missing Authorization header"}))),
+        None => {
+            return (
+                StatusCode::UNAUTHORIZED,
+                Json(serde_json::json!({"error": "missing Authorization header"})),
+            )
+        }
     };
 
     if tm.validate_session(&token).is_none() {
-        return (StatusCode::UNAUTHORIZED, Json(serde_json::json!({"error": "invalid or expired session"})));
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({"error": "invalid or expired session"})),
+        );
     }
 
     // Decode ciphertext from base64
     use base64::Engine;
     let ciphertext = match base64::engine::general_purpose::STANDARD.decode(&req.ciphertext) {
         Ok(ct) => ct,
-        Err(_) => return (StatusCode::BAD_REQUEST, Json(serde_json::json!({"error": "invalid base64 ciphertext"}))),
+        Err(_) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({"error": "invalid base64 ciphertext"})),
+            )
+        }
     };
 
     // Store via the vault's storage backend
@@ -276,11 +290,20 @@ async fn handle_vault_put(
                 Ok(backend) => {
                     use signet_core::StorageBackend;
                     match backend.put(&record_id, &ciphertext) {
-                        Ok(()) => (StatusCode::OK, Json(serde_json::json!({"status": "stored"}))),
-                        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error": e.to_string()}))),
+                        Ok(()) => (
+                            StatusCode::OK,
+                            Json(serde_json::json!({"status": "stored"})),
+                        ),
+                        Err(e) => (
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            Json(serde_json::json!({"error": e.to_string()})),
+                        ),
                     }
                 }
-                Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error": e.to_string()}))),
+                Err(e) => (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(serde_json::json!({"error": e.to_string()})),
+                ),
             }
         }
         None => {
@@ -291,11 +314,20 @@ async fn handle_vault_put(
                 Ok(backend) => {
                     use signet_core::StorageBackend;
                     match backend.put(&record_id, &ciphertext) {
-                        Ok(()) => (StatusCode::OK, Json(serde_json::json!({"status": "stored"}))),
-                        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error": e.to_string()}))),
+                        Ok(()) => (
+                            StatusCode::OK,
+                            Json(serde_json::json!({"status": "stored"})),
+                        ),
+                        Err(e) => (
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            Json(serde_json::json!({"error": e.to_string()})),
+                        ),
                     }
                 }
-                Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error": e.to_string()}))),
+                Err(e) => (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(serde_json::json!({"error": e.to_string()})),
+                ),
             }
         }
     }
@@ -309,16 +341,29 @@ async fn handle_vault_get(
 ) -> impl IntoResponse {
     let tm = match &state.tenant_manager {
         Some(tm) => tm,
-        None => return (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "multi-tenant mode not enabled"}))),
+        None => {
+            return (
+                StatusCode::NOT_FOUND,
+                Json(serde_json::json!({"error": "multi-tenant mode not enabled"})),
+            )
+        }
     };
 
     let token = match extract_session_token(&headers) {
         Some(t) => t,
-        None => return (StatusCode::UNAUTHORIZED, Json(serde_json::json!({"error": "missing Authorization header"}))),
+        None => {
+            return (
+                StatusCode::UNAUTHORIZED,
+                Json(serde_json::json!({"error": "missing Authorization header"})),
+            )
+        }
     };
 
     if tm.validate_session(&token).is_none() {
-        return (StatusCode::UNAUTHORIZED, Json(serde_json::json!({"error": "invalid or expired session"})));
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({"error": "invalid or expired session"})),
+        );
     }
 
     let record_id = signet_core::RecordId::new(&req.record_id);
@@ -331,13 +376,25 @@ async fn handle_vault_get(
                 Ok(Some(data)) => {
                     use base64::Engine;
                     let encoded = base64::engine::general_purpose::STANDARD.encode(&data);
-                    (StatusCode::OK, Json(serde_json::json!({"ciphertext": encoded})))
+                    (
+                        StatusCode::OK,
+                        Json(serde_json::json!({"ciphertext": encoded})),
+                    )
                 }
-                Ok(None) => (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "record not found"}))),
-                Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error": e.to_string()}))),
+                Ok(None) => (
+                    StatusCode::NOT_FOUND,
+                    Json(serde_json::json!({"error": "record not found"})),
+                ),
+                Err(e) => (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(serde_json::json!({"error": e.to_string()})),
+                ),
             }
         }
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error": e.to_string()}))),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": e.to_string()})),
+        ),
     }
 }
 
@@ -349,16 +406,29 @@ async fn handle_vault_delete(
 ) -> impl IntoResponse {
     let tm = match &state.tenant_manager {
         Some(tm) => tm,
-        None => return (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "multi-tenant mode not enabled"}))),
+        None => {
+            return (
+                StatusCode::NOT_FOUND,
+                Json(serde_json::json!({"error": "multi-tenant mode not enabled"})),
+            )
+        }
     };
 
     let token = match extract_session_token(&headers) {
         Some(t) => t,
-        None => return (StatusCode::UNAUTHORIZED, Json(serde_json::json!({"error": "missing Authorization header"}))),
+        None => {
+            return (
+                StatusCode::UNAUTHORIZED,
+                Json(serde_json::json!({"error": "missing Authorization header"})),
+            )
+        }
     };
 
     if tm.validate_session(&token).is_none() {
-        return (StatusCode::UNAUTHORIZED, Json(serde_json::json!({"error": "invalid or expired session"})));
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({"error": "invalid or expired session"})),
+        );
     }
 
     let record_id = signet_core::RecordId::new(&req.record_id);
@@ -368,12 +438,24 @@ async fn handle_vault_delete(
         Ok(backend) => {
             use signet_core::StorageBackend;
             match backend.delete(&record_id) {
-                Ok(true) => (StatusCode::OK, Json(serde_json::json!({"status": "deleted"}))),
-                Ok(false) => (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "record not found"}))),
-                Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error": e.to_string()}))),
+                Ok(true) => (
+                    StatusCode::OK,
+                    Json(serde_json::json!({"status": "deleted"})),
+                ),
+                Ok(false) => (
+                    StatusCode::NOT_FOUND,
+                    Json(serde_json::json!({"error": "record not found"})),
+                ),
+                Err(e) => (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(serde_json::json!({"error": e.to_string()})),
+                ),
             }
         }
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error": e.to_string()}))),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": e.to_string()})),
+        ),
     }
 }
 

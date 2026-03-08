@@ -304,8 +304,7 @@ pub fn build_bbs_credential(
     messages: &[BbsMessage],
     signer: &dyn Signer,
 ) -> CredResult<BbsCredential> {
-    let (signature_bytes, public_key_bytes) =
-        compute_bbs_signature(messages, signer)?;
+    let (signature_bytes, public_key_bytes) = compute_bbs_signature(messages, signer)?;
 
     Ok(BbsCredential {
         signature: BbsSignature {

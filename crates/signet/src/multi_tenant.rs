@@ -92,7 +92,7 @@ impl TenantManager {
         Self {
             challenges: Mutex::new(HashMap::new()),
             sessions: Mutex::new(HashMap::new()),
-            session_duration_secs: 3600, // 1 hour
+            session_duration_secs: 3600,  // 1 hour
             challenge_duration_secs: 300, // 5 minutes
         }
     }
@@ -136,23 +136,20 @@ impl TenantManager {
         }
 
         // Decode public key
-        let pk_bytes = hex::decode(&req.public_key)
-            .map_err(|_| "invalid public key hex")?;
+        let pk_bytes = hex::decode(&req.public_key).map_err(|_| "invalid public key hex")?;
         let pk_array: [u8; 32] = pk_bytes
             .try_into()
             .map_err(|_| "public key must be 32 bytes")?;
-        let verifying_key = VerifyingKey::from_bytes(&pk_array)
-            .map_err(|_| "invalid Ed25519 public key")?;
+        let verifying_key =
+            VerifyingKey::from_bytes(&pk_array).map_err(|_| "invalid Ed25519 public key")?;
 
         // Decode signature
-        let sig_bytes = hex::decode(&req.signature)
-            .map_err(|_| "invalid signature hex")?;
-        let signature = Signature::from_slice(&sig_bytes)
-            .map_err(|_| "invalid Ed25519 signature")?;
+        let sig_bytes = hex::decode(&req.signature).map_err(|_| "invalid signature hex")?;
+        let signature =
+            Signature::from_slice(&sig_bytes).map_err(|_| "invalid Ed25519 signature")?;
 
         // Verify signature over the nonce bytes
-        let nonce_bytes = hex::decode(&req.nonce)
-            .map_err(|_| "invalid nonce hex")?;
+        let nonce_bytes = hex::decode(&req.nonce).map_err(|_| "invalid nonce hex")?;
         verifying_key
             .verify_strict(&nonce_bytes, &signature)
             .map_err(|_| "signature verification failed")?;
@@ -369,19 +366,23 @@ mod tests {
         // Both authenticate
         let ch_a = mgr.create_challenge();
         let sig_a = sk_a.sign(&hex::decode(&ch_a.nonce).unwrap());
-        let session_a = mgr.verify_challenge(&AuthVerifyRequest {
-            nonce: ch_a.nonce,
-            signature: hex::encode(sig_a.to_bytes()),
-            public_key: hex::encode(vk_a.to_bytes()),
-        }).unwrap();
+        let session_a = mgr
+            .verify_challenge(&AuthVerifyRequest {
+                nonce: ch_a.nonce,
+                signature: hex::encode(sig_a.to_bytes()),
+                public_key: hex::encode(vk_a.to_bytes()),
+            })
+            .unwrap();
 
         let ch_b = mgr.create_challenge();
         let sig_b = sk_b.sign(&hex::decode(&ch_b.nonce).unwrap());
-        let session_b = mgr.verify_challenge(&AuthVerifyRequest {
-            nonce: ch_b.nonce,
-            signature: hex::encode(sig_b.to_bytes()),
-            public_key: hex::encode(vk_b.to_bytes()),
-        }).unwrap();
+        let session_b = mgr
+            .verify_challenge(&AuthVerifyRequest {
+                nonce: ch_b.nonce,
+                signature: hex::encode(sig_b.to_bytes()),
+                public_key: hex::encode(vk_b.to_bytes()),
+            })
+            .unwrap();
 
         // Different sessions, different public keys
         assert_ne!(session_a.token, session_b.token);

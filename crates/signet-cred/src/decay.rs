@@ -136,9 +136,7 @@ pub enum DecayVerdict {
     /// Credential is exhausted (terminal).
     Exhausted(ExhaustionReason),
     /// A phase transition occurred, tightening limits. Credential is still alive.
-    PhaseTransition {
-        new_phase: usize,
-    },
+    PhaseTransition { new_phase: usize },
 }
 
 /// Why a credential was exhausted.
@@ -252,10 +250,7 @@ pub fn check_decay(
 }
 
 /// Get the effective rate limit, considering phase overrides.
-fn get_effective_rate_limit(
-    config: &DecayConfig,
-    state: &DecayState,
-) -> Option<RateLimitDecay> {
+fn get_effective_rate_limit(config: &DecayConfig, state: &DecayState) -> Option<RateLimitDecay> {
     // Check if the current phase overrides rate limiting
     if state.current_phase_index > 0 {
         let phase = &config.phases[state.current_phase_index - 1];
@@ -279,11 +274,7 @@ fn get_effective_rate_limit(
 ///
 /// Call this after a successful presentation. Updates total_uses,
 /// window_uses, and resets the window if it has elapsed.
-pub fn record_use(
-    state: &mut DecayState,
-    config: &DecayConfig,
-    now: &str,
-) -> CredResult<()> {
+pub fn record_use(state: &mut DecayState, config: &DecayConfig, now: &str) -> CredResult<()> {
     let current = parse_timestamp(now)?;
 
     state.total_uses += 1;
@@ -509,7 +500,7 @@ mod tests {
         };
         let mut state = DecayState::new(&ts(0));
         state.window_uses = 10; // way over limit
-        // But the window has elapsed (86400 seconds later)
+                                // But the window has elapsed (86400 seconds later)
         let verdict = check_decay(&config, &state, &ts(0), &ts(86400)).unwrap();
         assert_eq!(verdict, DecayVerdict::Alive);
     }
@@ -808,10 +799,7 @@ mod tests {
         let mut state_p2 = DecayState::new(&ts(0));
         state_p2.current_phase_index = 2;
         let v = check_decay(&config, &state_p2, &ts(0), &ts(120 * 86400)).unwrap();
-        assert_eq!(
-            v,
-            DecayVerdict::Exhausted(ExhaustionReason::PhaseTerminal)
-        );
+        assert_eq!(v, DecayVerdict::Exhausted(ExhaustionReason::PhaseTerminal));
     }
 
     // --- ExhaustionReason display ---

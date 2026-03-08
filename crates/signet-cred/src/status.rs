@@ -451,10 +451,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(status, CredentialStatus::Revoked);
-        assert_eq!(
-            info.revoked_by,
-            RevokedBy::Authority("abcd1234".into())
-        );
+        assert_eq!(info.revoked_by, RevokedBy::Authority("abcd1234".into()));
         assert_eq!(info.reason.as_deref(), Some("credential superseded"));
     }
 

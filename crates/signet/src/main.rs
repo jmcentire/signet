@@ -337,13 +337,13 @@ async fn cmd_serve(
             let app = signet::http::build_router(app_state);
 
             let addr = format!("{}:{}", bind, port);
-            let listener = tokio::net::TcpListener::bind(&addr).await.map_err(|e| {
-                RootError::Internal(format!("failed to bind {}: {}", addr, e))
-            })?;
+            let listener = tokio::net::TcpListener::bind(&addr)
+                .await
+                .map_err(|e| RootError::Internal(format!("failed to bind {}: {}", addr, e)))?;
 
-            axum::serve(listener, app).await.map_err(|e| {
-                RootError::Internal(format!("HTTP server error: {}", e))
-            })?;
+            axum::serve(listener, app)
+                .await
+                .map_err(|e| RootError::Internal(format!("HTTP server error: {}", e)))?;
 
             return Ok(());
         }
@@ -366,9 +366,10 @@ async fn cmd_store(
     let config = load_config(config_path)?;
     let state = initialize_root(config)?;
 
-    let vault = state.vault_access.as_ref().ok_or_else(|| {
-        RootError::Internal("vault not initialized".into())
-    })?;
+    let vault = state
+        .vault_access
+        .as_ref()
+        .ok_or_else(|| RootError::Internal("vault not initialized".into()))?;
 
     let tier_enum = match tier {
         1 => signet_core::Tier::Tier1,
@@ -377,9 +378,9 @@ async fn cmd_store(
         _ => unreachable!(),
     };
 
-    vault.put(label, tier_enum, value.as_bytes()).map_err(|e| {
-        RootError::Internal(format!("store failed: {}", e))
-    })?;
+    vault
+        .put(label, tier_enum, value.as_bytes())
+        .map_err(|e| RootError::Internal(format!("store failed: {}", e)))?;
 
     println!("Stored: {} = {} (tier {})", label, value, tier);
     Ok(())
@@ -395,9 +396,10 @@ async fn cmd_list(config_path: Option<&PathBuf>, tier_filter: Option<u8>) -> Res
     let config = load_config(config_path)?;
     let state = initialize_root(config)?;
 
-    let vault = state.vault_access.as_ref().ok_or_else(|| {
-        RootError::Internal("vault not initialized".into())
-    })?;
+    let vault = state
+        .vault_access
+        .as_ref()
+        .ok_or_else(|| RootError::Internal("vault not initialized".into()))?;
 
     let tier_enum = tier_filter.map(|t| match t {
         1 => signet_core::Tier::Tier1,
@@ -406,9 +408,9 @@ async fn cmd_list(config_path: Option<&PathBuf>, tier_filter: Option<u8>) -> Res
         _ => unreachable!(),
     });
 
-    let entries = vault.list(tier_enum).map_err(|e| {
-        RootError::Internal(format!("list failed: {}", e))
-    })?;
+    let entries = vault
+        .list(tier_enum)
+        .map_err(|e| RootError::Internal(format!("list failed: {}", e)))?;
 
     if entries.is_empty() {
         println!("No stored data.");
@@ -448,9 +450,10 @@ async fn cmd_capability(
     let config = load_config(config_path)?;
     let state = initialize_root(config)?;
 
-    let signer = state.signer.as_ref().ok_or_else(|| {
-        RootError::Internal("vault signer not initialized".into())
-    })?;
+    let signer = state
+        .signer
+        .as_ref()
+        .ok_or_else(|| RootError::Internal("vault signer not initialized".into()))?;
 
     let constraints = signet_cred::spl_capability::SplCapabilityConstraints {
         domain: domain.to_string(),
@@ -461,12 +464,12 @@ async fn cmd_capability(
     };
 
     let signing_key_hex = hex::encode(signer.signing_key_bytes());
-    let token = signet_cred::spl_capability::generate_spl_capability(&constraints, &signing_key_hex)
-        .map_err(|e| RootError::Credential(e.kind))?;
+    let token =
+        signet_cred::spl_capability::generate_spl_capability(&constraints, &signing_key_hex)
+            .map_err(|e| RootError::Credential(e.kind))?;
 
-    let token_json = serde_json::to_string_pretty(&token).map_err(|e| {
-        RootError::Serialization(e.to_string())
-    })?;
+    let token_json = serde_json::to_string_pretty(&token)
+        .map_err(|e| RootError::Serialization(e.to_string()))?;
 
     println!("{}", token_json);
     Ok(())
@@ -603,19 +606,19 @@ async fn cmd_cred_list(
     let config = load_config(config_path)?;
     let state = initialize_root(config)?;
 
-    let vault = state.vault_access.as_ref().ok_or_else(|| {
-        RootError::Internal("vault not initialized".into())
-    })?;
+    let vault = state
+        .vault_access
+        .as_ref()
+        .ok_or_else(|| RootError::Internal("vault not initialized".into()))?;
 
-    let entries = vault.list(None).map_err(|e| {
-        RootError::Internal(format!("list failed: {}", e))
-    })?;
+    let entries = vault
+        .list(None)
+        .map_err(|e| RootError::Internal(format!("list failed: {}", e)))?;
 
     let cred_entries: Vec<_> = entries
         .iter()
         .filter(|e| {
-            e.label.starts_with(CRED_OFFER_PREFIX)
-                || e.label.starts_with(CRED_ACCEPTED_PREFIX)
+            e.label.starts_with(CRED_OFFER_PREFIX) || e.label.starts_with(CRED_ACCEPTED_PREFIX)
         })
         .collect();
 
@@ -624,24 +627,35 @@ async fn cmd_cred_list(
         return Ok(());
     }
 
-    println!("{:<36} {:<12} {:<20} {:<20}", "ID", "STATUS", "TYPE", "AUTHORITY");
+    println!(
+        "{:<36} {:<12} {:<20} {:<20}",
+        "ID", "STATUS", "TYPE", "AUTHORITY"
+    );
     println!("{}", "-".repeat(88));
 
     for entry in &cred_entries {
-        let data = vault.get(&entry.label, entry.tier).map_err(|e| {
-            RootError::Internal(format!("get failed: {}", e))
-        })?;
+        let data = vault
+            .get(&entry.label, entry.tier)
+            .map_err(|e| RootError::Internal(format!("get failed: {}", e)))?;
 
         if let Some(data) = data {
             let is_offer = entry.label.starts_with(CRED_OFFER_PREFIX);
             let id = if is_offer {
-                entry.label.strip_prefix(CRED_OFFER_PREFIX).unwrap_or(&entry.label)
+                entry
+                    .label
+                    .strip_prefix(CRED_OFFER_PREFIX)
+                    .unwrap_or(&entry.label)
             } else {
-                entry.label.strip_prefix(CRED_ACCEPTED_PREFIX).unwrap_or(&entry.label)
+                entry
+                    .label
+                    .strip_prefix(CRED_ACCEPTED_PREFIX)
+                    .unwrap_or(&entry.label)
             };
 
             let (status_str, cred_type, authority_pk) = if is_offer {
-                if let Ok(offer) = serde_json::from_slice::<signet_cred::authority::AuthorityOffer>(&data) {
+                if let Ok(offer) =
+                    serde_json::from_slice::<signet_cred::authority::AuthorityOffer>(&data)
+                {
                     let auth_short = if offer.key.authority_pubkey.len() > 16 {
                         format!("{}...", &offer.key.authority_pubkey[..16])
                     } else {
@@ -651,13 +665,19 @@ async fn cmd_cred_list(
                 } else {
                     continue;
                 }
-            } else if let Ok(accepted) = serde_json::from_slice::<signet_cred::authority::AcceptedCredential>(&data) {
+            } else if let Ok(accepted) =
+                serde_json::from_slice::<signet_cred::authority::AcceptedCredential>(&data)
+            {
                 let auth_short = if accepted.offer.key.authority_pubkey.len() > 16 {
                     format!("{}...", &accepted.offer.key.authority_pubkey[..16])
                 } else {
                     accepted.offer.key.authority_pubkey.clone()
                 };
-                ("accepted".to_string(), accepted.offer.credential_type, auth_short)
+                (
+                    "accepted".to_string(),
+                    accepted.offer.credential_type,
+                    auth_short,
+                )
             } else {
                 continue;
             };
@@ -673,7 +693,10 @@ async fn cmd_cred_list(
                 }
             }
 
-            println!("{:<36} {:<12} {:<20} {:<20}", id, status_str, cred_type, authority_pk);
+            println!(
+                "{:<36} {:<12} {:<20} {:<20}",
+                id, status_str, cred_type, authority_pk
+            );
         }
     }
 
@@ -688,13 +711,15 @@ async fn cmd_cred_accept(
     let config = load_config(config_path)?;
     let state = initialize_root(config)?;
 
-    let vault = state.vault_access.as_ref().ok_or_else(|| {
-        RootError::Internal("vault not initialized".into())
-    })?;
+    let vault = state
+        .vault_access
+        .as_ref()
+        .ok_or_else(|| RootError::Internal("vault not initialized".into()))?;
 
-    let signer = state.signer.as_ref().ok_or_else(|| {
-        RootError::Internal("vault signer not initialized".into())
-    })?;
+    let signer = state
+        .signer
+        .as_ref()
+        .ok_or_else(|| RootError::Internal("vault signer not initialized".into()))?;
 
     let offer_label = format!("{}{}", CRED_OFFER_PREFIX, offer_id);
     let offer_data = vault
@@ -702,10 +727,8 @@ async fn cmd_cred_accept(
         .map_err(|e| RootError::Internal(format!("get failed: {}", e)))?
         .ok_or_else(|| RootError::Internal(format!("offer {} not found", offer_id)))?;
 
-    let offer: signet_cred::authority::AuthorityOffer =
-        serde_json::from_slice(&offer_data).map_err(|e| {
-            RootError::Serialization(format!("failed to decode offer: {}", e))
-        })?;
+    let offer: signet_cred::authority::AuthorityOffer = serde_json::from_slice(&offer_data)
+        .map_err(|e| RootError::Serialization(format!("failed to decode offer: {}", e)))?;
 
     if review {
         println!("Authority Offer: {}", offer_id);
@@ -726,7 +749,10 @@ async fn cmd_cred_accept(
                 println!("    Max uses: {}", uc.max_uses);
             }
             if let Some(ref rl) = decay.rate_limit {
-                println!("    Rate limit: {}/{}s (grace: {})", rl.max_per_window, rl.window_seconds, rl.grace);
+                println!(
+                    "    Rate limit: {}/{}s (grace: {})",
+                    rl.max_per_window, rl.window_seconds, rl.grace
+                );
             }
             if !decay.phases.is_empty() {
                 println!("    Phases: {}", decay.phases.len());
@@ -746,9 +772,8 @@ async fn cmd_cred_accept(
         println!();
     }
 
-    let accepted = signet_cred::authority::accept_offer(&offer, signer).map_err(|e| {
-        RootError::Internal(format!("accept failed: {}", e))
-    })?;
+    let accepted = signet_cred::authority::accept_offer(&offer, signer)
+        .map_err(|e| RootError::Internal(format!("accept failed: {}", e)))?;
 
     let accepted_label = format!(
         "{}{}",
@@ -777,15 +802,17 @@ async fn cmd_cred_reject(
     let config = load_config(config_path)?;
     let state = initialize_root(config)?;
 
-    let vault = state.vault_access.as_ref().ok_or_else(|| {
-        RootError::Internal("vault not initialized".into())
-    })?;
+    let vault = state
+        .vault_access
+        .as_ref()
+        .ok_or_else(|| RootError::Internal("vault not initialized".into()))?;
 
-    let status = signet_cred::authority::OfferStatus::Rejected { reason: reason.clone() };
+    let status = signet_cred::authority::OfferStatus::Rejected {
+        reason: reason.clone(),
+    };
     let status_label = format!("{}{}", CRED_STATUS_PREFIX, offer_id);
-    let status_data = serde_json::to_vec(&status).map_err(|e| {
-        RootError::Serialization(format!("failed to encode status: {}", e))
-    })?;
+    let status_data = serde_json::to_vec(&status)
+        .map_err(|e| RootError::Serialization(format!("failed to encode status: {}", e)))?;
     vault
         .put(&status_label, signet_core::Tier::Tier2, &status_data)
         .map_err(|e| RootError::Internal(format!("store failed: {}", e)))?;
@@ -802,9 +829,10 @@ async fn cmd_cred_show(config_path: Option<&PathBuf>, id: &str) -> Result<(), Ro
     let config = load_config(config_path)?;
     let state = initialize_root(config)?;
 
-    let vault = state.vault_access.as_ref().ok_or_else(|| {
-        RootError::Internal("vault not initialized".into())
-    })?;
+    let vault = state
+        .vault_access
+        .as_ref()
+        .ok_or_else(|| RootError::Internal("vault not initialized".into()))?;
 
     // Try offer first
     let offer_label = format!("{}{}", CRED_OFFER_PREFIX, id);
@@ -833,7 +861,9 @@ async fn cmd_cred_show(config_path: Option<&PathBuf>, id: &str) -> Result<(), Ro
     // Try accepted
     let accepted_label = format!("{}{}", CRED_ACCEPTED_PREFIX, id);
     if let Ok(Some(data)) = vault.get(&accepted_label, signet_core::Tier::Tier2) {
-        if let Ok(accepted) = serde_json::from_slice::<signet_cred::authority::AcceptedCredential>(&data) {
+        if let Ok(accepted) =
+            serde_json::from_slice::<signet_cred::authority::AcceptedCredential>(&data)
+        {
             println!("Accepted Credential: {}", id);
             println!("  Authority:   {}", accepted.offer.key.authority_pubkey);
             println!("  User:        {}", accepted.user_pubkey);
@@ -862,9 +892,10 @@ async fn cmd_cred_revoke(
     let config = load_config(config_path)?;
     let state = initialize_root(config)?;
 
-    let vault = state.vault_access.as_ref().ok_or_else(|| {
-        RootError::Internal("vault not initialized".into())
-    })?;
+    let vault = state
+        .vault_access
+        .as_ref()
+        .ok_or_else(|| RootError::Internal("vault not initialized".into()))?;
 
     let revocation = signet_cred::RevocationInfo {
         revoked_by: signet_cred::RevokedBy::User,
@@ -872,9 +903,8 @@ async fn cmd_cred_revoke(
         reason: reason.clone(),
     };
     let status_label = format!("{}{}", CRED_STATUS_PREFIX, credential_id);
-    let status_data = serde_json::to_vec(&revocation).map_err(|e| {
-        RootError::Serialization(format!("failed to encode revocation: {}", e))
-    })?;
+    let status_data = serde_json::to_vec(&revocation)
+        .map_err(|e| RootError::Serialization(format!("failed to encode revocation: {}", e)))?;
     vault
         .put(&status_label, signet_core::Tier::Tier2, &status_data)
         .map_err(|e| RootError::Internal(format!("store failed: {}", e)))?;
@@ -894,7 +924,10 @@ async fn cmd_cred_refresh(
     let _config = load_config(config_path)?;
 
     println!("Refresh requested for credential: {}", credential_id);
-    println!("  The authority will be notified. Check back with 'signet credential show {}'.", credential_id);
+    println!(
+        "  The authority will be notified. Check back with 'signet credential show {}'.",
+        credential_id
+    );
 
     Ok(())
 }

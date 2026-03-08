@@ -21,7 +21,9 @@ pub mod error;
 pub mod http;
 pub mod multi_tenant;
 
-pub use config::{HostingMode, McpConfig, PolicyEngineConfig, PostgresConfig, RootConfig, Transport};
+pub use config::{
+    HostingMode, McpConfig, PolicyEngineConfig, PostgresConfig, RootConfig, Transport,
+};
 pub use error::{RootError, RootResult};
 
 use serde::{Deserialize, Serialize};
@@ -218,7 +220,11 @@ impl RealVaultAccess {
         ))
     }
 
-    fn load_index(db_path: &str, addressing_key: &[u8; 32], encryption_key: &[u8; 32]) -> Vec<StoredEntryMeta> {
+    fn load_index(
+        db_path: &str,
+        addressing_key: &[u8; 32],
+        encryption_key: &[u8; 32],
+    ) -> Vec<StoredEntryMeta> {
         let backend = match signet_vault::storage::SqliteBackend::open(db_path) {
             Ok(b) => b,
             Err(_) => return Vec::new(),
@@ -255,7 +261,11 @@ impl VaultAccess for RealVaultAccess {
     fn get(&self, label: &str, tier: Tier) -> signet_mcp::McpResult<Option<Vec<u8>>> {
         let storage = self.open_storage()?;
         let collection_name = Self::collection_name(tier);
-        let record_id = derive_record_id(&*self.addressing_key, &format!("{}:{}", collection_name, label), 0);
+        let record_id = derive_record_id(
+            &*self.addressing_key,
+            &format!("{}:{}", collection_name, label),
+            0,
+        );
         match storage.get(&record_id) {
             Ok(Some(data)) => {
                 let record: StoredRecord = serde_json::from_slice(&data).map_err(|e| {
@@ -288,7 +298,11 @@ impl VaultAccess for RealVaultAccess {
         let record_bytes = serde_json::to_vec(&record).map_err(|e| {
             signet_mcp::McpError::SerializationError(format!("failed to serialize record: {}", e))
         })?;
-        let record_id = derive_record_id(&*self.addressing_key, &format!("{}:{}", collection_name, label), 0);
+        let record_id = derive_record_id(
+            &*self.addressing_key,
+            &format!("{}:{}", collection_name, label),
+            0,
+        );
         storage.put(&record_id, &record_bytes).map_err(|e| {
             signet_mcp::McpError::ToolExecutionFailed(format!("storage put failed: {}", e))
         })?;
@@ -396,9 +410,8 @@ pub fn initialize_root(config: RootConfig) -> RootResult<RootState> {
     let vault_json_path = config.vault_path.join("vault.json");
     let mnemonic = if vault_json_path.exists() {
         // Load existing mnemonic
-        let vault_data = std::fs::read_to_string(&vault_json_path).map_err(|e| {
-            RootError::Internal(format!("failed to read vault.json: {}", e))
-        })?;
+        let vault_data = std::fs::read_to_string(&vault_json_path)
+            .map_err(|e| RootError::Internal(format!("failed to read vault.json: {}", e)))?;
         let vault_obj: serde_json::Value = serde_json::from_str(&vault_data)?;
         let phrase = vault_obj["mnemonic"]
             .as_str()
@@ -412,9 +425,8 @@ pub fn initialize_root(config: RootConfig) -> RootResult<RootState> {
             "created_at": chrono::Utc::now().to_rfc3339(),
             "version": 1
         });
-        std::fs::write(&vault_json_path, serde_json::to_string_pretty(&vault_obj)?).map_err(|e| {
-            RootError::Internal(format!("failed to write vault.json: {}", e))
-        })?;
+        std::fs::write(&vault_json_path, serde_json::to_string_pretty(&vault_obj)?)
+            .map_err(|e| RootError::Internal(format!("failed to write vault.json: {}", e)))?;
         // Set restrictive permissions on vault.json
         #[cfg(unix)]
         {
@@ -598,10 +610,13 @@ fn handle_initialize(_state: &RootState, request: &JsonRpcRequest) -> JsonRpcRes
 
 fn handle_vault_status(state: &RootState, request: &JsonRpcRequest) -> JsonRpcResponse {
     let (t1, t2, t3) = if let Some(vault) = &state.vault_access {
-        let count_tier = |tier: Tier| -> u64 {
-            vault.list(Some(tier)).map(|v| v.len() as u64).unwrap_or(0)
-        };
-        (count_tier(Tier::Tier1), count_tier(Tier::Tier2), count_tier(Tier::Tier3))
+        let count_tier =
+            |tier: Tier| -> u64 { vault.list(Some(tier)).map(|v| v.len() as u64).unwrap_or(0) };
+        (
+            count_tier(Tier::Tier1),
+            count_tier(Tier::Tier2),
+            count_tier(Tier::Tier3),
+        )
     } else {
         (0, 0, 0)
     };
@@ -712,14 +727,22 @@ mod tests {
 
         let result = response.result.unwrap();
         let tools = result["tools"].as_array().unwrap();
-        assert!(tools.len() >= 7, "expected at least 7 tools (5 original + store + list), got {}", tools.len());
+        assert!(
+            tools.len() >= 7,
+            "expected at least 7 tools (5 original + store + list), got {}",
+            tools.len()
+        );
 
         // Check that store_data and list_data are present
-        let tool_names: Vec<&str> = tools.iter()
-            .filter_map(|t| t["name"].as_str())
-            .collect();
-        assert!(tool_names.contains(&"store_data"), "store_data tool not found");
-        assert!(tool_names.contains(&"list_data"), "list_data tool not found");
+        let tool_names: Vec<&str> = tools.iter().filter_map(|t| t["name"].as_str()).collect();
+        assert!(
+            tool_names.contains(&"store_data"),
+            "store_data tool not found"
+        );
+        assert!(
+            tool_names.contains(&"list_data"),
+            "list_data tool not found"
+        );
 
         let _ = std::fs::remove_dir_all(state.config.data_dir.clone());
     }
@@ -792,7 +815,11 @@ mod tests {
         assert!(response.result.is_some(), "error: {:?}", response.error);
         let result = response.result.unwrap();
         let tools = result["tools"].as_array().unwrap();
-        assert!(tools.len() >= 5, "expected at least 5 tools, got {}", tools.len());
+        assert!(
+            tools.len() >= 5,
+            "expected at least 5 tools, got {}",
+            tools.len()
+        );
 
         let _ = std::fs::remove_dir_all(state.config.data_dir.clone());
     }

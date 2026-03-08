@@ -182,6 +182,7 @@ pub fn canonical_offer_bytes(offer: &AuthorityOffer) -> Vec<u8> {
 // ---------------------------------------------------------------------------
 
 /// Create a signed authority offer.
+#[allow(clippy::too_many_arguments)]
 pub fn sign_authority_offer(
     key: AuthorityCredentialKey,
     credential_type: String,
@@ -316,14 +317,12 @@ pub fn verify_chain(offer: &AuthorityOffer) -> CredResult<bool> {
         sig_bytes.copy_from_slice(&link.signature);
         let signature = Signature::from_bytes(&sig_bytes);
 
-        verifying_key
-            .verify(&signable, &signature)
-            .map_err(|_| {
-                CredErrorDetail::new(
-                    CredError::ChainVerificationFailed,
-                    format!("chain link {} signature verification failed", i),
-                )
-            })?;
+        verifying_key.verify(&signable, &signature).map_err(|_| {
+            CredErrorDetail::new(
+                CredError::ChainVerificationFailed,
+                format!("chain link {} signature verification failed", i),
+            )
+        })?;
     }
 
     Ok(true)
@@ -344,9 +343,12 @@ pub fn accept_offer(
 
     // Check offer expiry
     let now = chrono::Utc::now();
-    let expires_at = chrono::DateTime::parse_from_rfc3339(&offer.offer_expires_at)
-        .map_err(|_| {
-            CredErrorDetail::new(CredError::DecodingFailed, "invalid offer_expires_at timestamp")
+    let expires_at =
+        chrono::DateTime::parse_from_rfc3339(&offer.offer_expires_at).map_err(|_| {
+            CredErrorDetail::new(
+                CredError::DecodingFailed,
+                "invalid offer_expires_at timestamp",
+            )
         })?;
 
     if now > expires_at {
@@ -430,7 +432,10 @@ pub fn store_authority_offer(
     let offer_id = generate_offer_id(offer);
     let record_id = offer_record_id(&offer_id);
     let data = serde_json::to_vec(offer).map_err(|_| {
-        CredErrorDetail::new(CredError::EncodingFailed, "failed to encode authority offer")
+        CredErrorDetail::new(
+            CredError::EncodingFailed,
+            "failed to encode authority offer",
+        )
     })?;
     storage.put(&record_id, &data).map_err(|_| {
         CredErrorDetail::new(CredError::VaultError, "failed to store authority offer")
@@ -451,7 +456,10 @@ pub fn load_authority_offer(
             CredErrorDetail::new(CredError::CredentialNotFound, "authority offer not found")
         })?;
     serde_json::from_slice(&data).map_err(|_| {
-        CredErrorDetail::new(CredError::DecodingFailed, "failed to decode authority offer")
+        CredErrorDetail::new(
+            CredError::DecodingFailed,
+            "failed to decode authority offer",
+        )
     })
 }
 
@@ -468,10 +476,7 @@ pub fn store_accepted_credential(
         )
     })?;
     storage.put(&record_id, &data).map_err(|_| {
-        CredErrorDetail::new(
-            CredError::VaultError,
-            "failed to store accepted credential",
-        )
+        CredErrorDetail::new(CredError::VaultError, "failed to store accepted credential")
     })
 }
 
@@ -598,7 +603,10 @@ mod tests {
 
     fn make_test_claims() -> BTreeMap<String, ClaimValue> {
         let mut claims = BTreeMap::new();
-        claims.insert("name".to_string(), ClaimValue::StringVal("Alice".to_string()));
+        claims.insert(
+            "name".to_string(),
+            ClaimValue::StringVal("Alice".to_string()),
+        );
         claims.insert("age".to_string(), ClaimValue::IntVal(29));
         claims
     }
@@ -724,10 +732,7 @@ mod tests {
         let user_signer = TestSigner::new();
         let result = accept_offer(&offer, &user_signer);
         assert!(result.is_err());
-        assert!(matches!(
-            result.unwrap_err().kind,
-            CredError::OfferExpired
-        ));
+        assert!(matches!(result.unwrap_err().kind, CredError::OfferExpired));
     }
 
     // --- Two authorities, same user ---

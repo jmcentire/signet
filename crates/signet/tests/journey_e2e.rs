@@ -5,8 +5,8 @@
 //! Journey 3: HTTP transport (health, MCP proxy, verify)
 //! Journey 4: SPL capability token generation and verification
 
-use signet::{initialize_root, handle_request, JsonRpcRequest, RootConfig};
 use signet::config::{McpConfig, PolicyEngineConfig};
+use signet::{handle_request, initialize_root, JsonRpcRequest, RootConfig};
 use signet_mcp::VaultAccess;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -47,8 +47,16 @@ fn test_journey_store_and_list() {
 
     // Store items across tiers
     vault.put("age", signet_core::Tier::Tier1, b"29").unwrap();
-    vault.put("name", signet_core::Tier::Tier1, b"Alice Nakamoto").unwrap();
-    vault.put("credit_card", signet_core::Tier::Tier3, b"4111-1111-1111-1111").unwrap();
+    vault
+        .put("name", signet_core::Tier::Tier1, b"Alice Nakamoto")
+        .unwrap();
+    vault
+        .put(
+            "credit_card",
+            signet_core::Tier::Tier3,
+            b"4111-1111-1111-1111",
+        )
+        .unwrap();
 
     // List all
     let all = vault.list(None).unwrap();
@@ -70,11 +78,17 @@ fn test_journey_store_and_list() {
     let age = vault.get("age", signet_core::Tier::Tier1).unwrap().unwrap();
     assert_eq!(std::str::from_utf8(&age).unwrap(), "29");
 
-    let name = vault.get("name", signet_core::Tier::Tier1).unwrap().unwrap();
+    let name = vault
+        .get("name", signet_core::Tier::Tier1)
+        .unwrap()
+        .unwrap();
     assert_eq!(std::str::from_utf8(&name).unwrap(), "Alice Nakamoto");
 
     // Retrieve tier 3 value (vault can access it, but external agents shouldn't)
-    let cc = vault.get("credit_card", signet_core::Tier::Tier3).unwrap().unwrap();
+    let cc = vault
+        .get("credit_card", signet_core::Tier::Tier3)
+        .unwrap()
+        .unwrap();
     assert_eq!(std::str::from_utf8(&cc).unwrap(), "4111-1111-1111-1111");
 
     // Verify signet ID exists
@@ -96,7 +110,11 @@ fn test_journey_mcp_tools() {
 
     // List tools via JSON-RPC
     let list_resp = handle_request(&state, &make_request("tools/list", None));
-    assert!(list_resp.result.is_some(), "tools/list failed: {:?}", list_resp.error);
+    assert!(
+        list_resp.result.is_some(),
+        "tools/list failed: {:?}",
+        list_resp.error
+    );
     let tools = list_resp.result.unwrap();
     let tool_names: Vec<&str> = tools["tools"]
         .as_array()
@@ -104,11 +122,17 @@ fn test_journey_mcp_tools() {
         .iter()
         .map(|t| t["name"].as_str().unwrap())
         .collect();
-    assert!(tool_names.contains(&"store_data"), "store_data tool missing");
+    assert!(
+        tool_names.contains(&"store_data"),
+        "store_data tool missing"
+    );
     assert!(tool_names.contains(&"list_data"), "list_data tool missing");
     assert!(tool_names.contains(&"get_proof"), "get_proof tool missing");
     assert!(tool_names.contains(&"query"), "query tool missing");
-    assert!(tool_names.contains(&"request_capability"), "request_capability tool missing");
+    assert!(
+        tool_names.contains(&"request_capability"),
+        "request_capability tool missing"
+    );
 
     // Store data via MCP
     let store_resp = handle_request(
@@ -122,17 +146,28 @@ fn test_journey_mcp_tools() {
             })),
         ),
     );
-    assert!(store_resp.result.is_some(), "store_data failed: {:?}", store_resp.error);
+    assert!(
+        store_resp.result.is_some(),
+        "store_data failed: {:?}",
+        store_resp.error
+    );
 
     // List data via MCP
     let list_data_resp = handle_request(
         &state,
         &make_request("list_data", Some(serde_json::json!({}))),
     );
-    assert!(list_data_resp.result.is_some(), "list_data failed: {:?}", list_data_resp.error);
+    assert!(
+        list_data_resp.result.is_some(),
+        "list_data failed: {:?}",
+        list_data_resp.error
+    );
     let list_result = list_data_resp.result.unwrap();
     let entries = list_result["entries"].as_array().unwrap();
-    assert!(!entries.is_empty(), "should have at least one entry after storing");
+    assert!(
+        !entries.is_empty(),
+        "should have at least one entry after storing"
+    );
 
     // Query via MCP
     let query_resp = handle_request(
@@ -146,7 +181,11 @@ fn test_journey_mcp_tools() {
             })),
         ),
     );
-    assert!(query_resp.result.is_some(), "query failed: {:?}", query_resp.error);
+    assert!(
+        query_resp.result.is_some(),
+        "query failed: {:?}",
+        query_resp.error
+    );
 
     // Get proof via MCP
     let proof_resp = handle_request(
@@ -162,7 +201,11 @@ fn test_journey_mcp_tools() {
             })),
         ),
     );
-    assert!(proof_resp.result.is_some(), "get_proof failed: {:?}", proof_resp.error);
+    assert!(
+        proof_resp.result.is_some(),
+        "get_proof failed: {:?}",
+        proof_resp.error
+    );
 
     // Vault status shows real data
     let status_resp = handle_request(&state, &make_request("vault/status", None));
@@ -181,13 +224,16 @@ fn test_journey_mcp_tools() {
 
 #[test]
 fn test_journey_http_router() {
-    use signet::http::{AppState, build_router};
+    use signet::http::{build_router, AppState};
 
     let config = journey_config();
     let state = initialize_root(config).unwrap();
 
     // Build the router (validates it compiles and wires correctly)
-    let app_state = std::sync::Arc::new(AppState { root: state, tenant_manager: None });
+    let app_state = std::sync::Arc::new(AppState {
+        root: state,
+        tenant_manager: None,
+    });
     let _router = build_router(app_state.clone());
 
     // Verify the root state is accessible through AppState
@@ -218,41 +264,75 @@ fn test_journey_spl_capability() {
     };
 
     let signing_key_hex = hex::encode(signer.signing_key_bytes());
-    let token = signet_cred::spl_capability::generate_spl_capability(&constraints, &signing_key_hex)
-        .unwrap();
+    let token =
+        signet_cred::spl_capability::generate_spl_capability(&constraints, &signing_key_hex)
+            .unwrap();
 
     // Token should be sealed (one-time use)
     assert!(token.sealed, "one_time=true should produce a sealed token");
     assert!(token.expires.is_some(), "should have expiry");
-    assert!(token.policy.contains("amazon.com"), "policy should bind to domain");
-    assert!(token.policy.contains("150"), "policy should include amount limit");
-    assert!(token.policy.contains("purchase"), "policy should include purpose");
+    assert!(
+        token.policy.contains("amazon.com"),
+        "policy should bind to domain"
+    );
+    assert!(
+        token.policy.contains("150"),
+        "policy should include amount limit"
+    );
+    assert!(
+        token.policy.contains("purchase"),
+        "policy should include purpose"
+    );
 
     // Verify token with matching request
     let mut req = std::collections::HashMap::new();
-    req.insert("domain".to_string(), agent_safe_spl::Node::Str("amazon.com".to_string()));
+    req.insert(
+        "domain".to_string(),
+        agent_safe_spl::Node::Str("amazon.com".to_string()),
+    );
     req.insert("amount".to_string(), agent_safe_spl::Node::Number(100.0));
-    req.insert("purpose".to_string(), agent_safe_spl::Node::Str("purchase".to_string()));
+    req.insert(
+        "purpose".to_string(),
+        agent_safe_spl::Node::Str("purchase".to_string()),
+    );
 
     let result = agent_safe_spl::verify_token(&token, req, std::collections::HashMap::new());
-    assert!(result.allow, "valid request should be allowed: {:?}", result.error);
+    assert!(
+        result.allow,
+        "valid request should be allowed: {:?}",
+        result.error
+    );
 
     // Verify token rejects wrong domain
     let mut bad_req = std::collections::HashMap::new();
-    bad_req.insert("domain".to_string(), agent_safe_spl::Node::Str("evil.com".to_string()));
+    bad_req.insert(
+        "domain".to_string(),
+        agent_safe_spl::Node::Str("evil.com".to_string()),
+    );
     bad_req.insert("amount".to_string(), agent_safe_spl::Node::Number(100.0));
-    bad_req.insert("purpose".to_string(), agent_safe_spl::Node::Str("purchase".to_string()));
+    bad_req.insert(
+        "purpose".to_string(),
+        agent_safe_spl::Node::Str("purchase".to_string()),
+    );
 
-    let bad_result = agent_safe_spl::verify_token(&token, bad_req, std::collections::HashMap::new());
+    let bad_result =
+        agent_safe_spl::verify_token(&token, bad_req, std::collections::HashMap::new());
     assert!(!bad_result.allow, "wrong domain should be rejected");
 
     // Verify token rejects amount over limit
     let mut over_req = std::collections::HashMap::new();
-    over_req.insert("domain".to_string(), agent_safe_spl::Node::Str("amazon.com".to_string()));
+    over_req.insert(
+        "domain".to_string(),
+        agent_safe_spl::Node::Str("amazon.com".to_string()),
+    );
     over_req.insert("amount".to_string(), agent_safe_spl::Node::Number(200.0));
-    over_req.insert("purpose".to_string(), agent_safe_spl::Node::Str("purchase".to_string()));
+    over_req.insert(
+        "purpose".to_string(),
+        agent_safe_spl::Node::Str("purchase".to_string()),
+    );
 
-    let over_result = agent_safe_spl::verify_token(&token, over_req, std::collections::HashMap::new());
+    let over_result =
+        agent_safe_spl::verify_token(&token, over_req, std::collections::HashMap::new());
     assert!(!over_result.allow, "amount over limit should be rejected");
 
     // Cleanup
@@ -302,7 +382,7 @@ fn test_journey_spl_via_mcp_capability() {
 async fn test_journey_authority_cred_http_flow() {
     use axum::body::Body;
     use http_body_util::BodyExt;
-    use signet::http::{AppState, build_router};
+    use signet::http::{build_router, AppState};
     use tower::ServiceExt;
 
     let config = journey_config();
@@ -454,7 +534,7 @@ async fn test_journey_authority_cred_http_flow() {
 #[tokio::test]
 async fn test_journey_invalid_authority_signature_rejected() {
     use axum::body::Body;
-    use signet::http::{AppState, build_router};
+    use signet::http::{build_router, AppState};
     use tower::ServiceExt;
 
     let config = journey_config();
@@ -515,7 +595,7 @@ async fn test_journey_invalid_authority_signature_rejected() {
 #[tokio::test]
 async fn test_journey_expired_offer_rejected() {
     use axum::body::Body;
-    use signet::http::{AppState, build_router};
+    use signet::http::{build_router, AppState};
     use tower::ServiceExt;
 
     let config = journey_config();
@@ -567,7 +647,7 @@ async fn test_journey_expired_offer_rejected() {
 async fn test_journey_reject_offer_via_http() {
     use axum::body::Body;
     use http_body_util::BodyExt;
-    use signet::http::{AppState, build_router};
+    use signet::http::{build_router, AppState};
     use tower::ServiceExt;
 
     let config = journey_config();
@@ -632,7 +712,7 @@ async fn test_journey_reject_offer_via_http() {
 #[tokio::test]
 async fn test_journey_cred_status_not_found() {
     use axum::body::Body;
-    use signet::http::{AppState, build_router};
+    use signet::http::{build_router, AppState};
     use tower::ServiceExt;
 
     let config = journey_config();

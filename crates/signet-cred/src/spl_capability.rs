@@ -36,8 +36,9 @@ pub fn generate_spl_capability(
         ..Default::default()
     };
 
-    mint(&policy, signing_key_hex, opts)
-        .map_err(|e| CredErrorDetail::new(CredError::InternalError, format!("SPL mint failed: {}", e)))
+    mint(&policy, signing_key_hex, opts).map_err(|e| {
+        CredErrorDetail::new(CredError::InternalError, format!("SPL mint failed: {}", e))
+    })
 }
 
 /// Build an SPL policy S-expression from constraints.
@@ -152,9 +153,15 @@ mod tests {
 
         // Build request context that matches the policy
         let mut req = std::collections::HashMap::new();
-        req.insert("domain".to_string(), agent_safe_spl::Node::Str("test.com".to_string()));
+        req.insert(
+            "domain".to_string(),
+            agent_safe_spl::Node::Str("test.com".to_string()),
+        );
         req.insert("amount".to_string(), agent_safe_spl::Node::Number(50.0));
-        req.insert("purpose".to_string(), agent_safe_spl::Node::Str("demo".to_string()));
+        req.insert(
+            "purpose".to_string(),
+            agent_safe_spl::Node::Str("demo".to_string()),
+        );
 
         let result = agent_safe_spl::verify_token(&token, req, std::collections::HashMap::new());
         assert!(result.allow, "token should verify: {:?}", result.error);
@@ -173,9 +180,15 @@ mod tests {
         let token = generate_spl_capability(&constraints, &priv_hex).unwrap();
 
         let mut req = std::collections::HashMap::new();
-        req.insert("domain".to_string(), agent_safe_spl::Node::Str("evil.com".to_string()));
+        req.insert(
+            "domain".to_string(),
+            agent_safe_spl::Node::Str("evil.com".to_string()),
+        );
         req.insert("amount".to_string(), agent_safe_spl::Node::Number(50.0));
-        req.insert("purpose".to_string(), agent_safe_spl::Node::Str("demo".to_string()));
+        req.insert(
+            "purpose".to_string(),
+            agent_safe_spl::Node::Str("demo".to_string()),
+        );
 
         let result = agent_safe_spl::verify_token(&token, req, std::collections::HashMap::new());
         assert!(!result.allow);

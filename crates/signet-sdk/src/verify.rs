@@ -186,7 +186,7 @@ pub(crate) fn detect_format_from_bytes(data: &[u8]) -> ProofFormat {
 
     // Bulletproof range proofs have a recognizable structure:
     // 32-byte commitments repeated. Typical sizes: 672+ bytes for single range proof.
-    if data.len() >= 672 && data.len() % 32 == 0 {
+    if data.len() >= 672 && data.len().is_multiple_of(32) {
         return ProofFormat::Bulletproof;
     }
 
@@ -199,10 +199,7 @@ pub(crate) fn detect_format_from_bytes(data: &[u8]) -> ProofFormat {
 /// If no signature or public key is present, returns (false, None) — backward compatible.
 /// If signature verification fails, returns (false, Some(key)) so the caller
 /// can distinguish "unsigned" from "signed but invalid".
-fn verify_envelope_signature(
-    envelope: &ProofEnvelope,
-    binding: &str,
-) -> (bool, Option<String>) {
+fn verify_envelope_signature(envelope: &ProofEnvelope, binding: &str) -> (bool, Option<String>) {
     let (sig_hex, pk_hex) = match (&envelope.signature, &envelope.issuer_public_key) {
         (Some(sig), Some(pk)) => (sig, pk),
         _ => return (false, None), // unsigned envelope — backward compatible
@@ -691,7 +688,11 @@ mod tests {
     #[test]
     fn test_signed_envelope_roundtrip_all_formats() {
         let key = make_signing_key();
-        for fmt in &[ProofFormat::SdJwt, ProofFormat::BbsPlus, ProofFormat::Bulletproof] {
+        for fmt in &[
+            ProofFormat::SdJwt,
+            ProofFormat::BbsPlus,
+            ProofFormat::Bulletproof,
+        ] {
             let data = create_signed_proof_envelope(
                 *fmt,
                 "attr",
@@ -704,7 +705,11 @@ mod tests {
             let claim = Claim::new("attr", "val");
             let result = verify(&proof, &claim).unwrap();
             assert!(result.valid, "format {:?} should verify", fmt);
-            assert!(result.signature_verified, "format {:?} should have valid signature", fmt);
+            assert!(
+                result.signature_verified,
+                "format {:?} should have valid signature",
+                fmt
+            );
         }
     }
 }

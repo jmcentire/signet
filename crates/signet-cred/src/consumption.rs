@@ -222,11 +222,14 @@ pub fn store_revocation(
 ) -> CredResult<()> {
     let record_id = revocation_record_id(cred_id);
     let data = serde_json::to_vec(info).map_err(|_| {
-        CredErrorDetail::new(CredError::EncodingFailed, "failed to encode revocation info")
+        CredErrorDetail::new(
+            CredError::EncodingFailed,
+            "failed to encode revocation info",
+        )
     })?;
-    storage.put(&record_id, &data).map_err(|_| {
-        CredErrorDetail::new(CredError::VaultError, "failed to store revocation info")
-    })
+    storage
+        .put(&record_id, &data)
+        .map_err(|_| CredErrorDetail::new(CredError::VaultError, "failed to store revocation info"))
 }
 
 /// Load revocation information for a credential.
@@ -253,10 +256,7 @@ pub fn load_revocation(
 }
 
 /// Check if a credential is revoked.
-pub fn is_revoked(
-    storage: &dyn StorageBackend,
-    cred_id: &CredentialId,
-) -> CredResult<bool> {
+pub fn is_revoked(storage: &dyn StorageBackend, cred_id: &CredentialId) -> CredResult<bool> {
     let record_id = revocation_record_id(cred_id);
     storage.exists(&record_id).map_err(|_| {
         CredErrorDetail::new(CredError::VaultError, "failed to check revocation status")

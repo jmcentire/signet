@@ -227,9 +227,7 @@ fn handle_tool_invocation(server: &McpServer, request: &JsonRpcRequest) -> JsonR
                 McpTool::StoreData => {
                     crate::tools::store::execute_store_data(&request.params, vault)
                 }
-                McpTool::ListData => {
-                    crate::tools::store::execute_list_data(&request.params, vault)
-                }
+                McpTool::ListData => crate::tools::store::execute_list_data(&request.params, vault),
                 _ => unreachable!(),
             };
             return match result {
@@ -454,8 +452,9 @@ fn handle_check_status_with_registry(
                         "request_id": request_id,
                         "pending_type": params.get("pending_type").and_then(|v: &serde_json::Value| v.as_str()).unwrap_or("Tier3Authorization")
                     });
-                    match serde_json::from_value::<crate::types::CheckStatusRequest>(fallback_params)
-                    {
+                    match serde_json::from_value::<crate::types::CheckStatusRequest>(
+                        fallback_params,
+                    ) {
                         Ok(req) => match crate::tools::status::execute_check_status(&req) {
                             Ok(resp) => match serde_json::to_value(resp) {
                                 Ok(v) => JsonRpcResponse::success(request.id.clone(), v),
@@ -694,7 +693,10 @@ mod tests {
         assert!(response.result.is_some(), "error: {:?}", response.error);
         let result = response.result.unwrap();
         // Tier 1 queries return a response directly, not "pending"
-        assert_ne!(result.get("status").and_then(|s| s.as_str()), Some("pending"));
+        assert_ne!(
+            result.get("status").and_then(|s| s.as_str()),
+            Some("pending")
+        );
     }
 
     #[test]
@@ -722,7 +724,11 @@ mod tests {
             challenge_id
         );
         let check_response = dispatch_jsonrpc(&server, &check_raw);
-        assert!(check_response.result.is_some(), "error: {:?}", check_response.error);
+        assert!(
+            check_response.result.is_some(),
+            "error: {:?}",
+            check_response.error
+        );
         let check_result = check_response.result.unwrap();
         assert_eq!(check_result["status"], "pending");
     }

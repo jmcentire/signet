@@ -14,7 +14,7 @@
 //! by implementing `PasskeyAuthenticator`.
 
 use crate::error::VaultError;
-use signet_core::{SignetResult, Signer};
+use signet_core::{Signer, SignetResult};
 use std::sync::Arc;
 
 /// Trait for abstracting FIDO2 authenticator access.
@@ -156,24 +156,15 @@ mod tests {
     fn test_public_key_matches_registered() {
         let authenticator = Arc::new(MockAuthenticator::new([0x42; 32]));
         let public_key_direct = authenticator.public_key(b"any").unwrap();
-        let signer = PasskeySigner::register(
-            "signet.tools",
-            b"user1",
-            authenticator.clone(),
-        )
-        .unwrap();
+        let signer =
+            PasskeySigner::register("signet.tools", b"user1", authenticator.clone()).unwrap();
         assert_eq!(signer.public_key_ed25519(), public_key_direct);
     }
 
     #[test]
     fn test_credential_id_preserved() {
         let authenticator = Arc::new(MockAuthenticator::new([0x42; 32]));
-        let signer = PasskeySigner::register(
-            "signet.tools",
-            b"user_abc",
-            authenticator,
-        )
-        .unwrap();
+        let signer = PasskeySigner::register("signet.tools", b"user_abc", authenticator).unwrap();
         assert_eq!(signer.credential_id, b"user_abc".to_vec());
     }
 
