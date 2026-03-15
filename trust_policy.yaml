@@ -1,0 +1,43 @@
+version: "1"
+project: signet
+classification_tiers:
+  - name: PUBLIC
+    soak_duration_hours: 0
+    human_gate: false
+  - name: PII
+    soak_duration_hours: 24
+    human_gate: false
+  - name: AUTH
+    soak_duration_hours: 168
+    human_gate: true
+  - name: FINANCIAL
+    soak_duration_hours: 168
+    human_gate: true
+  - name: COMPLIANCE
+    soak_duration_hours: 48
+    human_gate: true
+
+authority_map:
+  signet-vault:
+    domain: root_of_trust
+    trust_score: 1.0
+  signet-cred:
+    domain: credential_issuance
+    trust_score: 0.9
+  signet-proof:
+    domain: proof_derivation
+    trust_score: 0.9
+  signet-policy:
+    domain: access_control
+    trust_score: 0.85
+  signet-mcp:
+    domain: trust_bridge
+    trust_score: 0.8
+  signet-sdk:
+    domain: developer_surface
+    trust_score: 0.7
+  signet-notify:
+    domain: authorization_channel
+    trust_score: 0.75
+
+canary_eligible: [signet-mcp, signet-sdk]

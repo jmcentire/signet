@@ -1,0 +1,72 @@
+version: "1"
+project: signet
+constraints:
+  - id: C001
+    name: vault_never_reachable
+    description: Vault must never be externally reachable — issues proofs, agent carries them
+    severity: must
+    classification: AUTH
+    rationale: Vault is the root of trust; external access destroys the security model
+
+  - id: C002
+    name: tier3_live_auth
+    description: Tier 3 access requires live user authorization with no exceptions, no caching, no delegation
+    severity: must
+    classification: AUTH
+    rationale: Payment credentials, identity documents, medical data cannot be auto-disclosed
+
+  - id: C003
+    name: one_way_data_flow
+    description: Data flows vault -> agent -> service, never reverse
+    severity: must
+    classification: AUTH
+    rationale: Reverse flow would allow services to inject into the vault
+
+  - id: C004
+    name: disclosure_auditable
+    description: Every disclosure must be signed, timestamped, and on the provenance chain
+    severity: must
+    classification: COMPLIANCE
+    rationale: Users must be able to review what was disclosed, when, and to whom
+
+  - id: C005
+    name: protocols_no_collapse
+    description: Four protocols (SCP, VAP, SNP, SVP) must remain distinct — four layers, four enforcement points
+    severity: must
+    classification: null
+    rationale: Protocol collapse merges trust boundaries, creating attack surface
+
+  - id: C006
+    name: roles_user_curated
+    description: Actor role classifications are user-curated — system ships defaults, user owns
+    severity: must
+    classification: null
+    rationale: Users must control who gets what access level
+
+  - id: C007
+    name: sdk_minimal
+    description: SDK surface stays at 4 primitives (verify, requestCapability, checkAuthority, parseCredential)
+    severity: should
+    classification: null
+    rationale: SDK complexity is the enemy of adoption
+
+  - id: C008
+    name: credentials_scoped
+    description: Every credential must be amount-bounded, domain-scoped, time-limited, and purpose-tagged
+    severity: must
+    classification: FINANCIAL
+    rationale: Unscoped credentials enable over-spending and cross-domain abuse
+
+  - id: C009
+    name: zeroize_secrets
+    description: All secret key material must be zeroized on drop
+    severity: must
+    classification: AUTH
+    rationale: Memory persistence of keys enables extraction attacks
+
+  - id: C010
+    name: audit_chain_integrity
+    description: Audit chain uses hash-linked entries with Ed25519 signatures
+    severity: must
+    classification: COMPLIANCE
+    rationale: Tampered audit logs undermine the entire trust model

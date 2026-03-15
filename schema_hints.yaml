@@ -1,0 +1,24 @@
+version: "1"
+project: signet
+storage_backends:
+  - type: sqlite
+    purpose: vault_storage
+    format: encrypted
+    fields:
+      - name: facts
+        classification: PII
+        annotation: encrypted_at_rest
+      - name: credentials
+        classification: AUTH
+        annotation: encrypted_at_rest
+      - name: preferences
+        classification: PII
+      - name: history
+        classification: PII
+        annotation: append_only
+      - name: audit_chain
+        classification: COMPLIANCE
+        annotation: append_only
+      - name: keypair
+        classification: AUTH
+        annotation: encrypted_at_rest

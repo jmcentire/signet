@@ -1,0 +1,100 @@
+version: "1"
+project: signet
+components:
+  - id: signet-core
+    role: library
+    authority: shared_types
+    data_access:
+      PUBLIC: read
+
+  - id: signet-vault
+    role: service
+    authority: root_of_trust
+    data_access:
+      PUBLIC: read_write
+      PII: read_write
+      AUTH: read_write
+      COMPLIANCE: write
+
+  - id: signet-cred
+    role: library
+    authority: credential_issuance
+    data_access:
+      PUBLIC: read_write
+      AUTH: read
+
+  - id: signet-proof
+    role: library
+    authority: proof_derivation
+    data_access:
+      PUBLIC: read_write
+
+  - id: signet-policy
+    role: library
+    authority: access_control
+    data_access:
+      PUBLIC: read_write
+      COMPLIANCE: write
+
+  - id: signet-mcp
+    role: service
+    protocol: mcp
+    authority: trust_bridge
+    data_access:
+      PUBLIC: read_write
+      PII: read
+
+  - id: signet-sdk
+    role: library
+    authority: developer_surface
+    data_access:
+      PUBLIC: read
+
+  - id: signet-notify
+    role: service
+    authority: authorization_channel
+    data_access:
+      PUBLIC: read_write
+      AUTH: read
+
+  - id: signet
+    role: ingress
+    protocol: cli_http
+    authority: user_interface
+    data_access:
+      PUBLIC: read_write
+
+edges:
+  - from: signet
+    to: signet-vault
+    tier: internal
+  - from: signet
+    to: signet-mcp
+    tier: internal
+  - from: signet-mcp
+    to: signet-vault
+    tier: internal
+  - from: signet-mcp
+    to: signet-cred
+    tier: internal
+  - from: signet-mcp
+    to: signet-proof
+    tier: internal
+  - from: signet-mcp
+    to: signet-policy
+    tier: internal
+  - from: signet-cred
+    to: signet-vault
+    tier: internal
+  - from: signet-proof
+    to: signet-vault
+    tier: internal
+  - from: signet-policy
+    to: signet-vault
+    tier: internal
+  - from: signet-notify
+    to: signet-policy
+    tier: internal
+  - from: signet-sdk
+    to: signet-mcp
+    tier: cross_boundary
