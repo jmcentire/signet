@@ -17,6 +17,8 @@ Your vault is the crown, your agent is the steward, external agents are petition
 
 Signet gives AI agents a cryptographic vault for managing user credentials, generating zero-knowledge proofs, and enforcing privacy policies. Data flows one way: vault to agent to service, never reverse. Every disclosure is auditable, scoped, and revocable.
 
+> **Looking for policy enforcement?** [`signet-eval`](https://github.com/jmcentire/signet-eval) is the standalone tool for controlling what AI agents can do — spending limits, command blocking, credential gating. `cargo install signet-eval` and it works with Claude Code today.
+
 ---
 
 ## Trust Hierarchy
