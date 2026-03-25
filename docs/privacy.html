@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy Policy — Signet</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .privacy { max-width: 720px; margin: 0 auto; padding: 80px 24px; }
+  .privacy h1 { font-size: 2rem; font-weight: 700; margin-bottom: 8px; color: var(--text-primary); }
+  .privacy .updated { color: var(--text-muted); font-size: 0.875rem; margin-bottom: 40px; }
+  .privacy h2 { font-size: 1.25rem; font-weight: 600; margin: 32px 0 12px; color: var(--text-primary); }
+  .privacy p { margin-bottom: 16px; color: var(--text-secondary); }
+  .privacy ul { margin: 0 0 16px 24px; color: var(--text-secondary); }
+  .privacy li { margin-bottom: 8px; }
+  .privacy a { color: var(--accent); }
+  .privacy .back { display: inline-block; margin-bottom: 32px; font-size: 0.875rem; color: var(--text-muted); text-decoration: none; }
+  .privacy .back:hover { color: var(--accent); }
+  .privacy .highlight {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin: 24px 0;
+  }
+  .privacy .highlight p { color: var(--text-primary); margin-bottom: 0; }
+</style>
+</head>
+<body>
+<div class="privacy">
+  <a href="/" class="back">&larr; Back to Signet</a>
+  <h1>Privacy Policy</h1>
+  <p class="updated">Last updated: March 24, 2026</p>
+
+  <div class="highlight">
+    <p><strong>The short version:</strong> Signet is a local cryptographic vault. Your keys, credentials, and identity proofs never leave your machine. We have no access to them.</p>
+  </div>
+
+  <h2>What Signet Is</h2>
+  <p>Signet is an open-source, local-first cryptographic authorization framework. It runs entirely on your computer as a CLI tool and MCP server. There is no cloud service, no account system, no central authority, and no server infrastructure.</p>
+  <p>Signet's entire purpose is to keep your data sovereign — it would be contradictory for the tool itself to collect it.</p>
+
+  <h2>Data We Collect</h2>
+  <p>None. Signet does not collect, transmit, store, or process any user data on external servers.</p>
+
+  <h2>Data You Create</h2>
+  <p>When you use Signet, you create local cryptographic material:</p>
+  <ul>
+    <li>Key pairs and identity vaults stored in <code>~/.signet/</code></li>
+    <li>Capability tokens and authorization policies</li>
+    <li>Signed attestations and zero-knowledge proofs</li>
+  </ul>
+  <p>All of this is stored locally on your filesystem. Nothing is transmitted unless you explicitly present a proof to a verifier you choose.</p>
+
+  <h2>Proof Presentation</h2>
+  <p>When you use Signet to prove something (e.g., "I am over 18" or "I hold credential X"), Signet constructs a cryptographic proof and presents it to the verifier you specify. This is an intentional, user-initiated action. Signet never presents proofs autonomously or transmits data without your explicit command.</p>
+  <p>The proofs are designed to be zero-knowledge where possible — the verifier learns the fact you're proving, nothing more.</p>
+
+  <h2>Third-Party Services</h2>
+  <p>Signet does not communicate with any third-party services for its core operation. It does not phone home, check for updates, or transmit telemetry.</p>
+  <p>When used as an MCP server within Claude Code or Claude Desktop, the host application (Anthropic's Claude) may process tool responses according to its own privacy policy. Signet does not control or participate in that processing.</p>
+
+  <h2>Claude Code Plugin Context</h2>
+  <p>When Signet is used as a Claude Code plugin, MCP tool responses are returned to the Claude session. This content is processed by Anthropic according to the <a href="https://www.anthropic.com/privacy">Anthropic Privacy Policy</a>. Signet does not transmit cryptographic private keys or vault contents through MCP tool responses — only public attestations and policy evaluation results.</p>
+
+  <h2>Analytics and Tracking</h2>
+  <p>This website (signet.tools) is a static site hosted on GitHub Pages. It does not use cookies, analytics, tracking pixels, or third-party scripts. GitHub Pages may collect standard server logs per <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub's privacy statement</a>.</p>
+
+  <h2>Data Retention and Deletion</h2>
+  <p>All data is local. Delete <code>~/.signet/</code> and everything is gone. There is nothing to request from us because we have nothing.</p>
+
+  <h2>Children's Privacy</h2>
+  <p>Signet does not collect personal information from anyone, including children under 13.</p>
+
+  <h2>Changes to This Policy</h2>
+  <p>If Signet ever adds cloud features or data collection, this policy will be updated before those features ship. Local-first is an architectural principle, not an accident.</p>
+
+  <h2>Contact</h2>
+  <p>Questions about this policy: <a href="mailto:jmc@cageandmirror.com">jmc@cageandmirror.com</a></p>
+  <p>Source code: <a href="https://github.com/jmcentire/signet">github.com/jmcentire/signet</a></p>
+</div>
+</body>
+</html>
