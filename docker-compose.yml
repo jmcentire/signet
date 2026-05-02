@@ -1,0 +1,31 @@
+# Signet self-hosted deployment with Caddy reverse proxy
+# Usage: docker compose up -d
+
+services:
+  signet:
+    build: .
+    container_name: signet
+    restart: unless-stopped
+    volumes:
+      - signet-data:/home/signet/.signet
+    environment:
+      - SIGNET_HOSTING_MODE=multi_tenant
+    expose:
+      - "3000"
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: signet-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  signet-data:
+  caddy-data:
+  caddy-config:

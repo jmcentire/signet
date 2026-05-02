@@ -1,0 +1,29 @@
+# TLS reverse proxy for vault.signet.tools
+# Caddy auto-provisions Let's Encrypt certificates
+
+vault.signet.tools {
+    reverse_proxy signet:3000
+
+    header {
+        # Security headers
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "no-referrer"
+        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+
+        # CORS for SDK clients
+        Access-Control-Allow-Origin "*"
+        Access-Control-Allow-Methods "GET, POST, OPTIONS"
+        Access-Control-Allow-Headers "Authorization, Content-Type"
+    }
+
+    @options method OPTIONS
+    handle @options {
+        respond 204
+    }
+
+    log {
+        output stdout
+        format json
+    }
+}

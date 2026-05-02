@@ -1352,7 +1352,7 @@ dependencies = [
 
 [[package]]
 name = "signet"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "agent-safe-spl",
  "axum",
@@ -1385,7 +1385,7 @@ dependencies = [
 
 [[package]]
 name = "signet-core"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "bs58",
  "chrono",
@@ -1401,7 +1401,7 @@ dependencies = [
 
 [[package]]
 name = "signet-cred"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "agent-safe-spl",
  "base64",
@@ -1423,7 +1423,7 @@ dependencies = [
 
 [[package]]
 name = "signet-mcp"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "base64",
  "chrono",
@@ -1448,7 +1448,7 @@ dependencies = [
 
 [[package]]
 name = "signet-notify"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "chrono",
  "hex",
@@ -1465,7 +1465,7 @@ dependencies = [
 
 [[package]]
 name = "signet-policy"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "chrono",
  "hmac",
@@ -1481,7 +1481,7 @@ dependencies = [
 
 [[package]]
 name = "signet-proof"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "base64",
  "chrono",
@@ -1500,7 +1500,7 @@ dependencies = [
 
 [[package]]
 name = "signet-sdk"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "base64",
  "bs58",
@@ -1517,7 +1517,7 @@ dependencies = [
 
 [[package]]
 name = "signet-vault"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "aes-gcm",
  "base64",
