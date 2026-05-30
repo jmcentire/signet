@@ -1,0 +1,4567 @@
+{
+  "domains": [
+    "code",
+    "ruby",
+    "rust"
+  ],
+  "node_count": 414,
+  "nodes": [
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-004027af1dcb",
+      "title": "crates/signet-vault/tests/show_db.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-05af92d18f2c",
+      "title": "crates/signet-vault/src/audit.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-0a4ec88df701",
+      "title": "crates/signet-vault/src/session.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-0b185dc9319b",
+      "title": "crates/signet-sdk/src/lib.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-0dfcc9534b45",
+      "title": "crates/signet-mcp/src/session.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-0e61e65587a9",
+      "title": "crates/signet-core/src/traits.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-0f70d377607a",
+      "title": "crates/signet-sdk/src/verify.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-169500ca5273",
+      "title": "crates/signet-policy/src/rule.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-1c137fa03d07",
+      "title": "crates/signet-notify/src/error.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-2b27740a8e5c",
+      "title": "crates/signet-policy/src/lib.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-2d0fc8df5ef8",
+      "title": "crates/signet-vault/src/signer.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-2f78a8b82f32",
+      "title": "crates/signet-core/src/types.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-30493993cc84",
+      "title": "crates/signet-mcp/src/tools/capability.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-324207d99f24",
+      "title": "crates/signet-proof/src/composition.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-3426ddea8f6c",
+      "title": "crates/signet-cred/src/decay.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-382ce5a5d90f",
+      "title": "crates/signet-sdk/src/capability.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-395913f72297",
+      "title": "crates/signet-mcp/src/tools/query.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-3ae1c0c663d7",
+      "title": "crates/signet-vault/src/envelope.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-3e6b98243214",
+      "title": "crates/signet-mcp/src/audit.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-43fa0d199cd9",
+      "title": "crates/signet-vault/src/tier.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-466a1643f353",
+      "title": "crates/signet-proof/src/binding.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-49b1088342eb",
+      "title": "crates/signet-cred/src/error.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-4a8708006739",
+      "title": "crates/signet-proof/src/bbs.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-4aa09eeaa9f2",
+      "title": "crates/signet-proof/src/bundle.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-4dc1601dbf13",
+      "title": "crates/signet-core/src/error.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-4e3c5ab49adc",
+      "title": "crates/signet-cred/src/authority.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-4ede0e4a310a",
+      "title": "crates/signet-vault/src/mnemonic.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-500e565fc46e",
+      "title": "crates/signet-proof/src/range.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-50aea97f95d9",
+      "title": "crates/signet-mcp/src/error.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-515ed4894559",
+      "title": "crates/signet-mcp/src/tools/negotiate.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-52fa8f2c4b43",
+      "title": "crates/signet-mcp/src/tools/store.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-5403ff43e9e5",
+      "title": "crates/signet-policy/src/actor.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-54507197a3a6",
+      "title": "crates/signet-mcp/src/wire.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-552f21281350",
+      "title": "crates/signet-policy/src/error.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-556ee1f30f0e",
+      "title": "crates/signet-sdk/src/error.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-57903737a6ad",
+      "title": "crates/signet/src/lib.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-5948c0bfe3d2",
+      "title": "crates/signet-cred/src/types.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-5d20982536f0",
+      "title": "crates/signet-mcp/src/server.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-5ff45a6fa268",
+      "title": "crates/signet-sdk/src/credential.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-64c0cab495ec",
+      "title": "crates/signet-proof/src/types.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-67bfa4bca4f3",
+      "title": "crates/signet-vault/src/error.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-681e3f541a13",
+      "title": "crates/signet-cred/src/status.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-6ba618b691bf",
+      "title": "crates/signet-core/src/lib.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-71743477a64a",
+      "title": "crates/signet-mcp/src/tools/mod.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-718831c41e02",
+      "title": "crates/signet-cred/src/spl_capability.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-71b02038c27a",
+      "title": "crates/signet-cred/src/disclosure.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-7717e80330d0",
+      "title": "crates/signet/src/main.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-78376f0c9a16",
+      "title": "crates/signet-vault/src/blind_storage.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-7a02213a225f",
+      "title": "crates/signet/src/error.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-7c1b4f928c9a",
+      "title": "crates/signet-vault/src/lib.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-805aaaf2ec76",
+      "title": "crates/signet-notify/src/dispatcher.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-826b194ebccc",
+      "title": "crates/signet-vault/src/storage.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-835529773427",
+      "title": "crates/signet-proof/src/sdjwt.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-8515654963d7",
+      "title": "crates/signet/tests/journey_e2e.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "ruby"
+      ],
+      "id": "code-mod-signet-8881160a82c9",
+      "title": "homebrew/signet.rb",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-8b2aa8396f55",
+      "title": "crates/signet-proof/src/plan.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-8b8aded8e833",
+      "title": "crates/signet-notify/src/authorization.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-8d720dc1c084",
+      "title": "crates/signet-vault/src/in_memory_backend.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-8f82699c7584",
+      "title": "crates/signet-cred/src/schema.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-901c393db833",
+      "title": "crates/signet-vault/src/passkey.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-923cd4185122",
+      "title": "crates/signet-cred/src/consumption.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-968d93faa1f6",
+      "title": "crates/signet-proof/src/lib.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-982489c629b3",
+      "title": "crates/signet-mcp/src/types.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-99bebc8080b8",
+      "title": "crates/signet-mcp/src/vault_access.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-9d3ffcfde617",
+      "title": "crates/signet-mcp/src/pipeline.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-ab88ccab88a2",
+      "title": "crates/signet-policy/src/types.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-ad40323e90ea",
+      "title": "crates/signet-notify/src/lib.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-b758fe9b11f6",
+      "title": "crates/signet-mcp/src/dispatcher.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-baccbf8ee20f",
+      "title": "crates/signet-vault/src/key_hierarchy.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-bba493ab88e6",
+      "title": "crates/signet-mcp/src/tools/status.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-c1a768e2b892",
+      "title": "crates/signet-policy/src/predicate.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-c316b0612aa3",
+      "title": "crates/signet-notify/src/challenge.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-c389d06c98e7",
+      "title": "crates/signet-cred/src/issuance.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-c3ec5faa44d1",
+      "title": "crates/signet/src/config.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-c4045a70b807",
+      "title": "crates/signet-policy/src/pattern.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-c412bb2a6dc5",
+      "title": "crates/signet-notify/src/scope.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-c4c31274c489",
+      "title": "crates/signet/src/multi_tenant.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-c5230b3e52f3",
+      "title": "crates/signet-core/src/crypto.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-c8e017502ebb",
+      "title": "crates/signet/src/http.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-d009e4ae3ed4",
+      "title": "crates/signet-notify/src/types.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-d11bc68943b6",
+      "title": "crates/signet-notify/src/circuit_breaker.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-d4e1b182278a",
+      "title": "crates/signet-cred/src/attribute.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-d8bffaca7eb4",
+      "title": "crates/signet-proof/src/error.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-e140490b67fb",
+      "title": "crates/signet/tests/integration_e2e.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-e4421f0871cc",
+      "title": "crates/signet-proof/src/request.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-e564d77c778c",
+      "title": "crates/signet-cred/src/capability.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-ea745ba02c02",
+      "title": "crates/signet-notify/src/webhook.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-f399b3e53b32",
+      "title": "crates/signet-mcp/src/lib.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-f60c87f6eb40",
+      "title": "crates/signet-sdk/src/types.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-f837e72431f3",
+      "title": "crates/signet-vault/tests/attack_surface.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-f925308af5d9",
+      "title": "crates/signet-sdk/src/authority.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-fb149d4d1bd6",
+      "title": "crates/signet-mcp/src/tools/get_proof.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-fbca8216e12b",
+      "title": "crates/signet-policy/src/engine.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-fc9d8f35867e",
+      "title": "crates/signet-cred/src/lib.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-mod-signet-fdc1e9dfdd46",
+      "title": "crates/signet-mcp/src/policy.rs",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:50:10",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-002f7c87db0d",
+      "title": "RateLimitDecay",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-0398a73d08b1",
+      "title": "Tier3QueryResponse",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-03b42de17d49",
+      "title": "AuditPersistence",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-041180b09360",
+      "title": "ProofType",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-04c34dc98bbf",
+      "title": "Cli",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-066c92dad505",
+      "title": "PolicyEngine",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-08b99c51b0ab",
+      "title": "RevealedClaims",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-09e1d39d162f",
+      "title": "CallbackPayload",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "ruby"
+      ],
+      "id": "code-sym-signet-0a005ef93310",
+      "title": "Signet",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-0bafe89c51bc",
+      "title": "ProofRequestBuilder",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-0e023521069e",
+      "title": "WireProposedDisclosure",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-0f8dbc50e090",
+      "title": "ExhaustionReason",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-0fd4b4e13932",
+      "title": "WebhookSecret",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-104844892b30",
+      "title": "AnomalySeverity",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-11e06f940595",
+      "title": "BatchRangeEntry",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-124f681d5aa9",
+      "title": "Tier2QueryResponse",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-12b59aeb61db",
+      "title": "ListDataEntry",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-1372d8b35ca8",
+      "title": "ChallengeId",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-13ba4189800e",
+      "title": "ActorClassification",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-14cee24eb973",
+      "title": "tests.TestCredentialStore",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-167ff6f19b2e",
+      "title": "DomainBinding",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-168a8ed8c5c2",
+      "title": "PasetoClaims",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-174b49704801",
+      "title": "AuthorizationRequest",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-1752e41b2274",
+      "title": "PhaseTrigger",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-18fbc4f7ee6f",
+      "title": "tests.TestCredentialStore",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-1906bccd9208",
+      "title": "PolicySnapshot",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-19d6d2aca02d",
+      "title": "PrivateWitness::deserialize.Helper",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-19fdce5d520a",
+      "title": "JsonRpcRequest",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-1a240caef29e",
+      "title": "McpError",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-1a4125797f3b",
+      "title": "PipelineConfig",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-1add380fc4c1",
+      "title": "EncryptedEnvelope",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-1b8072e7a12b",
+      "title": "AuditLog",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-1cc79e8d4031",
+      "title": "SdkError",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-20893bbfcfb4",
+      "title": "Tier1QueryResponse",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-2090ef57e11d",
+      "title": "Transport",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-210a34b0f6e9",
+      "title": "SplCapabilityConstraints",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-21b3fe4b00c5",
+      "title": "AuthenticatedRequest",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-2245edd9e878",
+      "title": "RealVaultAccess",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-227a5a8c9784",
+      "title": "ScalarEncoding",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-2359e55302a0",
+      "title": "ClaimSummary",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-2372feb5478f",
+      "title": "CredentialResult",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-23acddadc9e4",
+      "title": "DecayConfig",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-262498e4be39",
+      "title": "PolicyAuditEvent",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-26f4c124381e",
+      "title": "AuditChainWriter",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-272b470cef5b",
+      "title": "DecayPhase",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-27b7ecfc17c1",
+      "title": "KeyHierarchy",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-27f0195492a5",
+      "title": "TenantManager",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-2a5cf583f50d",
+      "title": "RootState",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-2a67f5296244",
+      "title": "tests.TestCredentialStore",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-2ab1d6c527a6",
+      "title": "Decision",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-2b6fa0f4c657",
+      "title": "PredicateQuery",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-2bed9c361127",
+      "title": "CredentialStore",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-2d6ffd56f72c",
+      "title": "PermitDecision",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-2d90569e7789",
+      "title": "AvailableActions",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-2e8eb3e92679",
+      "title": "tests.TestSigner",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-305d298a4088",
+      "title": "BbsMessage",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-30b3459d8046",
+      "title": "ClaimValue",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-30c4003e04fc",
+      "title": "SignetError",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-30d6148ee7e5",
+      "title": "HostingMode",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-317024e5f217",
+      "title": "ClassificationMethod",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-33a301c2991c",
+      "title": "StoredRecord",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-3486a355797b",
+      "title": "DisclosureLevel",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-353f772d1e64",
+      "title": "SqliteBackend",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-36021aeb91d0",
+      "title": "Tier3RequestBuilder",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-3609d653a231",
+      "title": "AnomalyRequestBuilder",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-37454d7f9dd6",
+      "title": "SessionRegistry",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-382c78b2802b",
+      "title": "PendingProvision",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-3838270051df",
+      "title": "ChallengeHandle",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-3884b1c0f406",
+      "title": "PolicyErrorKind",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-38f61e3331a5",
+      "title": "ProofBundle",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-390de0d43fce",
+      "title": "CapabilitySpec",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-39d4d492d9b8",
+      "title": "WebhookSignatureHeaders",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-3a783fbd5c8c",
+      "title": "PolicyErrorDetail",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-3a8af8b36139",
+      "title": "AuditEventKind",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-3c06046f8bed",
+      "title": "BbsProof",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-3d6040c52f6c",
+      "title": "PolicySet",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-3da246574e74",
+      "title": "ListDataRequest",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-3e394a3d795c",
+      "title": "CheckStatusRequest",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-3f349b3dd8e5",
+      "title": "PolicyRule",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-3f933ae41079",
+      "title": "CapabilityTokenBody",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-3fbfd03b2b1e",
+      "title": "tests.TestSigner",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-40468dce09bd",
+      "title": "ProofEngine",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-41379a8687ff",
+      "title": "ProofEntry",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-41d5838be599",
+      "title": "PolicyEngineConfig",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-41ddff8fd24a",
+      "title": "PolicyVersion",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-422b5a1492e6",
+      "title": "tests.TestSigner",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-42bb83f96bf4",
+      "title": "CredentialEngineConfig",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-43d4de427b90",
+      "title": "QueryRequest",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-446a97ef3385",
+      "title": "PipelineStage",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-451073b41554",
+      "title": "PolicyDecisionKind",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-4594019d0c20",
+      "title": "CredErrorDetail",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-487de36a6a2c",
+      "title": "AuditEntry",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-48d4becb346b",
+      "title": "VaultEntry",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-49dd87f2c296",
+      "title": "RangeDisclosureRequest",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-4b0dc24bec84",
+      "title": "PhaseEffect",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-4b2f218c74a9",
+      "title": "CredAuditEventKind",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-4be3fa4084a2",
+      "title": "PlannedEntry",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-4bf16223a3df",
+      "title": "SessionState",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-4c39646bd68c",
+      "title": "ResolvedBbsPlan",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-4d14ac700569",
+      "title": "GetProofRequest",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-4d648c29c9a8",
+      "title": "EvaluationRequest",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-4dbfc74bc934",
+      "title": "SdJwtCredential",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-4e145ab7b67c",
+      "title": "ProofPlan",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-4ec59c9692c7",
+      "title": "PredicateLegitimacy",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-4ef356c683c7",
+      "title": "Timestamp",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-4f668145e959",
+      "title": "CredentialSchema",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-5034fee16f63",
+      "title": "SuggestionThresholds",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-51a0324e826f",
+      "title": "AnomalyDecision",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-524afdf36434",
+      "title": "QueryResultItem",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-5258b7378c7f",
+      "title": "AcceptedCredential",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-52bec1b037d4",
+      "title": "BlindingFactor::deserialize.Helper",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-53da06545c14",
+      "title": "Predicate",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-5560fba724d1",
+      "title": "BlindStorageWrapper",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-55f976794af3",
+      "title": "StorageBackend",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-55ff41506c05",
+      "title": "Tier",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-569187a96cf1",
+      "title": "DenyDecision",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-56d007e71c56",
+      "title": "JsonRpcResponse",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-596b2d601880",
+      "title": "RevocationInfo",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-5a8d0485c2fb",
+      "title": "ClassificationEvidence",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-5ab7ed922796",
+      "title": "SpyBackend",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-5c1c19be95a4",
+      "title": "Session",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-5cab4c40fc58",
+      "title": "PrivateWitness",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-5e30f0384a41",
+      "title": "CircuitState",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-5e98c09dcdc9",
+      "title": "NegotiateContextRequest",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-5e9c8e4cc4db",
+      "title": "JsonRpcError",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-5ea2dd1ad4e4",
+      "title": "TransportConfig",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-5fb76ae4aec1",
+      "title": "CheckStatusResponse",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-603101d93b31",
+      "title": "NegotiateContextResponse",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-6035f70ac34d",
+      "title": "SdJwtPresentation",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-6087b69d6127",
+      "title": "CredentialFormat",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-609bed05ef8d",
+      "title": "SessionManager",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-620ca91c87de",
+      "title": "AnomalyReport",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-623220d3fbd5",
+      "title": "JsonRpcError",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-63fcbfd07584",
+      "title": "DenyReason",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-6427a32c8c7e",
+      "title": "ChallengeRegistry",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-64e848c744eb",
+      "title": "Signer",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-6553823514b8",
+      "title": "RetryPolicy",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-661aba24ce55",
+      "title": "AuthorizationResponse",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-6645bbfd700e",
+      "title": "Claim",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-6700b19b5582",
+      "title": "DisclosureRule",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-67fe32f9b4c9",
+      "title": "VaultError",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-68130cf23d6f",
+      "title": "Domain",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-683637de27ce",
+      "title": "Nonce",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-6a99774c0d89",
+      "title": "McpServerConfig",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-6c52c7547276",
+      "title": "DisclosurePolicy",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-6de94de6cbb8",
+      "title": "OAuthPkceChallenge",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-6fcd9f5741b8",
+      "title": "EventId",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-7002bca0244a",
+      "title": "QueryResponse",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-70a667c219b5",
+      "title": "RpIdentifier",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-71712da40123",
+      "title": "BbsDisclosureRequest",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-717494dcda57",
+      "title": "BlindCollection",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-72331d799fdc",
+      "title": "AttributeEntry",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-7581f295a5bb",
+      "title": "AuthorityResult",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-76ec5b201885",
+      "title": "TimeBudget",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-7785be32d95f",
+      "title": "ListDataResponse",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-77e55ea71f63",
+      "title": "AnomalyContext",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-798306ee86e5",
+      "title": "EndpointConfig",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-7ac28dbdc315",
+      "title": "PedersenCommitment",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-7b32725ff9b2",
+      "title": "InMemoryAuditSink",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-7d4ff24417e2",
+      "title": "CredError",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-7dc47899dfce",
+      "title": "ProofFormat",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-7e780377b6f3",
+      "title": "WireCheckStatusRequest",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-7e9150ba5e71",
+      "title": "RejectRequest",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-7eaeb23983ae",
+      "title": "DeliveryId",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-7f03b7b53613",
+      "title": "ParsedCredential",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-7f4c2779a307",
+      "title": "WireNegotiateContextRequest",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-8041f0c37834",
+      "title": "InMemoryBackend",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-80803e84e0bc",
+      "title": "DeliveryOutcome",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-808d53360511",
+      "title": "VaultGetRequest",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-80a5bc50d1f1",
+      "title": "GetProofResponse",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-80b2b188a3c1",
+      "title": "PresentationRecord",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-80f866256bcc",
+      "title": "TimeoutConfig",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-818d2c4ae412",
+      "title": "RangeProofEntry",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-81d62cce34df",
+      "title": "RequestCapabilityResponse",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-821f228ea826",
+      "title": "AuditSink",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-836fc1c69d4e",
+      "title": "VaultDeleteRequest",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-83ca7b94243d",
+      "title": "PedersenWitness",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-83e453d01f7f",
+      "title": "ResolvedSdJwtPlan",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-854d62113eb8",
+      "title": "ProofEngineConfig",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-85934e0c70f5",
+      "title": "ProofError",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-8652a3628c82",
+      "title": "NotificationDispatcher",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-86b5bdf1e6a3",
+      "title": "CachedCredential",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-86cbea707320",
+      "title": "tests.MemoryStorage",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-87818ca28d6a",
+      "title": "Provenance",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-8794b4ffb391",
+      "title": "PendingStatus",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-87f5e9b48455",
+      "title": "RevokedBy",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-88bb6bb8bd4f",
+      "title": "CapabilityToken",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-88fa77546ff0",
+      "title": "DecayState",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-8b12f040b974",
+      "title": "PostgresConfig",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-8cb93d9eb2f5",
+      "title": "SdkErrorKind",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-8e63c5180b8d",
+      "title": "ChallengeRegistrySnapshot",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-8ede07939f1d",
+      "title": "PolicySuggestion",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-8f9fd74bf78d",
+      "title": "OfferStatus",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-8fe2ee2fdade",
+      "title": "SessionManager",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-91f098e7b9d9",
+      "title": "CapabilityConstraints",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-93ad7636cd4e",
+      "title": "ProofEnvelope",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-93fc2c89d316",
+      "title": "AuthorizationDecision",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-977bb9a51dd3",
+      "title": "tests.TestCredentialStore",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-977e0e44595b",
+      "title": "CredentialRecord",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-97bad44e1308",
+      "title": "NegotiateContextState",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-97c9caec9087",
+      "title": "SdJwtDisclosureRequest",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-9823dcf74f86",
+      "title": "CredentialTokenBody",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-998a7d71cb5b",
+      "title": "RootError",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-99b4a51f64b0",
+      "title": "BoundPresentation",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-9b0e05d3a69f",
+      "title": "NotificationPayload",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-9bbc9f858932",
+      "title": "SessionInfo",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-9c336f08304d",
+      "title": "RequesterInfo",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-9c393047b268",
+      "title": "PolicyEvaluationResult",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-9cbc507d6603",
+      "title": "AuditEntry",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-9d30b2c52a35",
+      "title": "WireRequestCapabilityRequest",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-9dd341dd8c84",
+      "title": "AttributeKind",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-9df4edbbf716",
+      "title": "McpConfig",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-9e55916e1de8",
+      "title": "WitnessEntry",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-9f6ab9e7702a",
+      "title": "AnomalyEscalationPayload",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-a0fbafd13bc1",
+      "title": "PolicyRuleKind",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-a189e4e750c7",
+      "title": "AuthChallenge",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-a23fbe598c34",
+      "title": "VerifyResult",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-a5578d6b2b2e",
+      "title": "VaultAccess",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-a592f9cc4863",
+      "title": "CapabilityTokenConfig",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-a605dcf507be",
+      "title": "VaultPutRequest",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-a644fd0df05c",
+      "title": "ScopeSet",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-a7e57e584917",
+      "title": "RevokeRequest",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-a7ec3cbe685a",
+      "title": "CredentialMetadata",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-a824e13c446d",
+      "title": "BbsSignature",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-a88facb6c28a",
+      "title": "AppState",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-ab277621a1b8",
+      "title": "PasskeyAuthenticator",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-ab31c22c1f4e",
+      "title": "DeliveryReport",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-ab864718050b",
+      "title": "CapabilityClaims",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-abb997993b9d",
+      "title": "AnomalyOption",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-abe86d0daeb0",
+      "title": "PolicyError",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-abf758f562c6",
+      "title": "tests.MemoryStorage",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-af6e1b415bcd",
+      "title": "VerifyRequest",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-afc400b18d53",
+      "title": "OAuthProvisionResponse",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-b130dd501b35",
+      "title": "DisclosureDecision",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-b227a6114afb",
+      "title": "ClaimPath",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-b545cbf39124",
+      "title": "Tier3AccessPayload",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-b55022450b18",
+      "title": "AuthorityOffer",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-b72e5e05d23f",
+      "title": "McpTool",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-b7301bfcabbe",
+      "title": "CredentialAuditEvent",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-b7351640ac78",
+      "title": "TtlDecay",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-b78cbb9ddb14",
+      "title": "CredentialBundle",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-b81850e59293",
+      "title": "PatternTracker",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-b81cd1632a1e",
+      "title": "PresentationWithAudit",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-b896380e9e87",
+      "title": "PolicyAuditEventKind",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-b8e530c54a21",
+      "title": "StoreDataRequest",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-bcf0d0db2645",
+      "title": "Predicate",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-bf67e45fe71d",
+      "title": "tests.TestCredentialStore",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-c04b19247d64",
+      "title": "AuditEvent",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-c1bd41427ce4",
+      "title": "ExpiryCheckResult",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-c225a2fb32c3",
+      "title": "AuthVerifyRequest",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-c3637b5c1b08",
+      "title": "SignetId",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-c36d85f4333c",
+      "title": "BatchRangeRequest",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-c37edd5ed204",
+      "title": "RuleEffect",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-c4390251ffb6",
+      "title": "AuthSession",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-c4cf9ea669fd",
+      "title": "PasskeySigner",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-c56b8f9891f2",
+      "title": "AuditChain",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-c5d0938d26c1",
+      "title": "PendingChallenge",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-c6307788e7ba",
+      "title": "IssuanceConfig",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-c6737867aa14",
+      "title": "Conclusion",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-c6acf733212b",
+      "title": "AuthorityCredentialKey",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-c773bafdf65f",
+      "title": "AuditManifest",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-c7fe7362e57e",
+      "title": "PolicyDecision",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-c88fbe162527",
+      "title": "RequestCapabilityRequest",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-c9df5c4ae21f",
+      "title": "RequestContext",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-cbc5aab51984",
+      "title": "ScopeEntry",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-cbda4cbcca88",
+      "title": "WitnessEntry::deserialize.Helper",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-cc237e46da22",
+      "title": "EndpointHealth",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-cd47ec54377a",
+      "title": "CredentialStatus",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-cfde2f814419",
+      "title": "PedersenCommitment",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-cfea1dfb03fc",
+      "title": "DenialReason",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-d13185e6d82f",
+      "title": "StoreDataResponse",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-d190742b6d34",
+      "title": "OAuthProvisionRequest",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-d201ac31ec86",
+      "title": "CircuitBreaker",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-d346cccae180",
+      "title": "JsonRpcRequest",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-d38cf493b453",
+      "title": "SchemaField",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-d41b0bc56721",
+      "title": "RootConfig",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-d4eb3a0727af",
+      "title": "AuditHash",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-d57b17fc6f58",
+      "title": "NotifyError",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-d6047bd12e0b",
+      "title": "PatternDecision",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-d6475bcd0b06",
+      "title": "Proof",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-d761d8be65f9",
+      "title": "OAuthTokenExchange",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-d82aacf9d32d",
+      "title": "NotificationChannel",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-d84d099d53a1",
+      "title": "WirePredicateQuery",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-d8ea5bf87f18",
+      "title": "MockAuthenticator",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-d9781ce15fd0",
+      "title": "UseCountDecay",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-d97b9543f9c6",
+      "title": "DisclosureRequest",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-d980aa2b7fcd",
+      "title": "RawAttribute",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-d9f5b8bfece4",
+      "title": "NegotiateContextStateEntry",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-d9ff45da5298",
+      "title": "Slip0010MasterKey",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-da6e5cbfe578",
+      "title": "PendingRequestType",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-dbc883815736",
+      "title": "DerivedBooleanAttribute",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-dc980f146474",
+      "title": "JsonRpcResponse",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-de2406823a27",
+      "title": "Commands",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-dee07b5f0b0e",
+      "title": "ResolvedRangePlan",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-e1ee36b00b77",
+      "title": "SensitivityTier",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-e30dbeafdf5d",
+      "title": "ConfidenceLevel",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-e375a4e3dbd3",
+      "title": "PatternRecord",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-e6ffee05d663",
+      "title": "TransportKind",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-e7f4722623c5",
+      "title": "CredentialId",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-ea7a3569a04f",
+      "title": "StoredEntryMeta",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-ee77b2f4db3b",
+      "title": "ChainLink",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-f1a77ee44ae1",
+      "title": "SessionRecord",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-f1ff93b8a9d8",
+      "title": "PredicateOperator",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-f2640bd198e3",
+      "title": "ProofRequest",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-f2f9d9a453c7",
+      "title": "BbsCredential",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-f366dab91448",
+      "title": "McpServer",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-f3ddac061f53",
+      "title": "DecayVerdict",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-f3ecf8c668fc",
+      "title": "CapabilityResult",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-f414ee286214",
+      "title": "WireGetProofRequest",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-f462c059b95b",
+      "title": "CredentialAction",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-f5dda121745a",
+      "title": "ClaimSet",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-f6d52a767fac",
+      "title": "CommittedAttribute",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-f8c467de65e7",
+      "title": "ProposedDisclosure",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-f94d6c5a7b6b",
+      "title": "VaultSigner",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-f98a1706338d",
+      "title": "DeliveryAttempt",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-fafa23dba847",
+      "title": "DisclosureMode",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-fb97fbaa6fe1",
+      "title": "RegistryStats",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-fcd7fb413376",
+      "title": "WireQueryRequest",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "rust"
+      ],
+      "id": "code-sym-signet-fda186971245",
+      "title": "BlindingFactor",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:50:09",
+      "weight": 0.5
+    }
+  ],
+  "repo": "signet",
+  "source_updated_at": "2026-05-30T14:50:10",
+  "version": 1
+}
