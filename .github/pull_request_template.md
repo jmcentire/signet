@@ -12,7 +12,9 @@ Brief description of the change.
 
 ## Testing
 
-- [ ] `cargo test --workspace` passes
+- [ ] `python3 -B scripts/no_key_material_scan.py` passes before any project tests execute
+- [ ] No project test suite was executed while the no-key gate reports findings
+- [ ] `cargo check --workspace --locked` passes after the no-key gate clears
 - [ ] `cargo clippy --workspace -- -D warnings` clean
 - [ ] `cargo fmt --all -- --check` passes
 

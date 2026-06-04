@@ -17,19 +17,16 @@ cargo build --workspace
 
 ## Testing
 
+Project test, demo, and E2E execution is quarantined while test sources
+contain signing or private-key operations. Before attempting validation, run:
+
 ```bash
-# Run all tests
-cargo test --workspace
-
-# Run a specific crate's tests
-cargo test --package signet-vault
-
-# Run the BlindDB demo (shows what the server sees)
-cargo test --package signet-vault --test show_db -- --nocapture
-
-# Run E2E integration test
-cargo test --package signet --test integration_e2e -- --nocapture
+python3 -B scripts/no_key_material_scan.py
 ```
+
+While this gate reports findings, do not execute project test suites. Its
+current incident record and remediation inventory are maintained in
+[docs/no-key-test-quarantine.md](docs/no-key-test-quarantine.md).
 
 ## Code Quality
 
@@ -87,8 +84,9 @@ The storage backend must never receive plaintext labels, semantic meaning, or re
 1. Fork the repository
 2. Create a feature branch from `main`
 3. Make your changes
-4. Ensure all checks pass: `cargo test --workspace && cargo clippy --workspace -- -D warnings && cargo fmt --all -- --check`
-5. Submit a pull request with a clear description of the change
+4. Run `python3 -B scripts/no_key_material_scan.py`; do not proceed to project tests while it reports findings
+5. After the gate clears, run the approved build and formatting checks
+6. Submit a pull request with a clear description of the change
 
 ## License
 
