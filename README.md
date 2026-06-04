@@ -120,10 +120,9 @@ record_id (SHA-256 hash)                                   data (AES-256-GCM cip
 - Which records form a collection?
 - Are any of these records fake (seed data)?
 
-Run the demo yourself:
-```bash
-cargo test --package signet-vault --test show_db -- --nocapture
-```
+Executable demo validation is currently held behind the active
+[no-key test quarantine](docs/no-key-test-quarantine.md). Build-only checks do
+not establish these cryptographic claims.
 
 ## Standards
 
@@ -174,23 +173,23 @@ cargo test --package signet-vault --test show_db -- --nocapture
 ## Development
 
 ```bash
-# Full check (build + test + clippy + fmt)
+# Static no-key gate. It currently fails closed while remediation is pending.
+python3 -B scripts/no_key_material_scan.py
+
+# Build-only checks become eligible after the no-key gate clears.
 make check
 
 # Individual targets
 make build
-make test
 make clippy
 make fmt
-
-# Run BlindDB demo
-make demo
-
-# Run E2E integration test
-make e2e
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed contribution guidelines.
+Project tests, the BlindDB demo, and E2E execution remain quarantined until
+their paths carry no signing or private-key material. See
+[CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines and
+[docs/no-key-test-quarantine.md](docs/no-key-test-quarantine.md) for the
+incident record and inventory.
 
 ## License
 
