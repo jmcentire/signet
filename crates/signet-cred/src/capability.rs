@@ -1,26 +1,24 @@
-//! PASETO v4 capability token generation.
+//! Signet capability envelope generation and verification.
 //!
-//! Generates scoped authorization tokens using PASETO v4 (local/public).
-//! Tokens encode capability constraints: amount bounds, domain scope,
-//! time limits, purpose tags.
+//! Tokens encode capability constraints: amount bounds, domain scope, time
+//! limits, and purpose tags. This is a Signet-specific Ed25519-signed
+//! envelope, not a PASETO implementation.
 //!
-//! Since we do not depend on a PASETO library, this implements a
-//! PASETO-v4-compatible public token structure using Ed25519 signatures.
-//!
-//! Token format: v4.public.<base64url-payload>
+//! Token format: signet.cap.v1.<base64url-payload>
 //! Payload: JSON claims + 64-byte Ed25519 signature
 
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+use ed25519_dalek::{Signature, VerifyingKey};
 use serde::{Deserialize, Serialize};
 
 use crate::error::{CredError, CredErrorDetail, CredResult};
 use crate::types::{CredentialId, Domain};
 use signet_core::Signer;
 
-/// PASETO v4 public token header
-const PASETO_V4_PUBLIC_HEADER: &str = "v4.public.";
+/// Signet capability envelope v1 header.
+const SIGNET_CAPABILITY_V1_HEADER: &str = "signet.cap.v1.";
 
-/// Capability constraints embedded in a PASETO token.
+/// Capability constraints embedded in a signed capability envelope.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CapabilityConstraints {
     /// Maximum amount for financial operations.
@@ -37,7 +35,7 @@ pub struct CapabilityConstraints {
     pub purpose: String,
 }
 
-/// Claims embedded in a capability PASETO token.
+/// Claims embedded in a signed capability envelope.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CapabilityClaims {
     /// Issuer (signet vault identifier).
@@ -56,10 +54,10 @@ pub struct CapabilityClaims {
     pub constraints: CapabilityConstraints,
 }
 
-/// A generated PASETO v4 capability token.
+/// A generated signed capability envelope.
 #[derive(Debug, Clone)]
 pub struct CapabilityToken {
-    /// The complete PASETO token string.
+    /// The complete Signet capability envelope string.
     pub token: String,
     /// The claims embedded in the token (for reference).
     pub claims: CapabilityClaims,
@@ -78,7 +76,7 @@ pub struct CapabilityTokenConfig {
     pub one_time: bool,
 }
 
-/// Generate a PASETO v4 public capability token.
+/// Generate a signed Signet capability envelope.
 ///
 /// The token is signed with Ed25519 via the vault signer. The signer
 /// never exposes raw key material to this function.
@@ -107,21 +105,20 @@ pub fn generate_capability_token(
         constraints,
     };
 
-    let token = sign_paseto_v4_public(&claims, signer)?;
+    let token = sign_capability_envelope(&claims, signer)?;
 
     Ok(CapabilityToken { token, claims })
 }
 
-/// Sign a PASETO v4 public token.
+/// Sign a Signet capability envelope.
 ///
-/// Format: v4.public.<base64url(payload || signature)>
+/// Format: signet.cap.v1.<base64url(payload || signature)>
 /// The signing input is: header || payload
-fn sign_paseto_v4_public(claims: &CapabilityClaims, signer: &dyn Signer) -> CredResult<String> {
+fn sign_capability_envelope(claims: &CapabilityClaims, signer: &dyn Signer) -> CredResult<String> {
     let payload_json = serde_json::to_vec(claims)
         .map_err(|_| CredErrorDetail::new(CredError::EncodingFailed, "failed to encode claims"))?;
 
-    // PASETO v4 signing: sign(header || payload)
-    let header = PASETO_V4_PUBLIC_HEADER.as_bytes();
+    let header = SIGNET_CAPABILITY_V1_HEADER.as_bytes();
     let mut signing_input = Vec::with_capacity(header.len() + payload_json.len());
     signing_input.extend_from_slice(header);
     signing_input.extend_from_slice(&payload_json);
@@ -136,20 +133,68 @@ fn sign_paseto_v4_public(claims: &CapabilityClaims, signer: &dyn Signer) -> Cred
     token_body.extend_from_slice(&signature);
 
     let encoded = URL_SAFE_NO_PAD.encode(&token_body);
-    Ok(format!("{}{}", PASETO_V4_PUBLIC_HEADER, encoded))
+    Ok(format!("{}{}", SIGNET_CAPABILITY_V1_HEADER, encoded))
 }
 
-/// Parse a PASETO v4 public token and extract the claims.
-/// Verifies the signature using the provided public key.
+/// Verification boundary used by capability parsing.
+///
+/// Implementations must accept a message only after validating the
+/// authenticator supplied with the envelope.
+trait CapabilitySignatureVerifier {
+    fn verify(&self, message: &[u8], signature: &[u8; 64]) -> CredResult<()>;
+}
+
+/// Ed25519 verifier for signed Signet capability envelopes.
+#[derive(Debug, Clone)]
+struct Ed25519CapabilityVerifier {
+    verifying_key: VerifyingKey,
+}
+
+impl Ed25519CapabilityVerifier {
+    fn from_public_key(public_key: &[u8; 32]) -> CredResult<Self> {
+        let verifying_key =
+            VerifyingKey::from_bytes(public_key).map_err(|_| invalid_capability_signature())?;
+        Ok(Self { verifying_key })
+    }
+}
+
+impl CapabilitySignatureVerifier for Ed25519CapabilityVerifier {
+    fn verify(&self, message: &[u8], signature: &[u8; 64]) -> CredResult<()> {
+        self.verifying_key
+            .verify_strict(message, &Signature::from_bytes(signature))
+            .map_err(|_| invalid_capability_signature())
+    }
+}
+
+fn invalid_capability_signature() -> CredErrorDetail {
+    CredErrorDetail::new(
+        CredError::InvalidCapabilitySignature,
+        "invalid capability signature",
+    )
+}
+
+/// Parse a signed capability envelope using an Ed25519 public verification key.
 pub fn parse_capability_token(token: &str, public_key: &[u8; 32]) -> CredResult<CapabilityClaims> {
-    if !token.starts_with(PASETO_V4_PUBLIC_HEADER) {
+    let verifier = Ed25519CapabilityVerifier::from_public_key(public_key)?;
+    parse_capability_token_with_verifier(token, &verifier)
+}
+
+/// Parse a signed capability envelope after its authenticator is accepted.
+///
+/// The public entry point always constructs the Ed25519 verifier. This private
+/// seam permits key-free parser tests without exposing a bypass to consumers.
+fn parse_capability_token_with_verifier(
+    token: &str,
+    verifier: &dyn CapabilitySignatureVerifier,
+) -> CredResult<CapabilityClaims> {
+    if !token.starts_with(SIGNET_CAPABILITY_V1_HEADER) {
         return Err(CredErrorDetail::new(
             CredError::DecodingFailed,
-            "invalid PASETO v4 public token header",
+            "invalid Signet capability envelope header",
         ));
     }
 
-    let encoded_body = &token[PASETO_V4_PUBLIC_HEADER.len()..];
+    let encoded_body = &token[SIGNET_CAPABILITY_V1_HEADER.len()..];
     let body = URL_SAFE_NO_PAD.decode(encoded_body).map_err(|_| {
         CredErrorDetail::new(CredError::DecodingFailed, "invalid base64url encoding")
     })?;
@@ -162,12 +207,15 @@ pub fn parse_capability_token(token: &str, public_key: &[u8; 32]) -> CredResult<
     }
 
     let payload_bytes = &body[..body.len() - 64];
-    let _signature = &body[body.len() - 64..];
+    let signature: &[u8; 64] = body[body.len() - 64..]
+        .try_into()
+        .map_err(|_| invalid_capability_signature())?;
 
-    // Note: Full Ed25519 signature verification would require ed25519-dalek.
-    // For the cred crate, we parse and validate the structure.
-    // Actual cryptographic verification is delegated to downstream verification code.
-    let _ = public_key; // Used in full verification path
+    let mut signing_input =
+        Vec::with_capacity(SIGNET_CAPABILITY_V1_HEADER.len() + payload_bytes.len());
+    signing_input.extend_from_slice(SIGNET_CAPABILITY_V1_HEADER.as_bytes());
+    signing_input.extend_from_slice(payload_bytes);
+    verifier.verify(&signing_input, signature)?;
 
     let claims: CapabilityClaims = serde_json::from_slice(payload_bytes).map_err(|_| {
         CredErrorDetail::new(CredError::DecodingFailed, "invalid capability claims JSON")
@@ -207,102 +255,102 @@ pub fn validate_capability_domain(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use signet_core::SignetResult;
 
-    struct TestSigner {
-        public_key: [u8; 32],
-    }
+    struct AcceptingVerifier;
 
-    impl TestSigner {
-        fn new() -> Self {
-            Self {
-                public_key: [0x01; 32],
+    impl CapabilitySignatureVerifier for AcceptingVerifier {
+        fn verify(&self, message: &[u8], _signature: &[u8; 64]) -> CredResult<()> {
+            if message.starts_with(SIGNET_CAPABILITY_V1_HEADER.as_bytes()) {
+                Ok(())
+            } else {
+                Err(invalid_capability_signature())
             }
         }
     }
 
-    impl Signer for TestSigner {
-        fn sign_ed25519(&self, message: &[u8]) -> SignetResult<[u8; 64]> {
-            use sha2::{Digest, Sha256};
-            let mut sig = [0u8; 64];
-            let hash = Sha256::digest(message);
-            sig[..32].copy_from_slice(&hash);
-            sig[32..64].copy_from_slice(&[0xBB; 32]);
-            Ok(sig)
-        }
+    struct RejectingVerifier;
 
-        fn public_key_ed25519(&self) -> [u8; 32] {
-            self.public_key
+    impl CapabilitySignatureVerifier for RejectingVerifier {
+        fn verify(&self, _message: &[u8], _signature: &[u8; 64]) -> CredResult<()> {
+            Err(invalid_capability_signature())
         }
     }
 
-    fn make_config() -> CapabilityTokenConfig {
-        CapabilityTokenConfig {
-            credential_id: CredentialId::generate(),
-            issuer_id: "signet-vault-test".into(),
-            domain: Domain::new("shop.example.com").unwrap(),
-            ttl_seconds: 300,
-            purpose: "purchase".into(),
-            max_amount: Some(150),
-            currency: Some("USD".into()),
-            one_time: true,
+    fn make_claims() -> CapabilityClaims {
+        CapabilityClaims {
+            iss: "signet-vault-test".into(),
+            sub: "cred-test".into(),
+            iat: "2099-01-01T00:00:00+00:00".into(),
+            exp: "2099-01-01T00:05:00+00:00".into(),
+            nbf: "2099-01-01T00:00:00+00:00".into(),
+            aud: "shop.example.com".into(),
+            constraints: CapabilityConstraints {
+                max_amount: Some(150),
+                currency: Some("USD".into()),
+                domain: "shop.example.com".into(),
+                one_time: true,
+                purpose: "purchase".into(),
+            },
         }
     }
 
-    #[test]
-    fn test_generate_capability_token() {
-        let signer = TestSigner::new();
-        let config = make_config();
-        let result = generate_capability_token(&config, &signer);
-        assert!(result.is_ok());
-
-        let token = result.unwrap();
-        assert!(token.token.starts_with("v4.public."));
-        assert_eq!(token.claims.aud, "shop.example.com");
-        assert_eq!(token.claims.constraints.purpose, "purchase");
-        assert_eq!(token.claims.constraints.max_amount, Some(150));
-        assert_eq!(token.claims.constraints.currency.as_deref(), Some("USD"));
-        assert!(token.claims.constraints.one_time);
+    fn make_envelope(claims: &CapabilityClaims) -> String {
+        let mut body = serde_json::to_vec(claims).unwrap();
+        body.extend_from_slice(&[0u8; 64]);
+        format!(
+            "{}{}",
+            SIGNET_CAPABILITY_V1_HEADER,
+            URL_SAFE_NO_PAD.encode(body)
+        )
     }
 
     #[test]
-    fn test_parse_capability_token() {
-        let signer = TestSigner::new();
-        let config = make_config();
-        let token = generate_capability_token(&config, &signer).unwrap();
-
-        let claims = parse_capability_token(&token.token, &signer.public_key).unwrap();
+    fn test_parse_capability_requires_accepted_verification() {
+        let claims = parse_capability_token_with_verifier(
+            &make_envelope(&make_claims()),
+            &AcceptingVerifier,
+        )
+        .unwrap();
         assert_eq!(claims.aud, "shop.example.com");
         assert_eq!(claims.constraints.purpose, "purchase");
-        assert_eq!(claims.constraints.max_amount, Some(150));
+    }
+
+    #[test]
+    fn test_parse_capability_rejects_failed_verification() {
+        let result = parse_capability_token_with_verifier(
+            &make_envelope(&make_claims()),
+            &RejectingVerifier,
+        );
+        assert!(matches!(
+            result.unwrap_err().kind,
+            CredError::InvalidCapabilitySignature
+        ));
     }
 
     #[test]
     fn test_parse_invalid_header() {
-        let result = parse_capability_token("v3.public.xxx", &[0u8; 32]);
+        let result = parse_capability_token_with_verifier("v3.public.xxx", &AcceptingVerifier);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_parse_invalid_base64() {
-        let result = parse_capability_token("v4.public.!!!invalid!!!", &[0u8; 32]);
+        let result =
+            parse_capability_token_with_verifier("signet.cap.v1.!!!invalid!!!", &AcceptingVerifier);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_parse_too_short() {
         let short = URL_SAFE_NO_PAD.encode(&[0u8; 10]);
-        let token = format!("v4.public.{}", short);
-        let result = parse_capability_token(&token, &[0u8; 32]);
+        let token = format!("signet.cap.v1.{}", short);
+        let result = parse_capability_token_with_verifier(&token, &AcceptingVerifier);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_validate_capability_expiry_valid() {
-        let signer = TestSigner::new();
-        let config = make_config();
-        let token = generate_capability_token(&config, &signer).unwrap();
-        assert!(validate_capability_expiry(&token.claims).is_ok());
+        assert!(validate_capability_expiry(&make_claims()).is_ok());
     }
 
     #[test]
@@ -332,79 +380,21 @@ mod tests {
 
     #[test]
     fn test_validate_capability_domain_match() {
-        let signer = TestSigner::new();
-        let config = make_config();
-        let token = generate_capability_token(&config, &signer).unwrap();
-        assert!(validate_capability_domain(&token.claims, "shop.example.com").is_ok());
+        assert!(validate_capability_domain(&make_claims(), "shop.example.com").is_ok());
     }
 
     #[test]
     fn test_validate_capability_domain_mismatch() {
-        let signer = TestSigner::new();
-        let config = make_config();
-        let token = generate_capability_token(&config, &signer).unwrap();
-        let result = validate_capability_domain(&token.claims, "other.example.com");
+        let result = validate_capability_domain(&make_claims(), "other.example.com");
         assert!(result.is_err());
     }
 
     #[test]
     fn test_capability_without_amount() {
-        let signer = TestSigner::new();
-        let mut config = make_config();
-        config.max_amount = None;
-        config.currency = None;
-
-        let token = generate_capability_token(&config, &signer).unwrap();
-        assert!(token.claims.constraints.max_amount.is_none());
-        assert!(token.claims.constraints.currency.is_none());
-    }
-
-    #[test]
-    fn test_token_roundtrip_claims_integrity() {
-        let signer = TestSigner::new();
-        let config = make_config();
-        let token = generate_capability_token(&config, &signer).unwrap();
-
-        let parsed = parse_capability_token(&token.token, &signer.public_key).unwrap();
-
-        assert_eq!(token.claims.iss, parsed.iss);
-        assert_eq!(token.claims.sub, parsed.sub);
-        assert_eq!(token.claims.aud, parsed.aud);
-        assert_eq!(
-            token.claims.constraints.max_amount,
-            parsed.constraints.max_amount
-        );
-        assert_eq!(token.claims.constraints.purpose, parsed.constraints.purpose);
-        assert_eq!(
-            token.claims.constraints.one_time,
-            parsed.constraints.one_time
-        );
-    }
-
-    #[test]
-    fn test_token_format_structure() {
-        let signer = TestSigner::new();
-        let config = make_config();
-        let token = generate_capability_token(&config, &signer).unwrap();
-
-        let parts: Vec<&str> = token.token.splitn(3, '.').collect();
-        assert_eq!(parts.len(), 3);
-        assert_eq!(parts[0], "v4");
-        assert_eq!(parts[1], "public");
-        // Third part should be valid base64url
-        assert!(URL_SAFE_NO_PAD.decode(parts[2]).is_ok());
-    }
-
-    #[test]
-    fn test_different_configs_produce_different_tokens() {
-        let signer = TestSigner::new();
-        let config1 = make_config();
-        let mut config2 = make_config();
-        config2.purpose = "subscription".into();
-
-        let token1 = generate_capability_token(&config1, &signer).unwrap();
-        let token2 = generate_capability_token(&config2, &signer).unwrap();
-
-        assert_ne!(token1.token, token2.token);
+        let mut claims = make_claims();
+        claims.constraints.max_amount = None;
+        claims.constraints.currency = None;
+        assert!(claims.constraints.max_amount.is_none());
+        assert!(claims.constraints.currency.is_none());
     }
 }

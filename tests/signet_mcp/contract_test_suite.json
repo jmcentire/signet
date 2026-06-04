@@ -340,16 +340,16 @@
       "assertions": []
     },
     {
-      "id": "hp_dispatch_request_capability",
-      "description": "Dispatch request_capability returns PASETO v4 token",
+      "id": "err_dispatch_request_capability_no_issuer",
+      "description": "Dispatch request_capability fails closed without a configured verified issuer",
       "function": "dispatch_request",
-      "category": "happy_path",
+      "category": "error_case",
       "setup_description": "",
       "mock_dependencies": {},
       "input_values": {},
       "input_description": "Valid JSON-RPC for signet_request_capability",
-      "expected_output_description": "JsonRpcResponse with RequestCapabilityResponse containing PASETO token",
-      "expected_error": "",
+      "expected_output_description": "",
+      "expected_error": "access_denied",
       "assertions": []
     },
     {
@@ -951,16 +951,16 @@
       "assertions": []
     },
     {
-      "id": "hp_execute_request_capability",
-      "description": "Execute request_capability generates PASETO v4 token",
+      "id": "err_execute_request_capability_no_issuer",
+      "description": "Execute request_capability fails closed without a configured verified issuer",
       "function": "execute_request_capability",
-      "category": "happy_path",
+      "category": "error_case",
       "setup_description": "",
       "mock_dependencies": {},
       "input_values": {},
       "input_description": "",
-      "expected_output_description": "RequestCapabilityResponse with PASETO token and structured claims",
-      "expected_error": "",
+      "expected_output_description": "",
+      "expected_error": "access_denied",
       "assertions": []
     },
     {

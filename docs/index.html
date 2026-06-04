@@ -190,16 +190,10 @@ User (Ed25519 root)
 </pre>
       </div>
       <div class="code-example">
-        <h4>Request a capability</h4>
+        <h4>Capability issuance (not configured)</h4>
 <pre class="code-block">
-<span class="kw">use</span> signet_sdk::request_capability;
-
-<span class="kw">let</span> cap = request_capability(CapabilitySpec {
-    kind: <span class="str">"payment"</span>,
-    max_amount: <span class="num">150</span>,
-    domain: <span class="str">"amazon.com"</span>,
-    one_time: <span class="kw">true</span>,
-});
+<span class="comment">// Issuance fails closed until an issuer-backed capability</span>
+<span class="comment">// service is configured and consumers verify its envelope.</span>
 </pre>
       </div>
     </div>
@@ -215,7 +209,7 @@ User (Ed25519 root)
         <tr><td>Privacy</td><td>BBS+ Signatures</td><td>Unlinkable selective disclosure</td></tr>
         <tr><td>Range proofs</td><td>Bulletproofs</td><td>No trusted setup required</td></tr>
         <tr><td>Agent protocol</td><td>MCP</td><td>Native Claude integration</td></tr>
-        <tr><td>Tokens</td><td>PASETO v4</td><td>Misuse-resistant, no algorithm confusion</td></tr>
+        <tr><td>Tokens</td><td>Issuer integration pending</td><td>No token authority exposed until verification is wired</td></tr>
         <tr><td>Key generation</td><td>Ed25519 + HKDF</td><td>256-bit OsRng entropy. No seed phrase. No recovery.</td></tr>
       </tbody>
     </table>

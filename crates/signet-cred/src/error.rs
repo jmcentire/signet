@@ -57,6 +57,9 @@ pub enum CredError {
     #[error("invalid authority signature")]
     InvalidAuthoritySignature,
 
+    #[error("invalid capability signature")]
+    InvalidCapabilitySignature,
+
     #[error("authority offer expired")]
     OfferExpired,
 
@@ -200,6 +203,7 @@ mod tests {
             CredError::StatusTransitionDenied("test".into()),
             CredError::CredentialDecayed("test".into()),
             CredError::InvalidAuthoritySignature,
+            CredError::InvalidCapabilitySignature,
             CredError::OfferExpired,
             CredError::ChainVerificationFailed,
             CredError::VaultError,
