@@ -215,6 +215,13 @@ This project uses [Pact](~/Code/pact) (contract-first multi-agent framework) for
 
 Each component above maps to a Pact decomposition node. Contracts define the inter-component interfaces (especially the four protocol boundaries). Tests enforce the security invariants before any implementation begins.
 
+## Active No-Key Hold
+
+Project test, demo, and E2E execution is quarantined. Before any test execution,
+run `python3 -B scripts/no_key_material_scan.py`. While it reports findings, do
+not execute test suites or publish a release as custody evidence; build-only
+checking does not prove cryptographic behavior.
+
 **Build order** (dependency-driven):
 1. `signet-vault` — root of trust, everything depends on this
 2. `signet-cred` — credential issuance, depends on vault keypair
