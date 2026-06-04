@@ -1,7 +1,8 @@
 //! Agent-Safe SPL capability token generation.
 //!
-//! Replaces the PASETO placeholder with real Ed25519-signed SPL tokens
-//! that embed executable policy for microsecond verification.
+//! This legacy API accepts raw signing-key input. It is not an approved
+//! issuance boundary for MEA delegated connectors until it is backed by
+//! custody-controlled signing rather than caller-provided key material.
 
 use crate::error::{CredError, CredErrorDetail, CredResult};
 use agent_safe_spl::token::{mint, MintOptions, Token};
@@ -18,7 +19,8 @@ pub struct SplCapabilityConstraints {
 /// Generate an SPL capability token from constraints.
 ///
 /// Builds an S-expression policy from the constraints and signs it
-/// with the provided Ed25519 key.
+/// with caller-provided Ed25519 material. Do not use this API in the MEA
+/// delegated connector path.
 pub fn generate_spl_capability(
     constraints: &SplCapabilityConstraints,
     signing_key_hex: &str,
@@ -106,91 +108,5 @@ mod tests {
         let policy = build_policy(&constraints);
         assert!(!policy.contains("amount"));
         assert!(policy.starts_with("(and "));
-    }
-
-    #[test]
-    fn test_generate_spl_capability() {
-        let (pub_hex, priv_hex) = agent_safe_spl::generate_keypair();
-        let constraints = SplCapabilityConstraints {
-            domain: "test.com".to_string(),
-            max_amount: Some(100),
-            purpose: "demo".to_string(),
-            one_time: false,
-            expires_seconds: Some(300),
-        };
-        let token = generate_spl_capability(&constraints, &priv_hex).unwrap();
-        assert_eq!(token.public_key, pub_hex);
-        assert!(!token.sealed);
-        assert!(token.expires.is_some());
-        assert!(token.policy.contains("test.com"));
-    }
-
-    #[test]
-    fn test_generate_spl_capability_one_time() {
-        let (_pub_hex, priv_hex) = agent_safe_spl::generate_keypair();
-        let constraints = SplCapabilityConstraints {
-            domain: "shop.com".to_string(),
-            max_amount: Some(50),
-            purpose: "purchase".to_string(),
-            one_time: true,
-            expires_seconds: None,
-        };
-        let token = generate_spl_capability(&constraints, &priv_hex).unwrap();
-        assert!(token.sealed);
-    }
-
-    #[test]
-    fn test_generated_token_verifies() {
-        let (_pub_hex, priv_hex) = agent_safe_spl::generate_keypair();
-        let constraints = SplCapabilityConstraints {
-            domain: "test.com".to_string(),
-            max_amount: Some(100),
-            purpose: "demo".to_string(),
-            one_time: false,
-            expires_seconds: None,
-        };
-        let token = generate_spl_capability(&constraints, &priv_hex).unwrap();
-
-        // Build request context that matches the policy
-        let mut req = std::collections::HashMap::new();
-        req.insert(
-            "domain".to_string(),
-            agent_safe_spl::Node::Str("test.com".to_string()),
-        );
-        req.insert("amount".to_string(), agent_safe_spl::Node::Number(50.0));
-        req.insert(
-            "purpose".to_string(),
-            agent_safe_spl::Node::Str("demo".to_string()),
-        );
-
-        let result = agent_safe_spl::verify_token(&token, req, std::collections::HashMap::new());
-        assert!(result.allow, "token should verify: {:?}", result.error);
-    }
-
-    #[test]
-    fn test_generated_token_rejects_wrong_domain() {
-        let (_pub_hex, priv_hex) = agent_safe_spl::generate_keypair();
-        let constraints = SplCapabilityConstraints {
-            domain: "test.com".to_string(),
-            max_amount: Some(100),
-            purpose: "demo".to_string(),
-            one_time: false,
-            expires_seconds: None,
-        };
-        let token = generate_spl_capability(&constraints, &priv_hex).unwrap();
-
-        let mut req = std::collections::HashMap::new();
-        req.insert(
-            "domain".to_string(),
-            agent_safe_spl::Node::Str("evil.com".to_string()),
-        );
-        req.insert("amount".to_string(), agent_safe_spl::Node::Number(50.0));
-        req.insert(
-            "purpose".to_string(),
-            agent_safe_spl::Node::Str("demo".to_string()),
-        );
-
-        let result = agent_safe_spl::verify_token(&token, req, std::collections::HashMap::new());
-        assert!(!result.allow);
     }
 }

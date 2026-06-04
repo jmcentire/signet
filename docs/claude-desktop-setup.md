@@ -1,6 +1,6 @@
 # Claude Desktop Integration
 
-Signet works as an MCP (Model Context Protocol) server that Claude Desktop can connect to directly. Once configured, Claude can store data in your vault, query it, generate proofs, and issue scoped capability tokens on your behalf.
+Signet works as an MCP (Model Context Protocol) server that Claude Desktop can connect to directly. Once configured, Claude can store data in your vault, query it, and generate proofs. Capability issuance is disabled until an issuer-backed signing service is configured.
 
 ## Prerequisites
 
@@ -47,7 +47,7 @@ Restart Claude Desktop. Signet will appear in the MCP tools list.
 | `list_data` | List stored data with optional tier filter (Tier 3 values masked) |
 | `query` | Query vault data with context-aware responses |
 | `get_proof` | Generate a cryptographic proof for an attribute |
-| `request_capability` | Issue a scoped capability token (SPL format) |
+| `request_capability` | Fails closed until a verified issuer is configured |
 | `negotiate_context` | Negotiate disclosure scope with external agents |
 | `check_status` | Check vault and agent status |
 
@@ -68,10 +68,10 @@ Claude calls `list_data` to enumerate stored facts.
 
 Claude calls `get_proof` with `{ "attribute": "age_over_21", "domain": "shop.example.com" }`.
 
-**Issuing capabilities**:
+**Requesting capabilities**:
 > "Give me a one-time payment token for up to $150 on amazon.com"
 
-Claude calls `request_capability` with `{ "domain": "amazon.com", "max_amount": 150, "purpose": "purchase", "one_time": true }`.
+Claude calls `request_capability` with `{ "domain": "amazon.com", "max_amount": 150, "purpose": "purchase", "one_time": true }`. The request is denied unless deployment has been wired to a verified issuer.
 
 ## HTTP Mode
 
