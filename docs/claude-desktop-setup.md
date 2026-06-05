@@ -104,7 +104,7 @@ signet store --tier 1 --label "name" --value "Alice Nakamoto"
 signet store --tier 3 --label "credit_card" --value "4111-1111-1111-1111"
 signet list
 signet list --tier 1
-signet capability --domain amazon.com --max-amount 150 --purpose purchase --one-time
+# Capability issuance is disabled until a custody-controlled issuer is configured.
 signet vault-status
 signet audit
 ```
@@ -115,6 +115,6 @@ signet audit
 
 **Claude doesn't show Signet tools**: Verify the config path is correct and restart Claude Desktop. Check that `signet serve` works from your terminal.
 
-**"SPL mint failed"**: The vault signing key may be corrupted. Re-initialize with `signet init`.
+**"capability issuance requires a configured custody-controlled issuer"**: Capability issuance is intentionally disabled until issuer wiring is configured without exporting signing material.
 
 **Verbose logging**: Run `signet serve -v` to see debug output on stderr.

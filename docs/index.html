@@ -273,14 +273,10 @@ signet credential import &lt; signed_credential.jwt
 
     <div class="code-examples">
       <div class="code-example">
-        <h4>Issue Capability Tokens</h4>
+        <h4>Capability Issuance Boundary</h4>
 <pre class="code-block">
-<span class="comment"># Scoped, one-time capability derived from vault root</span>
-signet capability \
-  --domain <span class="str">"amazon.com"</span> \
-  --max-amount <span class="num">150</span> \
-  --purpose <span class="str">"purchase"</span> \
-  --one-time
+<span class="comment"># Issuance remains disabled until configured custody-controlled signing</span>
+<span class="comment"># can return a verifiable scoped capability without exporting material.</span>
 </pre>
       </div>
       <div class="code-example">

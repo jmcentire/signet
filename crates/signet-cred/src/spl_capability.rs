@@ -1,11 +1,11 @@
-//! Agent-Safe SPL capability token generation.
+//! Suspended Agent-Safe SPL capability issuance compatibility surface.
 //!
-//! This legacy API accepts raw signing-key input. It is not an approved
-//! issuance boundary for MEA delegated connectors until it is backed by
-//! custody-controlled signing rather than caller-provided key material.
+//! The historical API accepted caller-provided signing-key input. It now
+//! fails closed until an issuer can sign through the custody boundary
+//! without exporting key material.
 
 use crate::error::{CredError, CredErrorDetail, CredResult};
-use agent_safe_spl::token::{mint, MintOptions, Token};
+use agent_safe_spl::token::Token;
 
 /// Constraints for an SPL capability token.
 pub struct SplCapabilityConstraints {
@@ -16,31 +16,20 @@ pub struct SplCapabilityConstraints {
     pub expires_seconds: Option<u64>,
 }
 
-/// Generate an SPL capability token from constraints.
+/// Legacy SPL capability issuance entrypoint.
 ///
-/// Builds an S-expression policy from the constraints and signs it
-/// with caller-provided Ed25519 material. Do not use this API in the MEA
-/// delegated connector path.
+/// The legacy argument is retained for source compatibility but deliberately
+/// ignored. Issuance must be reintroduced only through a custody-controlled
+/// signer integration.
+#[deprecated(note = "disabled until custody-controlled issuer integration is available")]
 pub fn generate_spl_capability(
-    constraints: &SplCapabilityConstraints,
-    signing_key_hex: &str,
+    _constraints: &SplCapabilityConstraints,
+    _unaccepted_signing_key_hex: &str,
 ) -> CredResult<Token> {
-    let policy = build_policy(constraints);
-
-    let expires = constraints.expires_seconds.map(|secs| {
-        let ts = chrono::Utc::now() + chrono::Duration::seconds(secs as i64);
-        ts.to_rfc3339()
-    });
-
-    let opts = MintOptions {
-        sealed: constraints.one_time,
-        expires,
-        ..Default::default()
-    };
-
-    mint(&policy, signing_key_hex, opts).map_err(|e| {
-        CredErrorDetail::new(CredError::InternalError, format!("SPL mint failed: {}", e))
-    })
+    Err(CredErrorDetail::new(
+        CredError::InternalError,
+        "SPL capability issuance requires a custody-controlled issuer",
+    ))
 }
 
 /// Build an SPL policy S-expression from constraints.
@@ -49,6 +38,7 @@ pub fn generate_spl_capability(
 /// ```lisp
 /// (and (= (get req "domain") "amazon.com") (<= (get req "amount") 150) (= (get req "purpose") "purchase"))
 /// ```
+#[cfg(test)]
 fn build_policy(constraints: &SplCapabilityConstraints) -> String {
     let mut clauses = Vec::new();
 

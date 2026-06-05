@@ -84,6 +84,19 @@ pub fn generate_capability_token(
     config: &CapabilityTokenConfig,
     signer: &dyn Signer,
 ) -> CredResult<CapabilityToken> {
+    if config.ttl_seconds == 0 || config.ttl_seconds > i64::MAX as u64 {
+        return Err(CredErrorDetail::new(
+            CredError::SchemaViolation("ttl_seconds".into()),
+            "capability lifetime must be a positive representable duration",
+        ));
+    }
+    if config.one_time {
+        return Err(CredErrorDetail::new(
+            CredError::InvalidDisclosurePolicy("one-time enforcement unavailable".into()),
+            "one-time capability issuance requires a consumption ledger",
+        ));
+    }
+
     let now = chrono::Utc::now();
     let exp = now + chrono::Duration::seconds(config.ttl_seconds as i64);
 
@@ -179,6 +192,20 @@ pub fn parse_capability_token(token: &str, public_key: &[u8; 32]) -> CredResult<
     parse_capability_token_with_verifier(token, &verifier)
 }
 
+/// Verify a capability envelope for acceptance at an expected domain.
+///
+/// Consumers must additionally enforce operation-specific constraints such as
+/// permitted purpose and amount. One-time envelopes are rejected until a
+/// consumption ledger can prevent replay.
+pub fn verify_capability_for_domain(
+    token: &str,
+    public_key: &[u8; 32],
+    expected_domain: &str,
+) -> CredResult<CapabilityClaims> {
+    let verifier = Ed25519CapabilityVerifier::from_public_key(public_key)?;
+    verify_capability_for_domain_with_verifier(token, &verifier, expected_domain)
+}
+
 /// Parse a signed capability envelope after its authenticator is accepted.
 ///
 /// The public entry point always constructs the Ed25519 verifier. This private
@@ -224,15 +251,48 @@ fn parse_capability_token_with_verifier(
     Ok(claims)
 }
 
+fn verify_capability_for_domain_with_verifier(
+    token: &str,
+    verifier: &dyn CapabilitySignatureVerifier,
+    expected_domain: &str,
+) -> CredResult<CapabilityClaims> {
+    let claims = parse_capability_token_with_verifier(token, verifier)?;
+    validate_capability_time_window(&claims)?;
+    validate_capability_domain(&claims, expected_domain)?;
+    if claims.constraints.one_time {
+        return Err(CredErrorDetail::new(
+            CredError::InvalidDisclosurePolicy("one-time enforcement unavailable".into()),
+            "one-time capability acceptance requires a consumption ledger",
+        ));
+    }
+    Ok(claims)
+}
+
 /// Validate that capability claims have not expired.
 pub fn validate_capability_expiry(claims: &CapabilityClaims) -> CredResult<bool> {
     let exp = chrono::DateTime::parse_from_rfc3339(&claims.exp)
         .map_err(|_| CredErrorDetail::new(CredError::DecodingFailed, "invalid expiry timestamp"))?;
     let now = chrono::Utc::now();
-    if now > exp {
+    if now >= exp {
         return Err(CredErrorDetail::new(
             CredError::CredentialExpired,
             "capability token has expired",
+        ));
+    }
+    Ok(true)
+}
+
+/// Validate that capability claims are in their usable time window.
+pub fn validate_capability_time_window(claims: &CapabilityClaims) -> CredResult<bool> {
+    validate_capability_expiry(claims)?;
+
+    let not_before = chrono::DateTime::parse_from_rfc3339(&claims.nbf).map_err(|_| {
+        CredErrorDetail::new(CredError::DecodingFailed, "invalid not-before timestamp")
+    })?;
+    if chrono::Utc::now() < not_before {
+        return Err(CredErrorDetail::new(
+            CredError::InvalidDisclosurePolicy("not yet valid".into()),
+            "capability token is not yet valid",
         ));
     }
     Ok(true)
@@ -386,6 +446,62 @@ mod tests {
     #[test]
     fn test_validate_capability_domain_mismatch() {
         let result = validate_capability_domain(&make_claims(), "other.example.com");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_authorization_requires_accepted_signature_and_matching_scope() {
+        let mut claims = make_claims();
+        claims.iat = "2020-01-01T00:00:00+00:00".into();
+        claims.nbf = "2020-01-01T00:00:00+00:00".into();
+        claims.constraints.one_time = false;
+
+        let accepted = verify_capability_for_domain_with_verifier(
+            &make_envelope(&claims),
+            &AcceptingVerifier,
+            "shop.example.com",
+        );
+        assert!(accepted.is_ok());
+
+        let forged = verify_capability_for_domain_with_verifier(
+            &make_envelope(&claims),
+            &RejectingVerifier,
+            "shop.example.com",
+        );
+        assert!(matches!(
+            forged.unwrap_err().kind,
+            CredError::InvalidCapabilitySignature
+        ));
+
+        let wrong_scope = verify_capability_for_domain_with_verifier(
+            &make_envelope(&claims),
+            &AcceptingVerifier,
+            "other.example.com",
+        );
+        assert!(wrong_scope.is_err());
+    }
+
+    #[test]
+    fn test_authorization_rejects_not_yet_valid_capability() {
+        let result = verify_capability_for_domain_with_verifier(
+            &make_envelope(&make_claims()),
+            &AcceptingVerifier,
+            "shop.example.com",
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_authorization_rejects_one_time_capability_without_consumption_ledger() {
+        let mut claims = make_claims();
+        claims.iat = "2020-01-01T00:00:00+00:00".into();
+        claims.nbf = "2020-01-01T00:00:00+00:00".into();
+
+        let result = verify_capability_for_domain_with_verifier(
+            &make_envelope(&claims),
+            &AcceptingVerifier,
+            "shop.example.com",
+        );
         assert!(result.is_err());
     }
 
