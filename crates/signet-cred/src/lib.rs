@@ -28,9 +28,9 @@ pub mod types;
 // Re-export primary types and functions for convenience
 pub use attribute::{encode_claim_to_scalar, evaluate_predicate, verify_pedersen_commitment};
 pub use capability::{
-    generate_capability_token, parse_capability_token, validate_capability_time_window,
-    verify_capability_for_domain, CapabilityClaims, CapabilityConstraints, CapabilityToken,
-    CapabilityTokenConfig,
+    generate_capability_token, validate_capability_context, validate_capability_time_window,
+    verify_capability_for_context, CapabilityAcceptanceContext, CapabilityClaims,
+    CapabilityConstraints, CapabilityToken, CapabilityTokenConfig,
 };
 pub use disclosure::{validate_disclosure, validate_disclosure_for_schema};
 pub use error::{CredError, CredErrorDetail, CredResult};

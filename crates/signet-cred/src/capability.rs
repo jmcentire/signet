@@ -17,6 +17,7 @@ use signet_core::Signer;
 
 /// Signet capability envelope v1 header.
 const SIGNET_CAPABILITY_V1_HEADER: &str = "signet.cap.v1.";
+const MAX_CAPABILITY_ENVELOPE_BYTES: usize = 16 * 1024;
 
 /// Capability constraints embedded in a signed capability envelope.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -76,6 +77,16 @@ pub struct CapabilityTokenConfig {
     pub one_time: bool,
 }
 
+/// Exact operation context a consumer expects a capability to authorize.
+#[derive(Debug, Clone)]
+pub struct CapabilityAcceptanceContext {
+    pub issuer: String,
+    pub domain: String,
+    pub purpose: String,
+    pub amount: Option<u64>,
+    pub currency: Option<String>,
+}
+
 /// Generate a signed Signet capability envelope.
 ///
 /// The token is signed with Ed25519 via the vault signer. The signer
@@ -94,6 +105,18 @@ pub fn generate_capability_token(
         return Err(CredErrorDetail::new(
             CredError::InvalidDisclosurePolicy("one-time enforcement unavailable".into()),
             "one-time capability issuance requires a consumption ledger",
+        ));
+    }
+    if config.issuer_id.trim().is_empty() || config.purpose.trim().is_empty() {
+        return Err(CredErrorDetail::new(
+            CredError::SchemaViolation("capability scope".into()),
+            "capability issuer and purpose are required",
+        ));
+    }
+    if config.max_amount.is_some() != config.currency.is_some() {
+        return Err(CredErrorDetail::new(
+            CredError::SchemaViolation("financial scope".into()),
+            "capability amount and currency must be specified together",
         ));
     }
 
@@ -186,24 +209,17 @@ fn invalid_capability_signature() -> CredErrorDetail {
     )
 }
 
-/// Parse a signed capability envelope using an Ed25519 public verification key.
-pub fn parse_capability_token(token: &str, public_key: &[u8; 32]) -> CredResult<CapabilityClaims> {
-    let verifier = Ed25519CapabilityVerifier::from_public_key(public_key)?;
-    parse_capability_token_with_verifier(token, &verifier)
-}
-
-/// Verify a capability envelope for acceptance at an expected domain.
+/// Verify a capability envelope for acceptance in an exact operation context.
 ///
-/// Consumers must additionally enforce operation-specific constraints such as
-/// permitted purpose and amount. One-time envelopes are rejected until a
-/// consumption ledger can prevent replay.
-pub fn verify_capability_for_domain(
+/// One-time envelopes are rejected until a consumption ledger can prevent
+/// replay.
+pub fn verify_capability_for_context(
     token: &str,
     public_key: &[u8; 32],
-    expected_domain: &str,
+    context: &CapabilityAcceptanceContext,
 ) -> CredResult<CapabilityClaims> {
     let verifier = Ed25519CapabilityVerifier::from_public_key(public_key)?;
-    verify_capability_for_domain_with_verifier(token, &verifier, expected_domain)
+    verify_capability_for_context_with_verifier(token, &verifier, context)
 }
 
 /// Parse a signed capability envelope after its authenticator is accepted.
@@ -214,6 +230,12 @@ fn parse_capability_token_with_verifier(
     token: &str,
     verifier: &dyn CapabilitySignatureVerifier,
 ) -> CredResult<CapabilityClaims> {
+    if token.len() > MAX_CAPABILITY_ENVELOPE_BYTES {
+        return Err(CredErrorDetail::new(
+            CredError::DecodingFailed,
+            "capability envelope exceeds the maximum accepted size",
+        ));
+    }
     if !token.starts_with(SIGNET_CAPABILITY_V1_HEADER) {
         return Err(CredErrorDetail::new(
             CredError::DecodingFailed,
@@ -251,14 +273,14 @@ fn parse_capability_token_with_verifier(
     Ok(claims)
 }
 
-fn verify_capability_for_domain_with_verifier(
+fn verify_capability_for_context_with_verifier(
     token: &str,
     verifier: &dyn CapabilitySignatureVerifier,
-    expected_domain: &str,
+    context: &CapabilityAcceptanceContext,
 ) -> CredResult<CapabilityClaims> {
     let claims = parse_capability_token_with_verifier(token, verifier)?;
     validate_capability_time_window(&claims)?;
-    validate_capability_domain(&claims, expected_domain)?;
+    validate_capability_context(&claims, context)?;
     if claims.constraints.one_time {
         return Err(CredErrorDetail::new(
             CredError::InvalidDisclosurePolicy("one-time enforcement unavailable".into()),
@@ -284,15 +306,37 @@ pub fn validate_capability_expiry(claims: &CapabilityClaims) -> CredResult<bool>
 
 /// Validate that capability claims are in their usable time window.
 pub fn validate_capability_time_window(claims: &CapabilityClaims) -> CredResult<bool> {
-    validate_capability_expiry(claims)?;
-
+    let issued_at = chrono::DateTime::parse_from_rfc3339(&claims.iat).map_err(|_| {
+        CredErrorDetail::new(CredError::DecodingFailed, "invalid issued-at timestamp")
+    })?;
     let not_before = chrono::DateTime::parse_from_rfc3339(&claims.nbf).map_err(|_| {
         CredErrorDetail::new(CredError::DecodingFailed, "invalid not-before timestamp")
     })?;
-    if chrono::Utc::now() < not_before {
+    let expires_at = chrono::DateTime::parse_from_rfc3339(&claims.exp)
+        .map_err(|_| CredErrorDetail::new(CredError::DecodingFailed, "invalid expiry timestamp"))?;
+    let now = chrono::Utc::now();
+    if issued_at > now {
+        return Err(CredErrorDetail::new(
+            CredError::InvalidDisclosurePolicy("issued in the future".into()),
+            "capability token was issued in the future",
+        ));
+    }
+    if not_before < issued_at || expires_at <= not_before {
+        return Err(CredErrorDetail::new(
+            CredError::InvalidDisclosurePolicy("invalid time window".into()),
+            "capability token has an inconsistent time window",
+        ));
+    }
+    if now < not_before {
         return Err(CredErrorDetail::new(
             CredError::InvalidDisclosurePolicy("not yet valid".into()),
             "capability token is not yet valid",
+        ));
+    }
+    if now >= expires_at {
+        return Err(CredErrorDetail::new(
+            CredError::CredentialExpired,
+            "capability token has expired",
         ));
     }
     Ok(true)
@@ -308,6 +352,86 @@ pub fn validate_capability_domain(
             CredError::InvalidDisclosurePolicy("domain mismatch".into()),
             "capability token domain does not match expected domain",
         ));
+    }
+    Ok(true)
+}
+
+/// Validate that claims authorize the exact operation context.
+pub fn validate_capability_context(
+    claims: &CapabilityClaims,
+    context: &CapabilityAcceptanceContext,
+) -> CredResult<bool> {
+    if context.issuer.trim().is_empty()
+        || context.domain.trim().is_empty()
+        || context.purpose.trim().is_empty()
+    {
+        return Err(CredErrorDetail::new(
+            CredError::SchemaViolation("capability acceptance context".into()),
+            "expected issuer, domain, and purpose are required",
+        ));
+    }
+    if claims.iss.trim().is_empty()
+        || claims.sub.trim().is_empty()
+        || claims.constraints.purpose.trim().is_empty()
+    {
+        return Err(CredErrorDetail::new(
+            CredError::InvalidDisclosurePolicy("incomplete capability scope".into()),
+            "capability token has incomplete scope",
+        ));
+    }
+    if claims.iss != context.issuer {
+        return Err(CredErrorDetail::new(
+            CredError::InvalidDisclosurePolicy("issuer mismatch".into()),
+            "capability token issuer does not match expected issuer",
+        ));
+    }
+    validate_capability_domain(claims, &context.domain)?;
+    if claims.constraints.purpose != context.purpose {
+        return Err(CredErrorDetail::new(
+            CredError::InvalidDisclosurePolicy("purpose mismatch".into()),
+            "capability token purpose does not match expected purpose",
+        ));
+    }
+    if claims.constraints.max_amount.is_some() != claims.constraints.currency.is_some() {
+        return Err(CredErrorDetail::new(
+            CredError::InvalidDisclosurePolicy("invalid financial scope".into()),
+            "capability token amount and currency scope are inconsistent",
+        ));
+    }
+    match (context.amount, context.currency.as_deref()) {
+        (None, None) => {}
+        (Some(amount), Some(currency)) if !currency.trim().is_empty() => {
+            let max_amount = claims.constraints.max_amount.ok_or_else(|| {
+                CredErrorDetail::new(
+                    CredError::InvalidDisclosurePolicy("amount not authorized".into()),
+                    "capability token does not authorize an amount",
+                )
+            })?;
+            let allowed_currency = claims.constraints.currency.as_deref().ok_or_else(|| {
+                CredErrorDetail::new(
+                    CredError::InvalidDisclosurePolicy("currency not authorized".into()),
+                    "capability token does not authorize a currency",
+                )
+            })?;
+            if amount > max_amount {
+                return Err(CredErrorDetail::new(
+                    CredError::InvalidDisclosurePolicy("amount exceeds capability limit".into()),
+                    "requested amount exceeds the capability limit",
+                ));
+            }
+            if currency != allowed_currency {
+                return Err(CredErrorDetail::new(
+                    CredError::InvalidDisclosurePolicy("currency mismatch".into()),
+                    "requested currency does not match the capability scope",
+                ));
+            }
+        }
+        _ => {
+            return Err(CredErrorDetail::new(
+                CredError::SchemaViolation("capability acceptance context".into()),
+                "requested amount and currency must be specified together",
+            ));
+        }
     }
     Ok(true)
 }
@@ -364,6 +488,24 @@ mod tests {
         )
     }
 
+    fn make_context() -> CapabilityAcceptanceContext {
+        CapabilityAcceptanceContext {
+            issuer: "signet-vault-test".into(),
+            domain: "shop.example.com".into(),
+            purpose: "purchase".into(),
+            amount: Some(100),
+            currency: Some("USD".into()),
+        }
+    }
+
+    fn make_accepted_claims() -> CapabilityClaims {
+        let mut claims = make_claims();
+        claims.iat = "2020-01-01T00:00:00+00:00".into();
+        claims.nbf = "2020-01-01T00:00:00+00:00".into();
+        claims.constraints.one_time = false;
+        claims
+    }
+
     #[test]
     fn test_parse_capability_requires_accepted_verification() {
         let claims = parse_capability_token_with_verifier(
@@ -404,6 +546,17 @@ mod tests {
     fn test_parse_too_short() {
         let short = URL_SAFE_NO_PAD.encode(&[0u8; 10]);
         let token = format!("signet.cap.v1.{}", short);
+        let result = parse_capability_token_with_verifier(&token, &AcceptingVerifier);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_rejects_oversized_envelope() {
+        let token = format!(
+            "{}{}",
+            SIGNET_CAPABILITY_V1_HEADER,
+            "x".repeat(MAX_CAPABILITY_ENVELOPE_BYTES)
+        );
         let result = parse_capability_token_with_verifier(&token, &AcceptingVerifier);
         assert!(result.is_err());
     }
@@ -451,44 +604,112 @@ mod tests {
 
     #[test]
     fn test_authorization_requires_accepted_signature_and_matching_scope() {
-        let mut claims = make_claims();
-        claims.iat = "2020-01-01T00:00:00+00:00".into();
-        claims.nbf = "2020-01-01T00:00:00+00:00".into();
-        claims.constraints.one_time = false;
+        let claims = make_accepted_claims();
+        let context = make_context();
 
-        let accepted = verify_capability_for_domain_with_verifier(
+        let accepted = verify_capability_for_context_with_verifier(
             &make_envelope(&claims),
             &AcceptingVerifier,
-            "shop.example.com",
+            &context,
         );
         assert!(accepted.is_ok());
 
-        let forged = verify_capability_for_domain_with_verifier(
+        let forged = verify_capability_for_context_with_verifier(
             &make_envelope(&claims),
             &RejectingVerifier,
-            "shop.example.com",
+            &context,
         );
         assert!(matches!(
             forged.unwrap_err().kind,
             CredError::InvalidCapabilitySignature
         ));
 
-        let wrong_scope = verify_capability_for_domain_with_verifier(
+        let mut wrong_domain = make_context();
+        wrong_domain.domain = "other.example.com".into();
+        let wrong_scope = verify_capability_for_context_with_verifier(
             &make_envelope(&claims),
             &AcceptingVerifier,
-            "other.example.com",
+            &wrong_domain,
         );
         assert!(wrong_scope.is_err());
     }
 
     #[test]
     fn test_authorization_rejects_not_yet_valid_capability() {
-        let result = verify_capability_for_domain_with_verifier(
+        let result = verify_capability_for_context_with_verifier(
             &make_envelope(&make_claims()),
             &AcceptingVerifier,
-            "shop.example.com",
+            &make_context(),
         );
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_authorization_rejects_expired_capability() {
+        let mut claims = make_accepted_claims();
+        claims.exp = "2020-01-01T00:05:00+00:00".into();
+        let result = verify_capability_for_context_with_verifier(
+            &make_envelope(&claims),
+            &AcceptingVerifier,
+            &make_context(),
+        );
+        assert!(matches!(
+            result.unwrap_err().kind,
+            CredError::CredentialExpired
+        ));
+    }
+
+    #[test]
+    fn test_authorization_rejects_inconsistent_time_window() {
+        let mut claims = make_accepted_claims();
+        claims.nbf = "2019-12-31T23:59:59+00:00".into();
+        let result = verify_capability_for_context_with_verifier(
+            &make_envelope(&claims),
+            &AcceptingVerifier,
+            &make_context(),
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_authorization_rejects_issuer_purpose_amount_and_currency_mismatch() {
+        let claims = make_accepted_claims();
+
+        let mut wrong_issuer = make_context();
+        wrong_issuer.issuer = "other-vault".into();
+        assert!(verify_capability_for_context_with_verifier(
+            &make_envelope(&claims),
+            &AcceptingVerifier,
+            &wrong_issuer,
+        )
+        .is_err());
+
+        let mut wrong_purpose = make_context();
+        wrong_purpose.purpose = "refund".into();
+        assert!(verify_capability_for_context_with_verifier(
+            &make_envelope(&claims),
+            &AcceptingVerifier,
+            &wrong_purpose,
+        )
+        .is_err());
+
+        let mut excessive_amount = make_context();
+        excessive_amount.amount = Some(151);
+        assert!(verify_capability_for_context_with_verifier(
+            &make_envelope(&claims),
+            &AcceptingVerifier,
+            &excessive_amount,
+        )
+        .is_err());
+
+        let mut wrong_currency = make_context();
+        wrong_currency.currency = Some("EUR".into());
+        assert!(verify_capability_for_context_with_verifier(
+            &make_envelope(&claims),
+            &AcceptingVerifier,
+            &wrong_currency,
+        )
+        .is_err());
     }
 
     #[test]
@@ -497,20 +718,27 @@ mod tests {
         claims.iat = "2020-01-01T00:00:00+00:00".into();
         claims.nbf = "2020-01-01T00:00:00+00:00".into();
 
-        let result = verify_capability_for_domain_with_verifier(
+        let result = verify_capability_for_context_with_verifier(
             &make_envelope(&claims),
             &AcceptingVerifier,
-            "shop.example.com",
+            &make_context(),
         );
         assert!(result.is_err());
     }
 
     #[test]
     fn test_capability_without_amount() {
-        let mut claims = make_claims();
+        let mut claims = make_accepted_claims();
         claims.constraints.max_amount = None;
         claims.constraints.currency = None;
-        assert!(claims.constraints.max_amount.is_none());
-        assert!(claims.constraints.currency.is_none());
+        let mut context = make_context();
+        context.amount = None;
+        context.currency = None;
+        assert!(verify_capability_for_context_with_verifier(
+            &make_envelope(&claims),
+            &AcceptingVerifier,
+            &context,
+        )
+        .is_ok());
     }
 }
