@@ -17,6 +17,7 @@ pub mod authority;
 pub mod capability;
 pub mod consumption;
 pub mod decay;
+pub mod delegated_provider;
 pub mod disclosure;
 pub mod error;
 pub mod issuance;
@@ -31,6 +32,11 @@ pub use capability::{
     generate_capability_token, validate_capability_context, validate_capability_time_window,
     verify_capability_for_context, CapabilityAcceptanceContext, CapabilityClaims,
     CapabilityConstraints, CapabilityToken, CapabilityTokenConfig,
+};
+pub use delegated_provider::{
+    verify_delegated_provider_authorization, DelegatedProviderAcceptanceContext,
+    DelegatedProviderAuthorizationClaims, DelegatedProviderChannel, DelegatedProviderTrustVerifier,
+    VerifiedDelegatedProviderAuthorization,
 };
 pub use disclosure::{validate_disclosure, validate_disclosure_for_schema};
 pub use error::{CredError, CredErrorDetail, CredResult};

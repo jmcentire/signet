@@ -45,7 +45,9 @@ approval as the custody backend.
 - A trusted-issuer key configuration, key rotation model, audit event model,
   consumption ledger, and custody-controlled signing transport remain to be
   agreed with Exemplar/Baton before MEA consumes capabilities.
-- This generic envelope does not yet carry Baton's exact connector, channel,
-  request-fingerprint, and attempt-budget scope. It must not be adapted into a
-  Baton `VerifiedDispatchGrant` until that contract is agreed and key-free
-  evidence proves the complete binding.
+- This generic envelope does not carry Baton's exact connector, channel,
+  request-fingerprint, and attempt-budget scope. It must never be adapted into
+  Baton's delegated provider runtime.
+- The separate acceptance-only `signet.delegated-provider.v1` draft defines
+  that exact scope, but remains blocked on a concrete trusted issuer/rotation
+  verifier and key-free executable cross-stack evidence.
