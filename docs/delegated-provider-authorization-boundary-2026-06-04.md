@@ -48,8 +48,8 @@ payload value, provider response, or dispatch claim ID.
 - Baton delegated-executor audience;
 - workload ID;
 - exactly one channel;
-- required connector IDs;
-- required purpose;
+- the available runtime connector-ID ceiling;
+- exact runtime purpose;
 - exact canonical Baton request fingerprint; and
 - issuer-policy and rotation-policy references.
 
@@ -64,6 +64,8 @@ Acceptance rejects:
 - a failed authenticator;
 - an issuer, audience, workload, channel, purpose, connector, or request
   fingerprint mismatch;
+- any authorized connector outside the available runtime connector ceiling;
+- a purpose set that does not contain exactly the runtime purpose;
 - empty, duplicate, oversized, or unbounded scope;
 - an inconsistent, future, not-yet-valid, or expired time window;
 - `max_uses` other than `1`; or
@@ -94,6 +96,9 @@ The verified Signet outcome maps into Baton's one shared
 
 Baton must derive dispatch and custody views from the same immutable verified
 outcome. It must not invoke independent verifiers for those views.
+The runtime's enabled connectors are a ceiling: a verified authorization may
+narrow to a non-empty subset, but it cannot authorize any connector outside
+that runtime set.
 
 The canonical Baton request fingerprint binds dispatch ID, workflow/operation
 ID, channel, opaque recipient reference, opaque payload reference, and

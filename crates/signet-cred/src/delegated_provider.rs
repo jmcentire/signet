@@ -51,7 +51,7 @@ pub struct DelegatedProviderAcceptanceContext {
     pub audience: String,
     pub workload_id: String,
     pub channel: DelegatedProviderChannel,
-    pub required_connector_ids: Vec<String>,
+    pub available_connector_ids: Vec<String>,
     pub purpose: String,
     pub request_fingerprint: String,
     pub issuer_policy_ref: String,
@@ -196,7 +196,7 @@ fn validate_acceptance_context(context: &DelegatedProviderAcceptanceContext) -> 
         "rotation policy reference",
         MAX_POLICY_REF_BYTES,
     )?;
-    validate_scope_values(&context.required_connector_ids, "required connector IDs")?;
+    validate_scope_values(&context.available_connector_ids, "available connector IDs")?;
     validate_request_fingerprint(&context.request_fingerprint)?;
     Ok(())
 }
@@ -242,20 +242,22 @@ fn validate_claims(
             "delegated-provider request fingerprint does not match expected request",
         ));
     }
-    if !context
-        .required_connector_ids
+    if !claims
+        .allowed_connector_ids
         .iter()
-        .all(|connector| claims.allowed_connector_ids.contains(connector))
+        .all(|connector| context.available_connector_ids.contains(connector))
     {
         return Err(scope_error(
             "connector scope mismatch",
-            "delegated-provider connector scope does not cover the required route policy",
+            "delegated-provider connector scope exceeds the available runtime policy",
         ));
     }
-    if !claims.allowed_purposes.contains(&context.purpose) {
+    if claims.allowed_purposes.len() != 1
+        || claims.allowed_purposes.first().map(String::as_str) != Some(context.purpose.as_str())
+    {
         return Err(scope_error(
             "purpose mismatch",
-            "delegated-provider purpose does not match expected purpose",
+            "delegated-provider purpose does not exactly match expected purpose",
         ));
     }
     if claims.max_uses != 1 {
@@ -443,7 +445,7 @@ mod tests {
             audience: "baton://delegated-provider-executor".into(),
             workload_id: "mea-comms".into(),
             channel: DelegatedProviderChannel::Sms,
-            required_connector_ids: vec!["sms-primary".into(), "sms-backup".into()],
+            available_connector_ids: vec!["sms-primary".into(), "sms-backup".into()],
             purpose: "case_notification".into(),
             request_fingerprint: "a".repeat(64),
             issuer_policy_ref: "signet://issuer-policy/mea-comms".into(),
@@ -493,6 +495,22 @@ mod tests {
     }
 
     #[test]
+    fn accepts_connector_scope_narrower_than_runtime_ceiling() {
+        let mut narrowed = claims();
+        narrowed.allowed_connector_ids = vec!["sms-primary".into()];
+
+        let verified = verify_delegated_provider_authorization_at(
+            &envelope(&narrowed),
+            &AcceptingTrust,
+            &context(),
+            now(),
+        )
+        .unwrap();
+
+        assert_eq!(verified.allowed_connector_ids, vec!["sms-primary"]);
+    }
+
+    #[test]
     fn rejects_unaccepted_authenticator() {
         let result = verify_delegated_provider_authorization_at(
             &envelope(&claims()),
@@ -539,14 +557,14 @@ mod tests {
         )
         .is_err());
 
-        let mut wrong_connectors = context();
-        wrong_connectors
-            .required_connector_ids
+        let mut unavailable_connector = claims();
+        unavailable_connector
+            .allowed_connector_ids
             .push("sms-unapproved".into());
         assert!(verify_delegated_provider_authorization_at(
-            &envelope(&claims()),
+            &envelope(&unavailable_connector),
             &AcceptingTrust,
-            &wrong_connectors,
+            &context(),
             now(),
         )
         .is_err());
@@ -557,6 +575,16 @@ mod tests {
             &envelope(&claims()),
             &AcceptingTrust,
             &wrong_purpose,
+            now(),
+        )
+        .is_err());
+
+        let mut extra_purpose = claims();
+        extra_purpose.allowed_purposes.push("other_purpose".into());
+        assert!(verify_delegated_provider_authorization_at(
+            &envelope(&extra_purpose),
+            &AcceptingTrust,
+            &context(),
             now(),
         )
         .is_err());
