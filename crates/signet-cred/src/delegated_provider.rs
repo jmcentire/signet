@@ -7,7 +7,7 @@
 use std::collections::BTreeSet;
 
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::error::{CredError, CredErrorDetail, CredResult};
@@ -17,6 +17,8 @@ const MAX_DELEGATED_PROVIDER_ENVELOPE_BYTES: usize = 16 * 1024;
 const MAX_SCOPE_ENTRIES: usize = 128;
 const MAX_SCOPE_VALUE_BYTES: usize = 256;
 const MAX_POLICY_REF_BYTES: usize = 512;
+const MAX_PROVIDER_ATTEMPTS: u32 = 3;
+const MAX_AUTHORIZATION_LIFETIME_SECONDS: u32 = 15 * 60;
 
 /// Provider channel names shared with Baton's delegated connector contract.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -54,6 +56,12 @@ pub struct DelegatedProviderAcceptanceContext {
     pub available_connector_ids: Vec<String>,
     pub purpose: String,
     pub request_fingerprint: String,
+    /// Upper bound for the signed provider-attempt budget. The value must be
+    /// positive and cannot exceed Signet's hard delegated-provider limit.
+    pub provider_attempt_ceiling: u32,
+    /// Upper bound for the full signed authorization lifetime, measured from
+    /// `issued_at` to `not_after`. It cannot exceed Signet's hard limit.
+    pub authorization_lifetime_ceiling_seconds: u32,
     pub issuer_policy_ref: String,
     pub rotation_policy_ref: String,
 }
@@ -198,6 +206,22 @@ fn validate_acceptance_context(context: &DelegatedProviderAcceptanceContext) -> 
     )?;
     validate_scope_values(&context.available_connector_ids, "available connector IDs")?;
     validate_request_fingerprint(&context.request_fingerprint)?;
+    if context.provider_attempt_ceiling == 0
+        || context.provider_attempt_ceiling > MAX_PROVIDER_ATTEMPTS
+    {
+        return Err(scope_error(
+            "invalid provider-attempt ceiling",
+            "delegated-provider attempt ceiling must be positive and within the hard limit",
+        ));
+    }
+    if context.authorization_lifetime_ceiling_seconds == 0
+        || context.authorization_lifetime_ceiling_seconds > MAX_AUTHORIZATION_LIFETIME_SECONDS
+    {
+        return Err(scope_error(
+            "invalid authorization lifetime ceiling",
+            "delegated-provider lifetime ceiling must be positive and within the hard limit",
+        ));
+    }
     Ok(())
 }
 
@@ -266,18 +290,21 @@ fn validate_claims(
             "delegated-provider authorization must be single-use",
         ));
     }
-    if claims.max_provider_attempts == 0 {
+    if claims.max_provider_attempts == 0
+        || claims.max_provider_attempts > context.provider_attempt_ceiling
+    {
         return Err(scope_error(
             "invalid provider-attempt budget",
-            "delegated-provider attempt budget must be positive",
+            "delegated-provider attempt budget exceeds the trusted acceptance ceiling",
         ));
     }
 
-    validate_time_window(claims, now)
+    validate_time_window(claims, context, now)
 }
 
 fn validate_time_window(
     claims: &DelegatedProviderAuthorizationClaims,
+    context: &DelegatedProviderAcceptanceContext,
     now: DateTime<Utc>,
 ) -> CredResult<()> {
     let issued_at = parse_time(&claims.issued_at, "issued-at")?;
@@ -293,6 +320,14 @@ fn validate_time_window(
         return Err(scope_error(
             "invalid time window",
             "delegated-provider authorization has an inconsistent time window",
+        ));
+    }
+    if not_after.signed_duration_since(issued_at)
+        > Duration::seconds(i64::from(context.authorization_lifetime_ceiling_seconds))
+    {
+        return Err(scope_error(
+            "authorization lifetime exceeds ceiling",
+            "delegated-provider authorization lifetime exceeds the trusted acceptance ceiling",
         ));
     }
     if now < not_before {
@@ -448,6 +483,8 @@ mod tests {
             available_connector_ids: vec!["sms-primary".into(), "sms-backup".into()],
             purpose: "case_notification".into(),
             request_fingerprint: "a".repeat(64),
+            provider_attempt_ceiling: 2,
+            authorization_lifetime_ceiling_seconds: 10 * 60,
             issuer_policy_ref: "signet://issuer-policy/mea-comms".into(),
             rotation_policy_ref: "signet://rotation-policy/mea-comms".into(),
         }
@@ -628,6 +665,57 @@ mod tests {
             &envelope(&no_attempts),
             &AcceptingTrust,
             &context(),
+            now(),
+        )
+        .is_err());
+
+        let mut too_many_attempts = claims();
+        too_many_attempts.max_provider_attempts = 3;
+        assert!(verify_delegated_provider_authorization_at(
+            &envelope(&too_many_attempts),
+            &AcceptingTrust,
+            &context(),
+            now(),
+        )
+        .is_err());
+
+        let mut unbounded_attempts = claims();
+        unbounded_attempts.max_provider_attempts = u32::MAX;
+        assert!(verify_delegated_provider_authorization_at(
+            &envelope(&unbounded_attempts),
+            &AcceptingTrust,
+            &context(),
+            now(),
+        )
+        .is_err());
+
+        let mut too_long = claims();
+        too_long.not_after = "2026-06-04T22:10:01+00:00".into();
+        assert!(verify_delegated_provider_authorization_at(
+            &envelope(&too_long),
+            &AcceptingTrust,
+            &context(),
+            now(),
+        )
+        .is_err());
+
+        let mut invalid_context = context();
+        invalid_context.provider_attempt_ceiling = 0;
+        assert!(verify_delegated_provider_authorization_at(
+            &envelope(&claims()),
+            &AcceptingTrust,
+            &invalid_context,
+            now(),
+        )
+        .is_err());
+
+        let mut unbounded_context = context();
+        unbounded_context.authorization_lifetime_ceiling_seconds =
+            MAX_AUTHORIZATION_LIFETIME_SECONDS + 1;
+        assert!(verify_delegated_provider_authorization_at(
+            &envelope(&claims()),
+            &AcceptingTrust,
+            &unbounded_context,
             now(),
         )
         .is_err());

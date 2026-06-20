@@ -51,6 +51,9 @@ payload value, provider response, or dispatch claim ID.
 - the available runtime connector-ID ceiling;
 - exact runtime purpose;
 - exact canonical Baton request fingerprint; and
+- a provider-attempt ceiling of at most `3` attempts;
+- an authorization-lifetime ceiling of at most `15` minutes, measured from
+  `issued_at` through `not_after`; and
 - issuer-policy and rotation-policy references.
 
 The issuer and rotation policy references are active verifier inputs, not
@@ -67,9 +70,9 @@ Acceptance rejects:
 - any authorized connector outside the available runtime connector ceiling;
 - a purpose set that does not contain exactly the runtime purpose;
 - empty, duplicate, oversized, or unbounded scope;
-- an inconsistent, future, not-yet-valid, or expired time window;
+- an inconsistent, future, not-yet-valid, expired, or overlong time window;
 - `max_uses` other than `1`; or
-- a zero provider-attempt budget.
+- a zero or over-ceiling provider-attempt budget.
 
 The public verifier returns `VerifiedDelegatedProviderAuthorization`, not raw
 parsed claims. Signature-only parsing is not exposed.
@@ -106,13 +109,24 @@ idempotency key. The later-acquired dispatch claim ID remains outside the
 envelope and is enforced by Baton's durable active-claim journal and
 authorization ledger.
 
+## Runtime Consumption
+
+This verifier only accepts a signed authorization. It does not consume it,
+track provider attempts, or grant a grace interval beyond the strict UTC
+validity window. Baton must revalidate the immutable verified authorization at
+every provider attempt and use its durable authorization ledger to atomically
+reject a consumed authorization, an exhausted attempt budget, an expired
+authorization, or a revoked issuer/rotation policy. An outage or unknown
+ledger/policy state must fail closed. The 15-minute hard lifetime bounds the
+window in which a non-renewed authorization can remain eligible.
+
 ## Remaining Production Blockers
 
 1. A concrete trusted Signet verifier implementation that enforces approved
    issuer and rotation policy.
 2. Key-free executable proof of the Signet envelope verifier and Baton mapping.
 3. Baton's shared highly available journal, consumption ledger, audit,
-   notification, and provider-attempt state.
+   notification, provider-attempt state, and per-attempt revalidation.
 4. Approved custody-internal provider executor and provider idempotency.
 
 The generic `signet.cap.v1` financial envelope must not be adapted into this
