@@ -19,7 +19,7 @@
 //! Five MCP tools are exposed:
 //! - `get_proof`: Generate ZK/selective-disclosure proofs
 //! - `query`: Query the vault with tier-based response selection
-//! - `request_capability`: Issue scoped PASETO v4 capability tokens
+//! - `request_capability`: Reject requests until an issuer-backed capability service is configured
 //! - `negotiate_context`: Negotiate disclosure with counterparty agents
 //! - `check_status`: Check status of pending requests
 //!

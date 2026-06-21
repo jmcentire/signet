@@ -76,7 +76,7 @@ enum Commands {
         tier: Option<u8>,
     },
 
-    /// Issue a scoped capability token
+    /// Request capability issuance (disabled until a custody-controlled issuer is configured)
     Capability {
         /// Domain the capability is scoped to
         #[arg(long)]
@@ -90,7 +90,7 @@ enum Commands {
         #[arg(long)]
         purpose: String,
 
-        /// One-time use (sealed token)
+        /// One-time use (requires a consumption ledger before issuance is enabled)
         #[arg(long)]
         one_time: bool,
     },
@@ -441,38 +441,15 @@ async fn cmd_list(config_path: Option<&PathBuf>, tier_filter: Option<u8>) -> Res
 }
 
 async fn cmd_capability(
-    config_path: Option<&PathBuf>,
-    domain: &str,
-    max_amount: Option<u64>,
-    purpose: &str,
-    one_time: bool,
+    _config_path: Option<&PathBuf>,
+    _domain: &str,
+    _max_amount: Option<u64>,
+    _purpose: &str,
+    _one_time: bool,
 ) -> Result<(), RootError> {
-    let config = load_config(config_path)?;
-    let state = initialize_root(config)?;
-
-    let signer = state
-        .signer
-        .as_ref()
-        .ok_or_else(|| RootError::Internal("vault signer not initialized".into()))?;
-
-    let constraints = signet_cred::spl_capability::SplCapabilityConstraints {
-        domain: domain.to_string(),
-        max_amount,
-        purpose: purpose.to_string(),
-        one_time,
-        expires_seconds: Some(300),
-    };
-
-    let signing_key_hex = hex::encode(signer.signing_key_bytes());
-    let token =
-        signet_cred::spl_capability::generate_spl_capability(&constraints, &signing_key_hex)
-            .map_err(|e| RootError::Credential(e.kind))?;
-
-    let token_json = serde_json::to_string_pretty(&token)
-        .map_err(|e| RootError::Serialization(e.to_string()))?;
-
-    println!("{}", token_json);
-    Ok(())
+    Err(RootError::Internal(
+        "capability issuance requires a configured custody-controlled issuer".into(),
+    ))
 }
 
 async fn cmd_vault_status(config_path: Option<&PathBuf>) -> Result<(), RootError> {

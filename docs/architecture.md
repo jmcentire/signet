@@ -71,6 +71,6 @@ Signet appears as a connector in Claude, ChatGPT, Gemini — the same way Google
 | Identity | Ed25519 public key fingerprint |
 | Credentials | SD-JWT VC (RFC 9901) + BBS+ (IRTF draft) |
 | Range Proofs | Bulletproofs (Pedersen commitments) |
-| Capability Tokens | PASETO v4 |
+| Capability Tokens | Signet envelope v1; verified domain acceptance; issuer required; one-time/SPL issuance suspended |
 | Agent Protocol | MCP |
-| Crypto Backend | aws-lc-rs (FIPS 140-3) |
+| Crypto Backend | Rust crypto crates; compliance validation pending |

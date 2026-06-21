@@ -1,10 +1,11 @@
-//! Agent-Safe SPL capability token generation.
+//! Suspended Agent-Safe SPL capability issuance compatibility surface.
 //!
-//! Replaces the PASETO placeholder with real Ed25519-signed SPL tokens
-//! that embed executable policy for microsecond verification.
+//! The historical API accepted caller-provided signing-key input. It now
+//! fails closed until an issuer can sign through the custody boundary
+//! without exporting key material.
 
 use crate::error::{CredError, CredErrorDetail, CredResult};
-use agent_safe_spl::token::{mint, MintOptions, Token};
+use agent_safe_spl::token::Token;
 
 /// Constraints for an SPL capability token.
 pub struct SplCapabilityConstraints {
@@ -15,30 +16,20 @@ pub struct SplCapabilityConstraints {
     pub expires_seconds: Option<u64>,
 }
 
-/// Generate an SPL capability token from constraints.
+/// Legacy SPL capability issuance entrypoint.
 ///
-/// Builds an S-expression policy from the constraints and signs it
-/// with the provided Ed25519 key.
+/// The legacy argument is retained for source compatibility but deliberately
+/// ignored. Issuance must be reintroduced only through a custody-controlled
+/// signer integration.
+#[deprecated(note = "disabled until custody-controlled issuer integration is available")]
 pub fn generate_spl_capability(
-    constraints: &SplCapabilityConstraints,
-    signing_key_hex: &str,
+    _constraints: &SplCapabilityConstraints,
+    _unaccepted_signing_key_hex: &str,
 ) -> CredResult<Token> {
-    let policy = build_policy(constraints);
-
-    let expires = constraints.expires_seconds.map(|secs| {
-        let ts = chrono::Utc::now() + chrono::Duration::seconds(secs as i64);
-        ts.to_rfc3339()
-    });
-
-    let opts = MintOptions {
-        sealed: constraints.one_time,
-        expires,
-        ..Default::default()
-    };
-
-    mint(&policy, signing_key_hex, opts).map_err(|e| {
-        CredErrorDetail::new(CredError::InternalError, format!("SPL mint failed: {}", e))
-    })
+    Err(CredErrorDetail::new(
+        CredError::InternalError,
+        "SPL capability issuance requires a custody-controlled issuer",
+    ))
 }
 
 /// Build an SPL policy S-expression from constraints.
@@ -47,6 +38,7 @@ pub fn generate_spl_capability(
 /// ```lisp
 /// (and (= (get req "domain") "amazon.com") (<= (get req "amount") 150) (= (get req "purpose") "purchase"))
 /// ```
+#[cfg(test)]
 fn build_policy(constraints: &SplCapabilityConstraints) -> String {
     let mut clauses = Vec::new();
 
@@ -106,91 +98,5 @@ mod tests {
         let policy = build_policy(&constraints);
         assert!(!policy.contains("amount"));
         assert!(policy.starts_with("(and "));
-    }
-
-    #[test]
-    fn test_generate_spl_capability() {
-        let (pub_hex, priv_hex) = agent_safe_spl::generate_keypair();
-        let constraints = SplCapabilityConstraints {
-            domain: "test.com".to_string(),
-            max_amount: Some(100),
-            purpose: "demo".to_string(),
-            one_time: false,
-            expires_seconds: Some(300),
-        };
-        let token = generate_spl_capability(&constraints, &priv_hex).unwrap();
-        assert_eq!(token.public_key, pub_hex);
-        assert!(!token.sealed);
-        assert!(token.expires.is_some());
-        assert!(token.policy.contains("test.com"));
-    }
-
-    #[test]
-    fn test_generate_spl_capability_one_time() {
-        let (_pub_hex, priv_hex) = agent_safe_spl::generate_keypair();
-        let constraints = SplCapabilityConstraints {
-            domain: "shop.com".to_string(),
-            max_amount: Some(50),
-            purpose: "purchase".to_string(),
-            one_time: true,
-            expires_seconds: None,
-        };
-        let token = generate_spl_capability(&constraints, &priv_hex).unwrap();
-        assert!(token.sealed);
-    }
-
-    #[test]
-    fn test_generated_token_verifies() {
-        let (_pub_hex, priv_hex) = agent_safe_spl::generate_keypair();
-        let constraints = SplCapabilityConstraints {
-            domain: "test.com".to_string(),
-            max_amount: Some(100),
-            purpose: "demo".to_string(),
-            one_time: false,
-            expires_seconds: None,
-        };
-        let token = generate_spl_capability(&constraints, &priv_hex).unwrap();
-
-        // Build request context that matches the policy
-        let mut req = std::collections::HashMap::new();
-        req.insert(
-            "domain".to_string(),
-            agent_safe_spl::Node::Str("test.com".to_string()),
-        );
-        req.insert("amount".to_string(), agent_safe_spl::Node::Number(50.0));
-        req.insert(
-            "purpose".to_string(),
-            agent_safe_spl::Node::Str("demo".to_string()),
-        );
-
-        let result = agent_safe_spl::verify_token(&token, req, std::collections::HashMap::new());
-        assert!(result.allow, "token should verify: {:?}", result.error);
-    }
-
-    #[test]
-    fn test_generated_token_rejects_wrong_domain() {
-        let (_pub_hex, priv_hex) = agent_safe_spl::generate_keypair();
-        let constraints = SplCapabilityConstraints {
-            domain: "test.com".to_string(),
-            max_amount: Some(100),
-            purpose: "demo".to_string(),
-            one_time: false,
-            expires_seconds: None,
-        };
-        let token = generate_spl_capability(&constraints, &priv_hex).unwrap();
-
-        let mut req = std::collections::HashMap::new();
-        req.insert(
-            "domain".to_string(),
-            agent_safe_spl::Node::Str("evil.com".to_string()),
-        );
-        req.insert("amount".to_string(), agent_safe_spl::Node::Number(50.0));
-        req.insert(
-            "purpose".to_string(),
-            agent_safe_spl::Node::Str("demo".to_string()),
-        );
-
-        let result = agent_safe_spl::verify_token(&token, req, std::collections::HashMap::new());
-        assert!(!result.allow);
     }
 }

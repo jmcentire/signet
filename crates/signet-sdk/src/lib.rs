@@ -4,7 +4,7 @@
 //! sovereign agent stack. Provides four core primitives:
 //!
 //! - [`verify`] — Validate a ZK proof against a claimed attribute.
-//! - [`request_capability`] — Request a scoped capability token.
+//! - [`request_capability`] — Request a scoped capability through verified issuer wiring.
 //! - [`check_authority`] — Confirm a Signet identity's authority.
 //! - [`parse_credential`] — Decode credential claims from a token.
 //!
@@ -85,7 +85,7 @@ mod tests {
     }
 
     #[test]
-    fn test_request_capability_primitive() {
+    fn test_request_capability_fails_closed_without_verified_issuer_transport() {
         let spec = CapabilitySpec {
             permissions: vec!["payment:one-time".into()],
             expiration: Timestamp::now().seconds_since_epoch + 600,
@@ -93,8 +93,8 @@ mod tests {
         };
 
         let result = request_capability(&spec).unwrap();
-        assert!(result.token.is_some());
-        assert!(result.error.is_none());
+        assert!(result.token.is_none());
+        assert_eq!(result.error, Some(SdkErrorKind::CapabilityRequestFailed));
     }
 
     #[test]
@@ -162,21 +162,15 @@ mod tests {
     }
 
     #[test]
-    fn test_end_to_end_capability_flow() {
-        // Step 1: Check authority
-        let pubkey = [0x55u8; 32];
-        let id = signet_core::crypto::signet_id_from_pubkey(&pubkey);
-        let auth = check_authority(&id, "issue").unwrap();
-        assert!(auth.authorized);
-
-        // Step 2: Request capability
+    fn test_capability_request_does_not_issue_without_verified_transport() {
         let spec = CapabilitySpec {
             permissions: vec!["read:profile".into(), "verify:age".into()],
             expiration: Timestamp::now().seconds_since_epoch + 300,
             domain: Some("app.example.com".into()),
         };
         let cap = request_capability(&spec).unwrap();
-        assert!(cap.token.is_some());
+        assert!(cap.token.is_none());
+        assert_eq!(cap.error, Some(SdkErrorKind::CapabilityRequestFailed));
     }
 
     #[test]

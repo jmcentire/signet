@@ -133,8 +133,8 @@ not establish these cryptographic claims.
 | Credentials (privacy) | BBS+ Signatures | Unlinkable selective disclosure |
 | Range proofs | Bulletproofs | No trusted setup, audited |
 | Agent protocol | MCP | Native Claude/AI integration |
-| Capability tokens | PASETO v4 | Misuse-resistant, no algorithm confusion |
-| Crypto backend | aws-lc-rs compatible | FIPS 140-3 ready |
+| Capability tokens | Signet envelope v1 (current) | Ed25519 verification required; issuance fails closed without a configured issuer |
+| Crypto backend | Selected Rust crypto crates | Compliance validation required before certification claims |
 | Key derivation | BIP39 + SLIP-0010 | Deterministic Ed25519 from mnemonic |
 
 ## Architecture

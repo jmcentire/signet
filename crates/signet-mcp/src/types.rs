@@ -383,7 +383,9 @@ pub struct RequestCapabilityRequest {
     pub constraints: HashMap<String, serde_json::Value>,
 }
 
-/// PASETO claims embedded in capability tokens.
+/// Reserved response claims shape for future issuer-backed capability tokens.
+///
+/// The current MCP executor fails closed until a verified issuer is configured.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PasetoClaims {
     pub issuer: String,
