@@ -9,7 +9,7 @@
 
 [![CI](https://github.com/jmcentire/signet/actions/workflows/ci.yml/badge.svg)](https://github.com/jmcentire/signet/actions/workflows/ci.yml)
 [![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue)](LICENSE-MIT)
-[![MSRV: 1.75](https://img.shields.io/badge/MSRV-1.75-orange)]()
+[![MSRV: 1.85](https://img.shields.io/badge/MSRV-1.85-orange)]()
 
 **Personal Sovereign Agent Stack**
 
@@ -46,9 +46,9 @@ User (Root Authority -- Ed25519 keypair)
 | `signet-vault` | 2,890 | Root of trust, BlindDB storage, BIP39/SLIP-0010, envelope encryption, passkey/FIDO2 support |
 | `signet-policy` | 4,265 | XACML-for-individuals, PERMIT/DENY/ANOMALY decisions, role hierarchy |
 | `signet-notify` | 4,290 | Webhook authorization channel, HMAC-SHA256, circuit breaker |
-| `signet-cred` | 6,778 | Credential issuance (SD-JWT VC + BBS+), authority protocol, composable decay model, revocation |
+| `signet-cred` | 7,780 | Credential issuance (SD-JWT VC + BBS+), authority protocol, composable decay model, revocation |
 | `signet-proof` | 5,135 | Typestate proof pipeline, selective disclosure, range proofs |
-| `signet-sdk` | 3,055 | Developer SDK: `verify`, `requestCapability`, `checkAuthority`, `parseCredential` |
+| `signet-sdk` | 2,844 | Developer SDK: `verify`, `requestCapability`, `checkAuthority`, `parseCredential` |
 | `signet-mcp` | 4,903 | MCP server, middleware pipeline, JSON-RPC 2.0 dispatcher |
 | `signet` | 3,766 | CLI binary, HTTP server, authority credential endpoints |
 

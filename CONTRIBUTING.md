@@ -4,7 +4,7 @@ Thank you for your interest in contributing to Signet.
 
 ## Prerequisites
 
-- Rust 1.75+ (stable)
+- Rust 1.85+ (stable)
 - Git
 
 ## Building
