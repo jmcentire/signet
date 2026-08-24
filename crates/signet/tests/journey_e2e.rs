@@ -3,7 +3,7 @@
 //! Journey 1: Store and list data via CLI-equivalent API
 //! Journey 2: MCP tools (store_data, list_data, query, get_proof)
 //! Journey 3: HTTP transport (health, MCP proxy, verify)
-//! Journey 4: SPL capability token generation and verification
+//! Journey 4: legacy SPL capability issuance fails closed
 
 use signet::config::{McpConfig, PolicyEngineConfig};
 use signet::{handle_request, initialize_root, JsonRpcRequest, RootConfig};
@@ -244,17 +244,20 @@ fn test_journey_http_router() {
 }
 
 // ============================================================================
-// Journey 4: SPL capability token generation and verification
+// Journey 4: legacy SPL capability issuance fails closed
 // ============================================================================
 
 #[test]
 fn test_journey_spl_capability() {
+    // The capability-hardening change (#5) closed the legacy SPL issuance
+    // path that exported raw signer material: `generate_spl_capability` is
+    // deprecated and must fail closed until a custody-controlled issuer
+    // integration exists. This journey asserts that fail-closed contract.
     let config = journey_config();
     let state = initialize_root(config).unwrap();
 
     let signer = state.signer.as_ref().unwrap();
 
-    // Generate an SPL capability token
     let constraints = signet_cred::spl_capability::SplCapabilityConstraints {
         domain: "amazon.com".to_string(),
         max_amount: Some(150),
@@ -264,76 +267,22 @@ fn test_journey_spl_capability() {
     };
 
     let signing_key_hex = hex::encode(signer.signing_key_bytes());
-    let token =
-        signet_cred::spl_capability::generate_spl_capability(&constraints, &signing_key_hex)
-            .unwrap();
+    #[allow(deprecated)]
+    let result =
+        signet_cred::spl_capability::generate_spl_capability(&constraints, &signing_key_hex);
 
-    // Token should be sealed (one-time use)
-    assert!(token.sealed, "one_time=true should produce a sealed token");
-    assert!(token.expires.is_some(), "should have expiry");
+    let err = result
+        .expect_err("legacy SPL issuance must fail closed without a custody-controlled issuer");
     assert!(
-        token.policy.contains("amazon.com"),
-        "policy should bind to domain"
-    );
-    assert!(
-        token.policy.contains("150"),
-        "policy should include amount limit"
+        matches!(err.kind, signet_cred::CredError::InternalError),
+        "unexpected error kind: {:?}",
+        err.kind
     );
     assert!(
-        token.policy.contains("purchase"),
-        "policy should include purpose"
+        err.message.contains("custody-controlled issuer"),
+        "error must name the custody-controlled issuer requirement: {}",
+        err.message
     );
-
-    // Verify token with matching request
-    let mut req = std::collections::HashMap::new();
-    req.insert(
-        "domain".to_string(),
-        agent_safe_spl::Node::Str("amazon.com".to_string()),
-    );
-    req.insert("amount".to_string(), agent_safe_spl::Node::Number(100.0));
-    req.insert(
-        "purpose".to_string(),
-        agent_safe_spl::Node::Str("purchase".to_string()),
-    );
-
-    let result = agent_safe_spl::verify_token(&token, req, std::collections::HashMap::new());
-    assert!(
-        result.allow,
-        "valid request should be allowed: {:?}",
-        result.error
-    );
-
-    // Verify token rejects wrong domain
-    let mut bad_req = std::collections::HashMap::new();
-    bad_req.insert(
-        "domain".to_string(),
-        agent_safe_spl::Node::Str("evil.com".to_string()),
-    );
-    bad_req.insert("amount".to_string(), agent_safe_spl::Node::Number(100.0));
-    bad_req.insert(
-        "purpose".to_string(),
-        agent_safe_spl::Node::Str("purchase".to_string()),
-    );
-
-    let bad_result =
-        agent_safe_spl::verify_token(&token, bad_req, std::collections::HashMap::new());
-    assert!(!bad_result.allow, "wrong domain should be rejected");
-
-    // Verify token rejects amount over limit
-    let mut over_req = std::collections::HashMap::new();
-    over_req.insert(
-        "domain".to_string(),
-        agent_safe_spl::Node::Str("amazon.com".to_string()),
-    );
-    over_req.insert("amount".to_string(), agent_safe_spl::Node::Number(200.0));
-    over_req.insert(
-        "purpose".to_string(),
-        agent_safe_spl::Node::Str("purchase".to_string()),
-    );
-
-    let over_result =
-        agent_safe_spl::verify_token(&token, over_req, std::collections::HashMap::new());
-    assert!(!over_result.allow, "amount over limit should be rejected");
 
     // Cleanup
     let _ = std::fs::remove_dir_all(state.config.data_dir.clone());
