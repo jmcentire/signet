@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-08-24
+
+### Security
+
+- **Capability verification hardening** (#5): the false PASETO claim is replaced by a named Signet generic capability envelope with strict Ed25519 verification. Exact-context acceptance binds issuer, domain, purpose, amount/currency, and a consistent issuance/not-before/expiry window. Signature-only parsing stays private so decoded claims cannot be mistaken for authorization.
+- **Fail-closed issuance**: unsigned MCP/SDK issuance and the legacy CLI/SPL path that previously exported signer material now fail closed. `generate_spl_capability` is deprecated until a custody-controlled issuer integration exists.
+- **CI key quarantine** (#4): a repository-wide `no-key-material` scan gates every CI job, quarantining key-bearing test execution.
+
+### Added
+
+- **Delegated-provider acceptance contract** (`signet-cred::delegated_provider`): acceptance-only `signet.delegated-provider.v1` envelope for exact credential-free provider scope. Requires issuer, audience, workload, exact purpose, channel, request fingerprint, single-use budget, provider-attempt budget, and applied issuer/rotation policy metadata; enabled connector IDs act as a ceiling — verified scope may narrow but never widen.
+- Fly.io deploy config, Caddyfile, docker-compose, and Claude Desktop setup docs.
+- `PRIVACY.md` and a privacy policy page for Claude Code plugin verification.
+- `REVIEW.md` automated review checklist.
+- Merge-friendly `.kin/` project knowledge graph with structured merge driver (#1).
+
+### Changed
+
+- `test_journey_spl_capability` now asserts the fail-closed issuance contract instead of the removed legacy success path.
+
 ## [0.2.0] - 2026-02-28
 
 ### Added
@@ -43,5 +63,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Zeroizing<>` wrappers on all secret key material
 - BlindDB relational opacity: server stores only opaque hashes and ciphertext
 
+[0.3.0]: https://github.com/jmcentire/signet/releases/tag/v0.3.0
 [0.2.0]: https://github.com/jmcentire/signet/releases/tag/v0.2.0
 [0.1.0]: https://github.com/jmcentire/signet/releases/tag/v0.1.0
