@@ -87,4 +87,4 @@ base64 = "0.22"
 uuid = { version = "1", features = ["v4", "serde"] }
 
 # Agent-Safe SPL capability tokens
-agent-safe-spl = { git = "https://github.com/jmcentire/agent-safe.git", version = "0.2" }
+agent-safe-spl = { git = "https://github.com/jmcentire/agent-safe.git", rev = "478994336037c96ad2ade03c503d64418b4f1d6e", version = "0.2" }

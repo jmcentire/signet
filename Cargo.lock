@@ -40,7 +40,7 @@ dependencies = [
 [[package]]
 name = "agent-safe-spl"
 version = "0.2.0"
-source = "git+https://github.com/jmcentire/agent-safe.git#478994336037c96ad2ade03c503d64418b4f1d6e"
+source = "git+https://github.com/jmcentire/agent-safe.git?rev=478994336037c96ad2ade03c503d64418b4f1d6e#478994336037c96ad2ade03c503d64418b4f1d6e"
 dependencies = [
  "ed25519-dalek",
  "getrandom 0.3.4",
@@ -132,9 +132,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.102"
+version = "1.0.104"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
+checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
 
 [[package]]
 name = "arrayvec"
@@ -1116,9 +1116,9 @@ checksum = "69cdb34c158ceb288df11e18b4bd39de994f6657d83847bdffdbd7f346754b0f"
 
 [[package]]
 name = "rand"
-version = "0.8.5"
+version = "0.8.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "34af8d1a0e25924bc5b7c43c079c942339d8f0a8b57c39049bef581b46327404"
+checksum = "e058c7de0b26af77780c769414d6257830bb240f3c38477dbc2c16e5f54d6d4c"
 dependencies = [
  "libc",
  "rand_chacha",

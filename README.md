@@ -59,7 +59,7 @@ User (Root Authority -- Ed25519 keypair)
 ### Install from source
 
 ```bash
-cargo install --git https://github.com/jmcentire/signet.git signet
+cargo install --locked --git https://github.com/jmcentire/signet.git signet
 ```
 
 ### Or clone and build
@@ -120,9 +120,9 @@ record_id (SHA-256 hash)                                   data (AES-256-GCM cip
 - Which records form a collection?
 - Are any of these records fake (seed data)?
 
-Executable demo validation is currently held behind the active
-[no-key test quarantine](docs/no-key-test-quarantine.md). Build-only checks do
-not establish these cryptographic claims.
+Run `make demo` to exercise the storage demonstration with generated test
+material after credential scanning. Local tests do not establish production
+custody readiness.
 
 ## Standards
 
@@ -173,10 +173,7 @@ not establish these cryptographic claims.
 ## Development
 
 ```bash
-# Static no-key gate. It currently fails closed while remediation is pending.
-python3 -B scripts/no_key_material_scan.py
-
-# Build-only checks become eligible after the no-key gate clears.
+# Install Gitleaks, then scan credentials, build, lint, format-check, and test.
 make check
 
 # Individual targets
@@ -185,8 +182,8 @@ make clippy
 make fmt
 ```
 
-Project tests, the BlindDB demo, and E2E execution remain quarantined until
-their paths carry no signing or private-key material. See
+Production credentials are forbidden; generated test keys and documented
+test-only vectors are permitted. See
 [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines and
 [docs/no-key-test-quarantine.md](docs/no-key-test-quarantine.md) for the
 incident record and inventory.

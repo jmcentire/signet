@@ -39,7 +39,7 @@
       <a href="https://github.com/jmcentire/signet" class="btn btn-primary">View on GitHub</a>
       <a href="#for-everyone" class="btn btn-secondary">Learn more</a>
     </div>
-    <p class="hero-install"><code>cargo install --git https://github.com/jmcentire/signet.git signet</code></p>
+    <p class="hero-install"><code>cargo install --locked --git https://github.com/jmcentire/signet.git signet</code></p>
     <p class="hero-install"><a href="claude-desktop-setup.html">Set up with Claude Desktop &rarr;</a></p>
   </div>
 
@@ -229,7 +229,7 @@ User (Ed25519 root)
         <h4>1. Install &amp; Initialize</h4>
 <pre class="code-block">
 <span class="comment"># Install from source</span>
-cargo install --git https://github.com/jmcentire/signet.git signet
+cargo install --locked --git https://github.com/jmcentire/signet.git signet
 
 <span class="comment"># Create your vault (generates root keypair)</span>
 signet init
@@ -383,7 +383,7 @@ curl -X POST http://localhost:<span class="num">3000</span>/verify \
           <li>Are any of these records fake (seed data)?</li>
         </ul>
       </div>
-      <p class="try-it">Executable demo validation is temporarily blocked by the active no-key test quarantine.</p>
+      <p class="try-it">Run <code>make demo</code> to explore the storage model with generated test data after credential scanning.</p>
     </div>
 
     <h3>Key Hierarchy</h3>
@@ -444,8 +444,8 @@ Ed25519 root keypair  <span class="highlight-inline">(generated once from 256 bi
     </div>
 
     <div class="cta-final">
-      <h3>Test evidence is under active no-key quarantine.</h3>
-      <p>Build-only checks do not establish cryptographic conformance until key-bearing test paths are remediated.</p>
+      <h3>Inspect the code. Exercise the boundaries.</h3>
+      <p>Run <code>make check</code> for credential scanning and executable tests. Test keys are permitted; production credentials are forbidden.</p>
       <div class="hero-cta">
         <a href="https://github.com/jmcentire/signet" class="btn btn-primary">View Source</a>
         <a href="https://github.com/jmcentire/signet/blob/main/SECURITY.md" class="btn btn-secondary">Security Policy</a>

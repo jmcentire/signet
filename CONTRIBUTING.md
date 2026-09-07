@@ -6,6 +6,7 @@ Thank you for your interest in contributing to Signet.
 
 - Rust 1.85+ (stable)
 - Git
+- Gitleaks 8.30.1+ (`brew install gitleaks` on macOS)
 
 ## Building
 
@@ -17,15 +18,18 @@ cargo build --workspace
 
 ## Testing
 
-Project test, demo, and E2E execution is quarantined while test sources
-contain signing or private-key operations. Before attempting validation, run:
+Production credentials and operational private keys are forbidden. Generate
+test keys in fixtures or use documented test-only vectors; never load a real
+vault or ambient production credentials. Run:
 
 ```bash
-python3 -B scripts/no_key_material_scan.py
+make check
 ```
 
-While this gate reports findings, do not execute project test suites. Its
-current incident record and remediation inventory are maintained in
+The Gitleaks credential scan blocks test execution on findings or scanner
+failure. It scans current tracked files and non-ignored untracked files, with
+redacted output. Cryptographic operations are permitted. The historical
+quarantine and its correction are recorded in
 [docs/no-key-test-quarantine.md](docs/no-key-test-quarantine.md).
 
 ## Code Quality
@@ -84,8 +88,8 @@ The storage backend must never receive plaintext labels, semantic meaning, or re
 1. Fork the repository
 2. Create a feature branch from `main`
 3. Make your changes
-4. Run `python3 -B scripts/no_key_material_scan.py`; do not proceed to project tests while it reports findings
-5. After the gate clears, run the approved build and formatting checks
+4. Run `make check` (credential scan, build, lint, formatting, and tests)
+5. Review scan findings; never waive an entire test directory to suppress one fixture
 6. Submit a pull request with a clear description of the change
 
 ## License

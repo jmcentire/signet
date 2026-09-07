@@ -151,16 +151,8 @@ impl PatternTracker {
                 continue;
             }
 
-            let approval_pct = if total > 0 {
-                (record.approve_count * 100) / total
-            } else {
-                0
-            };
-            let denial_pct = if total > 0 {
-                (record.deny_count * 100) / total
-            } else {
-                0
-            };
+            let approval_pct = (record.approve_count * 100).checked_div(total).unwrap_or(0);
+            let denial_pct = (record.deny_count * 100).checked_div(total).unwrap_or(0);
 
             let suggestion = if approval_pct >= thresholds.approval_ratio_permit as u64 {
                 // Suggest an auto-permit rule

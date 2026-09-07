@@ -3,7 +3,8 @@
 ## Status
 
 This change is a draft safety correction, not a Signet release claim and not
-MEA custody approval. The no-key project-test quarantine remains in force.
+MEA custody approval. Update 2026-09-07: credential scanning replaces the blanket
+test-key quarantine; see [the correction](no-key-test-quarantine.md).
 
 ## Corrected Defects
 

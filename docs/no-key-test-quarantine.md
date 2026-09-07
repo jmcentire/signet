@@ -1,10 +1,24 @@
 # No-Key Test Quarantine
 
-## Status
+## Status — corrected 2026-09-07
 
-Signet project tests are quarantined from CI execution until the no-key gate
-passes. This is an execution hold, not proof that current test sources meet
-the custody policy.
+The blanket quarantine is retired. The maintainer clarified on 2026-06-21:
+"In general, we want no production keys. Tests to ensure that a secure system
+works correctly do require test keys."
+
+The old scanner matched type names and signing operations, including generated
+test keys. It left CI at 157 findings and prevented all downstream checks. The
+replacement uses Gitleaks to detect committed credentials while retaining
+cryptographic test coverage. `make check` now executes the workspace suite after
+the scan; CI tests stable Rust and the supported minimum version.
+
+Production credentials and operational private keys remain forbidden. Tests
+must use generated keys or documented test-only vectors and never load real
+vaults or ambient production credentials. Scanner output is redacted. Gitleaks
+cannot infer the provenance of every byte sequence, so fixture review remains
+necessary. The compatibility entrypoint is `scripts/no_key_material_scan.py`.
+
+The sections below preserve the historical incident and superseded policy.
 
 ## Incident
 
@@ -13,7 +27,7 @@ Both workspace test jobs began executing `cargo test --workspace` before the
 run was cancelled. That command is prohibited while any test path constructs,
 carries, or uses signing or private-key material.
 
-## Gate
+## Historical gate (superseded)
 
 `scripts/no_key_material_scan.py` inspects Rust test regions, integration test
 files, generated test artifacts, CI workflow commands, and local `make`

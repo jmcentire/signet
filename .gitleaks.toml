@@ -1,0 +1,7 @@
+title = "Signet credential scan"
+
+[extend]
+useDefault = true
+
+# Cryptographic operations and generated test keys are permitted. Do not add
+# blanket test-directory exclusions: committed credentials must still be found.

@@ -30,18 +30,26 @@ Signet's security model is built on these principles:
 4. **Memory zeroization**: All secret key material is wrapped in `Zeroizing<>` for automatic cleanup.
 5. **Defense in depth**: Five layers (relational opacity, signatures, hash chains, encryption, seed data) rather than relying on any single mechanism.
 
-## Active Test Quarantine
+## Credentials in Tests and CI
 
-Project test, demo, and integration-test execution is currently blocked because
-test paths contain signing and private-key operations. GitHub Actions and local
-`make` entrypoints fail closed through `scripts/no_key_material_scan.py`.
-Build-only checks do not constitute cryptographic validation. See
-[docs/no-key-test-quarantine.md](docs/no-key-test-quarantine.md) for the
-incident record and remediation inventory.
+Production credentials and operational private keys must not appear in source,
+test fixtures, CI artifacts, or releases. Generated test keys and documented
+test-only vectors are permitted. Tests must not load real vaults or ambient
+production credentials.
+
+CI and local `make` test entrypoints run Gitleaks with redacted output before
+executing tests. Findings or scanner failures block execution. Detection cannot
+prove the provenance of arbitrary bytes; code review must still establish that
+fixture material is test-only. See [the quarantine history and correction](docs/no-key-test-quarantine.md).
+
+The local gate scans current tracked files and non-ignored untracked files,
+including unstaged edits. It does not scan Git history, ignored local vaults,
+or build caches, and is not a sandbox for an attacker-controlled workspace.
 
 ## Supported Versions
 
 | Version | Supported |
 |---------|-----------|
+| 0.3.x   | Yes       |
 | 0.2.x   | Yes       |
 | 0.1.x   | Yes       |

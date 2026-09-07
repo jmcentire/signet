@@ -7,7 +7,7 @@ Signet works as an MCP (Model Context Protocol) server that Claude Desktop can c
 Build and install Signet:
 
 ```bash
-cargo install --git https://github.com/jmcentire/signet.git signet
+cargo install --locked --git https://github.com/jmcentire/signet.git signet
 ```
 
 Initialize your vault (creates keypair, config, and storage):

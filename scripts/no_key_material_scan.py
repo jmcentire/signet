@@ -1,109 +1,65 @@
 #!/usr/bin/env python3
-"""Fail closed when Signet test or CI paths contain key-material operations."""
+"""Scan repository content for credentials without banning cryptographic tests.
+
+The historical entrypoint name is retained for callers. Gitleaks supplies the
+detection rules; this wrapper snapshots tracked and non-ignored untracked files
+so local edits are checked without scanning vaults or build caches.
+"""
 
 from __future__ import annotations
 
-import re
+import shutil
+import subprocess
 import sys
-from dataclasses import dataclass
+import tempfile
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent.parent
 
-TEST_RULES = (
-    (
-        "signing-or-secret-key-type",
-        re.compile(r"\b(?:SigningKey|SecretKey|StaticSecret|Keypair)\b"),
-    ),
-    (
-        "key-material-identifier",
-        re.compile(
-            r"\b(?:signing_key|private_key|secret_key|key_bytes|current_secret|previous_secret)\b",
-            re.IGNORECASE,
-        ),
-    ),
-    (
-        "key-derivation-or-generation",
-        re.compile(r"\b(?:generate_mnemonic|derive_key|from_mnemonic)\b"),
-    ),
-    (
-        "signing-operation",
-        re.compile(r"\b(?:sign_ed25519|sign_webhook_payload)\b"),
-    ),
-)
-
-EXECUTION_RULES = (
-    ("test-execution-command", re.compile(r"\bcargo\s+(?:test|nextest)\b")),
-)
-
-
-@dataclass(frozen=True, order=True)
-class Finding:
-    path: str
-    line: int
-    rule: str
-
-
-def scan_lines(path: Path, lines: list[str], rules: tuple[tuple[str, re.Pattern[str]], ...]) -> list[Finding]:
-    relative = path.relative_to(ROOT).as_posix()
-    findings: list[Finding] = []
-    for line_number, line in enumerate(lines, start=1):
-        for rule, pattern in rules:
-            if pattern.search(line):
-                findings.append(Finding(relative, line_number, rule))
-    return findings
-
-
-def rust_test_lines(path: Path) -> list[str]:
-    lines = path.read_text(encoding="utf-8").splitlines()
-    if "/tests/" in f"/{path.relative_to(ROOT).as_posix()}":
-        return lines
-
-    in_tests = False
-    visible: list[str] = []
-    for line in lines:
-        if line.strip() == "#[cfg(test)]":
-            in_tests = True
-        visible.append(line if in_tests else "")
-    return visible
-
-
-def scan_test_paths() -> list[Finding]:
-    findings: list[Finding] = []
-    for path in sorted((ROOT / "crates").rglob("*.rs")):
-        findings.extend(scan_lines(path, rust_test_lines(path), TEST_RULES))
-    for path in sorted((ROOT / "tests").rglob("*")):
-        if path.is_file():
-            findings.extend(
-                scan_lines(path, path.read_text(encoding="utf-8", errors="replace").splitlines(), TEST_RULES)
-            )
-    return findings
-
-
-def scan_execution_entrypoints() -> list[Finding]:
-    findings: list[Finding] = []
-    workflows = ROOT / ".github" / "workflows"
-    if workflows.exists():
-        for path in sorted(workflows.glob("*.y*ml")):
-            findings.extend(scan_lines(path, path.read_text(encoding="utf-8").splitlines(), EXECUTION_RULES))
-    makefile = ROOT / "Makefile"
-    if makefile.exists():
-        findings.extend(scan_lines(makefile, makefile.read_text(encoding="utf-8").splitlines(), EXECUTION_RULES))
-    return findings
-
 
 def main() -> int:
-    findings = sorted(scan_test_paths() + scan_execution_entrypoints())
-    if not findings:
-        print("No key-material operations detected in test or CI execution paths.")
-        return 0
+    scanner = shutil.which("gitleaks")
+    if scanner is None:
+        print("Credential scan requires Gitleaks 8.30.1+ (brew install gitleaks).", file=sys.stderr)
+        return 2
 
-    print("No-key gate failed: prohibited test/CI paths remain.", file=sys.stderr)
-    for finding in findings:
-        print(f"{finding.path}:{finding.line}: {finding.rule}", file=sys.stderr)
-    print(f"Total findings: {len(findings)}", file=sys.stderr)
-    return 1
+    try:
+        listing = subprocess.run(
+            ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard", "--deduplicate"],
+            cwd=ROOT, check=True, capture_output=True,
+        ).stdout
+        with tempfile.TemporaryDirectory(prefix="signet-secret-scan-") as scratch:
+            snapshot = Path(scratch)
+            source = snapshot / "source"
+            source.mkdir()
+            for name in listing.split(b"\0"):
+                if not name:
+                    continue
+                relative = Path(name.decode("utf-8"))
+                original = ROOT / relative
+                if any(part.is_symlink() for part in (original, *original.parents) if part != ROOT and ROOT in part.parents):
+                    raise ValueError(f"Refusing to follow repository symlink: {relative}")
+                if not original.exists():
+                    continue  # Locally deleted tracked file.
+                if not original.is_file():
+                    raise ValueError(f"Cannot scan non-file repository entry: {relative}")
+                destination = source / relative
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(original, destination)
+
+            # Do not inherit inline waivers, an ambient ignore file, or an
+            # environment-selected ruleset. Exceptions belong in reviewed config.
+            ignore = snapshot / ".gitleaksignore"
+            ignore.touch()
+            return subprocess.run([
+                scanner, "dir", str(source), "--redact", "--no-banner", "--verbose",
+                "--config", str(ROOT / ".gitleaks.toml"),
+                "--gitleaks-ignore-path", str(ignore), "--ignore-gitleaks-allow",
+            ], cwd=snapshot, check=False).returncode
+    except (OSError, ValueError, subprocess.CalledProcessError) as error:
+        print(f"Credential scan could not complete: {error}", file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":

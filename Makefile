@@ -1,17 +1,19 @@
-.PHONY: no-key build test clippy fmt audit demo e2e clean check install
+.PHONY: no-key secrets build test clippy fmt fmt-check audit demo e2e clean check install
 
-no-key:
+no-key: secrets
+
+secrets:
 	python3 -B scripts/no_key_material_scan.py
 
 build:
 	cargo check --workspace --locked
 
-test: no-key
-	@echo "No project test suite is approved for execution until a key-free partition is defined." >&2
-	@exit 2
+test: secrets
+	python3 -B -m unittest discover -s scripts -p 'test_*.py'
+	cargo test --workspace --locked
 
 clippy:
-	cargo clippy --workspace -- -D warnings
+	cargo clippy --workspace --locked -- -D warnings
 
 fmt:
 	cargo fmt --all
@@ -22,20 +24,17 @@ fmt-check:
 audit:
 	cargo audit
 
-demo: no-key
-	@echo "BlindDB demo execution is quarantined because its test path carries key material." >&2
-	@exit 2
+demo: secrets
+	cargo test --locked --package signet-vault --test show_db -- --nocapture
 
-e2e: no-key
-	@echo "Integration test execution is quarantined because its test path carries key material." >&2
-	@exit 2
+e2e: secrets
+	cargo test --locked --package signet --test integration_e2e --test journey_e2e
 
 clean:
 	cargo clean
 
-check: no-key
-	$(MAKE) build clippy fmt-check
-	@echo "Build-only checks passed. Test execution remains a separate no-key-gated activity."
+check: secrets
+	$(MAKE) build clippy fmt-check test
 
 install:
-	cargo install --path crates/signet
+	cargo install --locked --path crates/signet

@@ -215,12 +215,14 @@ This project uses [Pact](~/Code/pact) (contract-first multi-agent framework) for
 
 Each component above maps to a Pact decomposition node. Contracts define the inter-component interfaces (especially the four protocol boundaries). Tests enforce the security invariants before any implementation begins.
 
-## Active No-Key Hold
+## Test Credentials
 
-Project test, demo, and E2E execution is quarantined. Before any test execution,
-run `python3 -B scripts/no_key_material_scan.py`. While it reports findings, do
-not execute test suites or publish a release as custody evidence; build-only
-checking does not prove cryptographic behavior.
+Production credentials and operational private keys are forbidden in source,
+tests, CI artifacts, and releases. Generated test keys and clearly test-only
+vectors are permitted and required for cryptographic coverage. Run `make check`
+with Gitleaks installed: credential detection gates test execution. Tests must
+not load real vaults or ambient production credentials. A passing local suite
+does not establish production custody readiness.
 
 **Build order** (dependency-driven):
 1. `signet-vault` — root of trust, everything depends on this

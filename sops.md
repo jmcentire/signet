@@ -5,8 +5,8 @@
 - **Rust** (latest stable, nightly only for bulletproofs crate)
 - **Cargo workspace** monorepo under `crates/`
 - `cargo fmt` and `cargo clippy` enforced
-- Test execution is held behind `scripts/no_key_material_scan.py` until
-  signing and private-key operations are removed from test paths
+- Credential scanning gates test execution; generated test keys and test-only
+  vectors are permitted, production credentials are forbidden
 
 ## Cryptography
 
@@ -53,9 +53,8 @@ These must hold at all times and are tested explicitly:
 
 ## Testing
 
-- **Active hold**: Do not execute project test, demo, or E2E paths while the
-  no-key detector reports findings. Build-only checks do not prove the
-  cryptographic invariants below.
+- Run `make check`: credential scan, build, lint, formatting, and executable tests.
+- Test fixtures must not load real vaults or ambient production credentials.
 - Unit tests for every public function
 - Integration tests for cross-crate interactions
 - Property-based tests for crypto operations (round-trip, known-answer)

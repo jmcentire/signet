@@ -13,18 +13,26 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  no-key-material:
-    name: No Key Material In Tests
+  credentials:
+    name: Credential Scan
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
-      - run: python3 -B scripts/no_key_material_scan.py
+      - name: Install Gitleaks
+        run: |
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/gitleaks.tar.gz" https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz
+          echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  $RUNNER_TEMP/gitleaks.tar.gz" | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/gitleaks.tar.gz" -C "$RUNNER_TEMP" gitleaks
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+      - run: make secrets
+      - name: Verify credential gate accepts test code and blocks credentials
+        run: python3 -B -m unittest discover -s scripts -p 'test_*.py'
 
   build:
     name: Build (${{ matrix.rust }})
-    needs: no-key-material
+    needs: credentials
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -38,10 +46,11 @@ jobs:
           toolchain: ${{ matrix.rust }}
       - uses: Swatinem/rust-cache@v2
       - run: cargo check --workspace --locked
+      - run: cargo test --workspace --locked
 
   clippy:
     name: Clippy
-    needs: no-key-material
+    needs: credentials
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -51,11 +60,11 @@ jobs:
         with:
           components: clippy
       - uses: Swatinem/rust-cache@v2
-      - run: cargo clippy --workspace -- -D warnings
+      - run: cargo clippy --workspace --locked -- -D warnings
 
   fmt:
     name: Format
-    needs: no-key-material
+    needs: credentials
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -68,10 +77,13 @@ jobs:
 
   audit:
     name: Security Audit
-    needs: no-key-material
+    needs: credentials
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
-      - uses: rustsec/audit-check@v2
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo install cargo-audit --version 0.22.2 --locked
+      - run: cargo audit

@@ -7,14 +7,13 @@ the governing standard this checklist implements.
 
 ## Always check
 
-- **No-key quarantine holds.** `make test`/`make demo`/`make e2e` fail closed by
-  design (see `docs/no-key-test-quarantine.md`). A diff that makes them "pass" by
-  weakening `scripts/no_key_material_scan.py`, deleting a flagged test, or routing
-  around the scan is a regression, not a fix — the gate's job is to stay red until
-  every finding is remediated in source.
+- **No production credentials.** Preserve generated test keys and documented
+  test-only vectors. The credential scanner must block committed credentials,
+  including in test directories; never exempt all tests or delete cryptographic
+  coverage. `scripts/test_credential_gate.py` exercises denial through `make`.
 - **`cargo clippy --workspace -- -D warnings` and `cargo fmt --all -- --check` are
-  green.** These are the only tests that currently execute in CI (`no-key-material`
-  gates everything else via `needs:`).
+  green, and `cargo test --workspace --locked` passes.** CI runs these after
+  the credential scan; build-only success is not cryptographic test evidence.
 - **Constant-time comparison for secrets.** Any new comparison touching a MAC,
   hash, signature, or ciphertext uses `subtle::ConstantTimeEq`, never `==`.
 - **`OsRng` only for cryptographic randomness** (key/nonce/salt generation).

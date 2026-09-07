@@ -12,9 +12,10 @@ Brief description of the change.
 
 ## Testing
 
-- [ ] `python3 -B scripts/no_key_material_scan.py` passes before any project tests execute
-- [ ] No project test suite was executed while the no-key gate reports findings
-- [ ] `cargo check --workspace --locked` passes after the no-key gate clears
+- [ ] `make secrets` passes (Gitleaks installed; findings reviewed)
+- [ ] Test keys are generated or documented test-only vectors; no production credentials are used
+- [ ] `cargo test --workspace --locked` passes
+- [ ] `cargo check --workspace --locked` passes
 - [ ] `cargo clippy --workspace -- -D warnings` clean
 - [ ] `cargo fmt --all -- --check` passes
 

@@ -6,8 +6,9 @@ This is an acceptance-only draft contract for a trusted Signet verifier and
 Baton's delegated provider runtime. It is separate from Signet's generic
 financial capability envelope and is not MEA production approval.
 
-The Signet no-key project-test quarantine remains active. Source-level tests
-are authored but must not execute until the no-key gate passes.
+Update 2026-09-07: the blanket test-key quarantine is retired under the
+maintainer's corrected policy. Credential scanning gates executable tests;
+generated test keys are permitted. See [the correction](no-key-test-quarantine.md).
 
 ## Envelope
 

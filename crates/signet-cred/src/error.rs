@@ -159,13 +159,10 @@ mod tests {
     #[test]
     fn test_cred_error_detail_with_credential_id() {
         let detail = CredErrorDetail::new(CredError::CredentialNotFound, "not found")
-            .with_credential_id("abcdef0123456789abcdef0123456789");
-        assert_eq!(
-            detail.credential_id.as_deref(),
-            Some("abcdef0123456789abcdef0123456789")
-        );
+            .with_credential_id("test-credential-id");
+        assert_eq!(detail.credential_id.as_deref(), Some("test-credential-id"));
         let display = format!("{}", detail);
-        assert!(display.contains("credential: abcdef0123456789abcdef0123456789"));
+        assert!(display.contains("credential: test-credential-id"));
     }
 
     #[test]
