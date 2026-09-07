@@ -5,6 +5,11 @@ description: >
   personal agent as steward, ZK proofs as the only external interface.
   Users never appear directly — only their authorized proofs do.
 
+website:
+  url: https://signet.tools
+  repository: https://github.com/jmcentire/Signet-Tools
+  deployment: Astro static build served by nginx on Fly; do not deploy from this repository
+
 domains:
   - cryptography
   - zero-knowledge

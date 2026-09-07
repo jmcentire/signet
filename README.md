@@ -13,6 +13,11 @@
 
 **Personal Sovereign Agent Stack**
 
+Website: [signet.tools](https://signet.tools/). Its canonical source and Fly
+deployment live in [Signet-Tools](https://github.com/jmcentire/Signet-Tools).
+This repository contains the Rust stack and technical documentation, not the
+website deployment. GitHub Pages keeps redirects for existing inbound links.
+
 Your vault is the crown, your agent is the steward, external agents are petitioners. The user never appears directly -- only their authorized proofs do.
 
 Signet gives AI agents a cryptographic vault for managing user credentials, generating zero-knowledge proofs, and enforcing privacy policies. Data flows one way: vault to agent to service, never reverse. Every disclosure is auditable, scoped, and revocable.
