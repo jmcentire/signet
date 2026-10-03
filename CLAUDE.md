@@ -8,10 +8,10 @@ A signet was a seal carried by a trusted proxy to sign documents on behalf of a 
 
 ```bash
 # Build with Pact (contract-first pipeline)
-pact daemon ~/Code/signet  # run event-driven pipeline
-pact status ~/Code/signet  # check progress
-pact tree ~/Code/signet    # component tree
-pact log ~/Code/signet     # audit trail
+pact daemon .              # run event-driven pipeline
+pact status .              # check progress
+pact tree .                # component tree
+pact log .                 # audit trail
 
 # Signet CLI (once built)
 signet init               # create vault, generate root keypair
@@ -211,7 +211,7 @@ The vault MCP server is the adapter between their world and yours.
 
 ## Building with Pact
 
-This project uses [Pact](~/Code/pact) (contract-first multi-agent framework) for implementation. The architecture decomposes naturally into components with clear interfaces — ideal for Pact's contract-test-implement pipeline.
+This project uses [Pact](https://github.com/jmcentire/pact) (contract-first multi-agent framework) for implementation. The architecture decomposes naturally into components with clear interfaces — ideal for Pact's contract-test-implement pipeline.
 
 Each component above maps to a Pact decomposition node. Contracts define the inter-component interfaces (especially the four protocol boundaries). Tests enforce the security invariants before any implementation begins.
 
@@ -312,4 +312,4 @@ See [DESIGN.md](./DESIGN.md) for the comprehensive design document including:
 
 ## Kindex
 
-Signet captures discoveries, decisions, and architectural rationale in [Kindex](~/Code/kindex). Search before adding. Link related concepts. Use `learn` after complex design sessions.
+Signet captures discoveries, decisions, and architectural rationale in [Kindex](https://github.com/jmcentire/kindex). Search before adding. Link related concepts. Use `learn` after complex design sessions.
