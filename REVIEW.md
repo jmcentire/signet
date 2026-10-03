@@ -2,8 +2,9 @@
 
 Tailored for this repo (Rust workspace, cryptographic vault/policy engine). Keep
 concise — this drives automated code review, not documentation. See
-`~/Code/tools/CODE-REVIEW-STANDARD.md` and `~/Code/tools/DIFF-INTENT-GATE.md` for
-the governing standard this checklist implements.
+`prompts/code-review.md` and `prompts/diff-intent-gate.md` in
+[factory](https://github.com/jmcentire/factory) for the governing standard this
+checklist implements.
 
 ## Always check
 
