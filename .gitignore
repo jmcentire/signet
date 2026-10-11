@@ -31,3 +31,10 @@ dist/
 
 # Pact working state
 .pact/
+
+# Local cloud bridge SDK dependencies
+/deployment/cloud-bridge/node_modules/
+
+# Local infrastructure validation cache (retain provider lock file)
+/deployment/gcp-foundation/.terraform/
+/deployment/gcp-foundation/*.tfstate*

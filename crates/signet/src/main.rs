@@ -28,6 +28,86 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
+    /// Read-only MCP product preview; no vault, credentials, rule mutations, or purchases
+    PreviewServe,
+    /// Static fictional owner-app preview; no credentials, signer, or authority endpoints
+    OwnerPreview {
+        #[arg(long, default_value_t = 4322)]
+        port: u16,
+    },
+    /// Isolated owner approval app plus signed HTTP/MCP adapters; binds loopback only
+    OwnerServe {
+        #[arg(long)]
+        database: PathBuf,
+        #[arg(long)]
+        trust_config: PathBuf,
+        #[arg(long)]
+        owner_config: PathBuf,
+        /// Existing private 32-byte binary seed; never passed to the model or browser
+        #[arg(long)]
+        owner_key_file: PathBuf,
+        #[arg(long, default_value_t = 4322)]
+        port: u16,
+    },
+    /// Native JSON owner service backed by private R2; never initializes missing state
+    OwnerNativeServe {
+        #[arg(long)]
+        owner_config: PathBuf,
+        #[arg(long)]
+        user_hash: String,
+        #[arg(long)]
+        node: PathBuf,
+        #[arg(long)]
+        r2_bridge: PathBuf,
+        #[arg(
+            long,
+            conflicts_with = "kms_version",
+            required_unless_present = "kms_version"
+        )]
+        owner_key_file: Option<PathBuf>,
+        #[arg(long, requires_all=["kms_public_key", "kms_bridge"])]
+        kms_version: Option<String>,
+        #[arg(long)]
+        kms_public_key: Option<String>,
+        #[arg(long)]
+        kms_bridge: Option<PathBuf>,
+        #[arg(long, default_value = "127.0.0.1")]
+        bind: std::net::IpAddr,
+        #[arg(long, default_value_t = 4322)]
+        port: u16,
+    },
+    /// Explicit operator-only R2 bootstrap; no asset secrets or signing keys created
+    OwnerNativeInit {
+        #[arg(long)]
+        owner_config: PathBuf,
+        #[arg(long)]
+        trust_config: PathBuf,
+        #[arg(long)]
+        restrictions: PathBuf,
+        #[arg(long)]
+        user_hash: String,
+        #[arg(long)]
+        node: PathBuf,
+        #[arg(long)]
+        r2_bridge: PathBuf,
+    },
+    /// Operator-only bootstrap using externally provisioned public keys (no private keys)
+    AuthorityInit {
+        #[arg(long)]
+        database: PathBuf,
+        #[arg(long)]
+        trust_config: PathBuf,
+    },
+    /// Signed agent-neutral authority protocol; requires an isolated trusted service account
+    AuthorityServe {
+        #[arg(long)]
+        database: PathBuf,
+        #[arg(long)]
+        trust_config: PathBuf,
+        /// Wrap the signed authority contract in MCP tools protocol
+        #[arg(long)]
+        mcp: bool,
+    },
     /// Initialize the vault and create default configuration
     Init {
         /// Directory for the vault data store
@@ -174,6 +254,7 @@ fn init_tracing(verbose: bool) {
     };
 
     tracing_subscriber::fmt()
+        .with_writer(std::io::stderr)
         .with_env_filter(filter)
         .with_target(false)
         .init();
@@ -203,6 +284,143 @@ async fn main() {
 
 async fn run(cli: Cli) -> Result<(), RootError> {
     match cli.command {
+        Commands::PreviewServe => cmd_preview_serve().await,
+        Commands::OwnerPreview { port } => {
+            serve_owner_router(signet::authority::owner::http::preview_router(), port).await
+        }
+        Commands::OwnerServe {
+            database,
+            trust_config,
+            owner_config,
+            owner_key_file,
+            port,
+        } => {
+            use signet::authority::{
+                owner::{file_signer, http, OwnerConfig, OwnerService},
+                Authority,
+            };
+            let run = || -> signet::authority::Result<_> {
+                let bytes = std::fs::read(&owner_config)?;
+                if bytes.len() > signet::authority::MAX_MESSAGE {
+                    return Err(signet::authority::AuthorityError::Rejected(
+                        "owner config exceeds 64 KiB",
+                    ));
+                }
+                let config: OwnerConfig = serde_json::from_slice(&bytes)?;
+                let trust = authority_config(&trust_config).map_err(|_| {
+                    signet::authority::AuthorityError::Rejected("invalid trust config")
+                })?;
+                let authority = Authority::open(&database, trust)?;
+                OwnerService::open(authority, file_signer::load(&owner_key_file)?, config)
+            };
+            let owner = run().map_err(|e| RootError::Internal(e.to_string()))?;
+            eprintln!("Owner service: {}. Keep this process, signer, configuration and database isolated from agents.",owner.origin());
+            serve_owner_router(http::router(owner), port).await
+        }
+        Commands::OwnerNativeInit {
+            owner_config,
+            trust_config,
+            restrictions,
+            user_hash,
+            node,
+            r2_bridge,
+        } => {
+            use signet::authority::{
+                object_store::r2::{NodeBridge, R2},
+                owner::{native::NativeOwnerService, OwnerConfig},
+                rings::Restrictions,
+            };
+            let config: OwnerConfig = serde_json::from_slice(&std::fs::read(owner_config)?)
+                .map_err(|e| RootError::Internal(e.to_string()))?;
+            let limits: Restrictions = serde_json::from_slice(&std::fs::read(restrictions)?)
+                .map_err(|e| RootError::Internal(e.to_string()))?;
+            let store =
+                R2(NodeBridge::new(node, r2_bridge)
+                    .map_err(|e| RootError::Internal(e.to_string()))?);
+            NativeOwnerService::initialize(
+                Box::new(store),
+                user_hash,
+                config,
+                authority_config(&trust_config)?,
+                limits,
+            )
+            .map_err(|e| RootError::Internal(e.to_string()))?;
+            println!(
+                "Native owner state initialized. No assets, permissions or signing keys created."
+            );
+            Ok(())
+        }
+        Commands::OwnerNativeServe {
+            owner_config,
+            user_hash,
+            node,
+            r2_bridge,
+            owner_key_file,
+            kms_version,
+            kms_public_key,
+            kms_bridge,
+            bind,
+            port,
+        } => {
+            use signet::authority::{
+                object_store::r2::{NodeBridge, R2},
+                owner::{
+                    cloud_kms::{KmsSigner, NodeKmsTransport},
+                    file_signer, http,
+                    native::NativeOwnerService,
+                    OwnerConfig,
+                },
+            };
+            let config: OwnerConfig = serde_json::from_slice(&std::fs::read(owner_config)?)
+                .map_err(|e| RootError::Internal(e.to_string()))?;
+            let signer: Box<dyn signet_core::Signer> = if let Some(path) = owner_key_file {
+                file_signer::load(&path).map_err(|e| RootError::Internal(e.to_string()))?
+            } else {
+                let key: [u8; 32] = hex::decode(kms_public_key.unwrap_or_default())
+                    .map_err(|_| RootError::Internal("invalid pinned KMS public key".into()))?
+                    .try_into()
+                    .map_err(|_| {
+                        RootError::Internal("invalid pinned KMS public key length".into())
+                    })?;
+                Box::new(
+                    KmsSigner::new(
+                        NodeKmsTransport {
+                            node: node.clone(),
+                            script: kms_bridge
+                                .ok_or_else(|| RootError::Internal("KMS helper required".into()))?,
+                        },
+                        kms_version.unwrap_or_default(),
+                        key,
+                    )
+                    .map_err(|e| RootError::Internal(e.to_string()))?,
+                )
+            };
+            let store =
+                R2(NodeBridge::new(node, r2_bridge)
+                    .map_err(|e| RootError::Internal(e.to_string()))?);
+            let owner = NativeOwnerService::open(Box::new(store), user_hash, signer, config)
+                .map_err(|e| RootError::Internal(e.to_string()))?;
+            eprintln!("Native owner service: {}. Isolate signing identity and R2 credentials from agents.",owner.origin());
+            let listener = tokio::net::TcpListener::bind((bind, port)).await?;
+            axum::serve(listener, http::router(owner))
+                .await
+                .map_err(|e| RootError::Internal(e.to_string()))?;
+            Ok(())
+        }
+        Commands::AuthorityInit {
+            database,
+            trust_config,
+        } => {
+            signet::authority::Authority::create(&database, authority_config(&trust_config)?)
+                .map_err(|e| RootError::Internal(e.to_string()))?;
+            println!("Authority database initialized; protect the service account and external owner signer.");
+            Ok(())
+        }
+        Commands::AuthorityServe {
+            database,
+            trust_config,
+            mcp,
+        } => cmd_authority_serve(&database, &trust_config, mcp).await,
         Commands::Init {
             vault_path,
             data_dir,
@@ -906,5 +1124,148 @@ async fn cmd_cred_refresh(
         credential_id
     );
 
+    Ok(())
+}
+
+/// Separate preview transport: never initializes RootState or reads a config/vault.
+async fn cmd_preview_serve() -> Result<(), RootError> {
+    use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
+    let mut reader = tokio::io::BufReader::new(tokio::io::stdin());
+    let mut output = tokio::io::stdout();
+    let mut session = signet::preview::PreviewSession::default();
+    loop {
+        // A bounded line avoids accepting unbounded input from an MCP host.
+        let mut line = Vec::new();
+        loop {
+            let available = reader.fill_buf().await?;
+            if available.is_empty() {
+                break;
+            }
+            let count = available
+                .iter()
+                .position(|b| *b == b'\n')
+                .map_or(available.len(), |i| i + 1);
+            if line.len() + count > 65536 {
+                return Err(RootError::Internal("preview message exceeds 64 KiB".into()));
+            }
+            let ended = available[count - 1] == b'\n';
+            line.extend_from_slice(&available[..count]);
+            reader.consume(count);
+            if ended {
+                break;
+            }
+        }
+        if line.is_empty() {
+            break;
+        }
+        let text = String::from_utf8(line)
+            .map_err(|_| RootError::Internal("preview message must be UTF-8".into()))?;
+        if text.trim().is_empty() {
+            continue;
+        }
+        if let Some(response) = session.handle(&text) {
+            output.write_all(response.to_string().as_bytes()).await?;
+            output.write_all(b"\n").await?;
+            output.flush().await?;
+        }
+    }
+    Ok(())
+}
+
+fn authority_config(
+    path: &std::path::Path,
+) -> Result<signet::authority::AuthorityConfig, RootError> {
+    let bytes = std::fs::read(path)?;
+    if bytes.len() > signet::authority::MAX_MESSAGE {
+        return Err(RootError::Internal(
+            "authority trust configuration exceeds 64 KiB".into(),
+        ));
+    }
+    serde_json::from_slice(&bytes).map_err(|e| RootError::Internal(e.to_string()))
+}
+
+async fn cmd_authority_serve(
+    database: &std::path::Path,
+    trust_config: &std::path::Path,
+    mcp: bool,
+) -> Result<(), RootError> {
+    use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
+    let authority = signet::authority::Authority::open(database, authority_config(trust_config)?)
+        .map_err(|e| RootError::Internal(e.to_string()))?;
+    let (mut authority, mut mcp_session) = if mcp {
+        (
+            None,
+            Some(signet::authority::AuthorityMcpSession::new(authority)),
+        )
+    } else {
+        (Some(authority), None)
+    };
+    let mut reader = tokio::io::BufReader::new(tokio::io::stdin());
+    let mut output = tokio::io::stdout();
+    loop {
+        let mut line = Vec::new();
+        loop {
+            let available = reader.fill_buf().await?;
+            if available.is_empty() {
+                break;
+            }
+            let count = available
+                .iter()
+                .position(|b| *b == b'\n')
+                .map_or(available.len(), |i| i + 1);
+            if line.len() + count > signet::authority::MAX_MESSAGE {
+                return Err(RootError::Internal(
+                    "authority message exceeds 64 KiB".into(),
+                ));
+            }
+            let ended = available[count - 1] == b'\n';
+            line.extend_from_slice(&available[..count]);
+            reader.consume(count);
+            if ended {
+                break;
+            }
+        }
+        if line.is_empty() {
+            break;
+        }
+        let response = if let Some(session) = &mut mcp_session {
+            let text = std::str::from_utf8(&line)
+                .map_err(|_| RootError::Internal("authority message must be UTF-8".into()))?;
+            let Some(response) = session.handle(text) else {
+                continue;
+            };
+            response
+        } else {
+            let result = serde_json::from_slice::<signet::authority::SignedMessage>(&line)
+                .map_err(signet::authority::AuthorityError::from)
+                .and_then(|message| {
+                    authority
+                        .as_mut()
+                        .expect("raw transport authority")
+                        .handle(&message)
+                });
+            match result {
+                Ok(value) => serde_json::json!({"ok":true,"result":value}),
+                Err(error) => serde_json::json!({"ok":false,"error":error.to_string()}),
+            }
+        };
+        output.write_all(response.to_string().as_bytes()).await?;
+        output.write_all(b"\n").await?;
+        output.flush().await?;
+    }
+    Ok(())
+}
+
+async fn serve_owner_router(router: axum::Router, port: u16) -> Result<(), RootError> {
+    let listener = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port)).await?;
+    eprintln!(
+        "Signet owner listener: http://localhost:{} (loopback only)",
+        listener.local_addr()?.port()
+    );
+    axum::serve(listener, router)
+        .with_graceful_shutdown(async {
+            let _ = tokio::signal::ctrl_c().await;
+        })
+        .await?;
     Ok(())
 }

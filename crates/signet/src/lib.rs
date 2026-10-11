@@ -16,10 +16,12 @@
 //! This crate implements the root component contract defined in
 //! `.pact/contracts/root/interface.json`.
 
+pub mod authority;
 pub mod config;
 pub mod error;
 pub mod http;
 pub mod multi_tenant;
+pub mod preview;
 
 pub use config::{
     HostingMode, McpConfig, PolicyEngineConfig, PostgresConfig, RootConfig, Transport,

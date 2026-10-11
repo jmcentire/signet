@@ -1,5 +1,12 @@
 # Signet
 
+> Architecture status: the narrative below is a historical design brief, not a
+> shipped-capability or compliance claim. The current authority for architecture,
+> implemented behavior and unresolved safety gates is `docs/architecture.md`,
+> `docs/prototype-status.md` and `docs/open-work.md`. In particular, no complete
+> browser integration, universal merchant coverage or compliance certification
+> is claimed. Credential-scan and test instructions below remain applicable.
+
 Personal Sovereign Agent Stack. Your vault is the crown, your agent is the steward, external agents are petitioners. The user never appears directly — only their authorized proofs do.
 
 A signet was a seal carried by a trusted proxy to sign documents on behalf of a lord, in their absence, with their full authority. The vault is the matrix (the original, never leaves you). The agent is the proxy carrying the seal. The ZK proof is the impression — proves authority without revealing the ring. Revocation is destroying or recalling the seal. Scoped credentials are letters sealed for a specific purpose.

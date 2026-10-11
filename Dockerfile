@@ -1,7 +1,7 @@
 # Multi-stage Rust build for Signet
 # Supports both self-hosted and multi-tenant modes
 
-FROM rust:1.85-slim AS builder
+FROM rust:1.88-bookworm AS builder
 
 WORKDIR /app
 
@@ -41,13 +41,14 @@ COPY crates/ crates/
 RUN find crates/ -name "*.rs" -exec touch {} +
 
 # Build release binary
-RUN cargo build --release --bin signet
+RUN cargo build --release --locked --bin signet
 
 # Runtime stage
 FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y \
     ca-certificates \
+    libssl3 \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user

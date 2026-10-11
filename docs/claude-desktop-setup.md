@@ -1,120 +1,70 @@
-# Claude Desktop Integration
+# Connect a local MCP client
 
-Signet works as an MCP (Model Context Protocol) server that Claude Desktop can connect to directly. Once configured, Claude can store data in your vault, query it, and generate proofs. Capability issuance is disabled until an issuer-backed signing service is configured.
+Signet's MCP interface is the connection surface beneath a personal agent. This
+example uses Claude Desktop as a local stdio host; it is not an endorsement or
+proof of complete platform integration. Read [current tool behavior](integration.md#implementation-status)
+first: proof and query executors include placeholders and capability issuance
+is not enabled.
 
-## Prerequisites
+For a standard MCP tools evaluation that does not open a vault, use
+[preview-serve](agent-preview.md) instead. The legacy vault server has incomplete
+MCP interoperability and enforcement wiring; the configuration below is a
+candidate for development inspection, not a tested end-to-end host integration.
 
-Build and install Signet:
+## Initialize a development vault
 
-```bash
-cargo install --locked --git https://github.com/jmcentire/signet.git signet
-```
+Follow [getting started](getting-started.md) to install the CLI and create a
+separate config with synthetic data. Use `command -v signet` to locate the binary.
+Keep the absolute config path printed by initialization.
 
-Initialize your vault (creates keypair, config, and storage):
+## Configure the client
 
-```bash
-signet init
-```
+On macOS, Claude Desktop's configuration is normally at
+`~/Library/Application Support/Claude/claude_desktop_config.json`; on Windows,
+`%APPDATA%\Claude\claude_desktop_config.json`. Use the client's configuration UI
+if your installation differs. Preserve all existing server entries.
 
-## Configure Claude Desktop
-
-Edit your Claude Desktop configuration file:
-
-**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-**Linux**: `~/.config/Claude/claude_desktop_config.json`
-**Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-
-Add the Signet MCP server:
+Add an entry using your actual paths:
 
 ```json
 {
   "mcpServers": {
     "signet": {
-      "command": "signet",
-      "args": ["serve"]
+      "command": "/absolute/path/to/signet",
+      "args": ["--config", "/absolute/path/to/config.toml", "serve"]
     }
   }
 }
 ```
 
-Restart Claude Desktop. Signet will appear in the MCP tools list.
+Restart the client, inspect its connected tools, and discover schemas with
+`tools/list`. First try storing `demo_age` with string value `29` at Tier 1,
+then listing Tier 1 data. The [walkthrough](getting-started.md) provides payloads.
 
-## Available MCP Tools
+## Interpret tool results correctly
 
-| Tool | Description |
-|------|-------------|
-| `store_data` | Store a labeled value in your vault at a specified tier |
-| `list_data` | List stored data with optional tier filter (Tier 3 values masked) |
-| `query` | Query vault data with context-aware responses |
-| `get_proof` | Generate a cryptographic proof for an attribute |
-| `request_capability` | Fails closed until a verified issuer is configured |
-| `negotiate_context` | Negotiate disclosure scope with external agents |
-| `check_status` | Check vault and agent status |
+| Tool | Meaning |
+|---|---|
+| `store_data`, `list_data` | Storage operations through the vault adapter. Use synthetic data. |
+| `get_proof` | Current executor returns placeholder bytes, not a cryptographic proof. |
+| `query` | Current Tier 1/Tier 2 responses are scaffolded. |
+| `request_capability` | A denied or pending request is not a usable credential. |
+| `negotiate_context` | Inspect the source and schema before relying on negotiation behavior. |
+| `check_status` | Inspect pending request state; status alone does not constitute consent. |
 
-## Example Interactions
+## Local transport and troubleshooting
 
-**Storing data**:
-> "Store my age as 29 in tier 1"
+Use stdio for this evaluation. If testing HTTP, bind explicitly to loopback:
 
-Claude calls `store_data` with `{ "label": "age", "value": "29", "tier": 1 }`.
-
-**Querying**:
-> "What do you know about me?"
-
-Claude calls `list_data` to enumerate stored facts.
-
-**Generating proofs**:
-> "Prove I'm over 21 to shop.example.com"
-
-Claude calls `get_proof` with `{ "attribute": "age_over_21", "domain": "shop.example.com" }`.
-
-**Requesting capabilities**:
-> "Give me a one-time payment token for up to $150 on amazon.com"
-
-Claude calls `request_capability` with `{ "domain": "amazon.com", "max_amount": 150, "purpose": "purchase", "one_time": true }`. The request is denied unless deployment has been wired to a verified issuer.
-
-## HTTP Mode
-
-For remote access or service verification, run in HTTP mode:
-
-```bash
-signet serve --transport http --bind 0.0.0.0 --port 3000
+```sh
+signet --config /absolute/path/to/config.toml serve --transport http --bind 127.0.0.1 --port 3000
 ```
 
-Endpoints:
-- `POST /mcp` -- JSON-RPC proxy (same protocol as stdio)
-- `POST /verify` -- Verify a proof: `{ "proof": "...", "claim": { "attribute": "age_over_21", "value": true } }`
-- `GET /health` -- Server info and signet ID
+Do not expose this development listener publicly. The authenticated middleware
+and direct dispatch paths require integration review; HTTP availability is not
+proof of complete authentication or policy enforcement.
 
-## Data Tiers
-
-| Tier | Access | Examples |
-|------|--------|----------|
-| 1 | Agent answers freely with proofs | Age, preferences, public profile |
-| 2 | Agent reasons internally, exports conclusions only | Purchase history, context |
-| 3 | Requires explicit user authorization | Payment cards, identity docs, medical |
-
-## CLI Equivalents
-
-Everything Claude does via MCP can also be done from the command line:
-
-```bash
-signet store --tier 1 --label "age" --value "29"
-signet store --tier 1 --label "name" --value "Alice Nakamoto"
-signet store --tier 3 --label "credit_card" --value "4111-1111-1111-1111"
-signet list
-signet list --tier 1
-# Capability issuance is disabled until a custody-controlled issuer is configured.
-signet vault-status
-signet audit
-```
-
-## Troubleshooting
-
-**"vault not initialized"**: Run `signet init` first.
-
-**Claude doesn't show Signet tools**: Verify the config path is correct and restart Claude Desktop. Check that `signet serve` works from your terminal.
-
-**"capability issuance requires a configured custody-controlled issuer"**: Capability issuance is intentionally disabled until issuer wiring is configured without exporting signing material.
-
-**Verbose logging**: Run `signet serve -v` to see debug output on stderr.
+If tools do not appear, confirm the executable/config paths and restart the
+client. For CLI diagnostics use `signet --verbose --config /absolute/path/to/config.toml serve`.
+Keep logs free of real personal data and credentials. For deeper work, read the
+[integration guide](integration.md).

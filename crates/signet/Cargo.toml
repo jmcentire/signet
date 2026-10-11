@@ -2,6 +2,7 @@
 name = "signet"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 description = "Signet: Personal Sovereign Agent Stack"
 
@@ -39,7 +40,14 @@ rand = { workspace = true }
 sha2 = { workspace = true }
 base64 = { workspace = true }
 
+rusqlite = { workspace = true }
+webauthn-rs = { version = "=0.5.5", default-features = false }
+uuid = { workspace = true }
+subtle = { workspace = true }
+
 [dev-dependencies]
+webauthn-authenticator-rs = { version = "=0.5.5", features = ["softpasskey"] }
+tempfile = "3"
 base64 = { workspace = true }
 zeroize = { workspace = true }
 hex = { workspace = true }

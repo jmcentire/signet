@@ -1,0 +1,11 @@
+{
+  "mcp_servers": {
+    "signet-preview": {
+      "transport": "stdio",
+      "command": "/absolute/path/to/signet/target/debug/signet",
+      "args": ["preview-serve"],
+      "enabled": true,
+      "mode": "required"
+    }
+  }
+}

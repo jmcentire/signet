@@ -1,0 +1,1 @@
+{"name":"signet-cloud-bridge","private":true,"type":"module","engines":{"node":">=22"},"scripts":{"test":"node --test *.test.mjs"},"dependencies":{"@aws-sdk/client-s3":"3.1149.0"}}

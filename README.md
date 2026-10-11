@@ -1,222 +1,158 @@
-```
-     _                  _
- ___(_) __ _ _ __   ___| |_
-/ __| |/ _` | '_ \ / _ \ __|
-\__ \ | (_| | | | |  __/ |_
-|___/_|\__, |_| |_|\___|\__|
-       |___/
-```
+# Signet
 
-[![CI](https://github.com/jmcentire/signet/actions/workflows/ci.yml/badge.svg)](https://github.com/jmcentire/signet/actions/workflows/ci.yml)
-[![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue)](LICENSE-MIT)
-[![MSRV: 1.85](https://img.shields.io/badge/MSRV-1.85-orange)]()
+**Your AI. Your rules.**
 
-**Personal Sovereign Agent Stack**
+Signet is a proposal for personal authority across services: choose your agent,
+define what it may do, and keep exceptions specific. Created by
+[Jeremy McEntire](https://perardua.dev), it includes open-source foundations and a
+preserved research prototype. It is not a launched purchasing or custody service.
 
-Website: [signet.tools](https://signet.tools/). Its canonical source and Fly
-deployment live in [Signet-Tools](https://github.com/jmcentire/Signet-Tools).
-This repository contains the Rust stack and technical documentation, not the
-website deployment. GitHub Pages keeps redirects for existing inbound links.
+**October 11, 2026: further implementation is paused.** The architecture and code
+are retained for evaluation and possible future collaboration, without a promise
+of continued development. The intended conversational experience is not connected.
 
-Your vault is the crown, your agent is the steward, external agents are petitioners. The user never appears directly -- only their authorized proofs do.
+[Read the complete architecture](docs/architecture.md) ·
+[Implemented and tested status](docs/prototype-status.md) ·
+[Answered decisions and open work](docs/open-work.md)
 
-Signet gives AI agents a cryptographic vault for managing user credentials, generating zero-knowledge proofs, and enforcing privacy policies. Data flows one way: vault to agent to service, never reverse. Every disclosure is auditable, scoped, and revocable.
+The native owner prototype has a known revocation gap: removing a passkey does
+not revoke its existing ring assignments. See the status document before use;
+this source publication is not approval to deploy it.
 
-> **Looking for policy enforcement?** [`signet-eval`](https://github.com/jmcentire/signet-eval) is the standalone tool for controlling what AI agents can do — spending limits, command blocking, credential gating. `cargo install signet-eval` and it works with Claude Code today.
+## What that should feel like
 
----
+- “Don't spend more than $50 on Amazon without asking.” A suitable $18 USB-C
+  cable can fit the standing rule; choose final confirmation or let it act within
+  the rule where the host permits that.
+- “For dog food, find a better deal; otherwise pay the usual amount.” The same
+  approved order can use a cheaper or equal established total. An increase or
+  changed requirement needs review; an exception never raises the baseline.
+- “Approve this $75 desk lamp once.” That exact item, merchant and total receive
+  an exception. Your $50 standing rule stays $50.
+- “Always ask before electronics purchases.” The agent proposes a readable rule.
+  You separately authorize the exact addition once. Editing or removing an
+  identified rule needs its own temporary authority too.
 
-## Trust Hierarchy
+A purchase approval cannot rewrite rules, and the agent cannot expand its own
+permissions. One agent, chosen by you, should carry your intent across services.
+These are intended product behaviors, not a claim of live merchant integrations.
 
-```
-User (Root Authority -- Ed25519 keypair)
-  +-- Signet Vault (encrypted local store, never externally reachable)
-        +-- Personal Agent (trusted steward, credentialed by vault)
-              +-- External Agents / Services (petitioners, minimally disclosed)
-```
+[Try the website preview](https://signet.tools/) ·
+[Run the agent preview](docs/agent-preview.md) ·
+[Product contract](docs/everyday-authority.md) ·
+[Platform readiness](docs/platform-readiness.md)
 
-## Three Tiers of Data
+## The intended architecture
 
-| Tier | Name | Access | Survives Password Reset |
-|------|------|--------|------------------------|
-| **1** | Freely Provable | Agent answers without asking | Yes |
-| **2** | Agent-Internal | Agent reasons with it, never exports raw | No |
-| **3** | Capability-Gated | Requires explicit user authorization | N/A (client-generated key) |
+Rules and assets are separate versioned records; a ring binds them. A worker gets
+explicit task authority with an aggregate budget and an end: completion or expiry.
+New accounts start at zero permissions. R2 stores native JSON snapshots with an
+atomic current-head update. Restoring policy never restores spent authority.
 
-## Crates
+Sensitive assets follow a client-only decryption direction with user-held keys
+and no escrow. The designated-pair unlock protocol remains unresolved. The
+proposed controlled browser uses Jev to classify behavior and Signet to evaluate
+rules; classification is not the enforcement boundary. An agent can ask for an
+exception, but its explanation cannot authorize one. See the [architecture](docs/architecture.md).
 
-| Crate | Lines | Description |
-|-------|-------|-------------|
-| `signet-core` | 713 | Shared types, traits (`Signer`, `StorageBackend`, `AuditChainWriter`) |
-| `signet-vault` | 2,890 | Root of trust, BlindDB storage, BIP39/SLIP-0010, envelope encryption, passkey/FIDO2 support |
-| `signet-policy` | 4,265 | XACML-for-individuals, PERMIT/DENY/ANOMALY decisions, role hierarchy |
-| `signet-notify` | 4,290 | Webhook authorization channel, HMAC-SHA256, circuit breaker |
-| `signet-cred` | 7,780 | Credential issuance (SD-JWT VC + BBS+), authority protocol, composable decay model, revocation |
-| `signet-proof` | 5,135 | Typestate proof pipeline, selective disclosure, range proofs |
-| `signet-sdk` | 2,844 | Developer SDK: `verify`, `requestCapability`, `checkAuthority`, `parseCredential` |
-| `signet-mcp` | 4,903 | MCP server, middleware pipeline, JSON-RPC 2.0 dispatcher |
-| `signet` | 3,766 | CLI binary, HTTP server, authority credential endpoints |
+## The foundations
 
-**~38,000 lines of Rust. 1,050 tests. 9 crates.**
+A model supplies intelligence. A connector reaches a service. Signet addresses
+what an agent may know, disclose, and request on a person's behalf.
 
-## Quickstart
+- **A private source of context.** Vault storage and a key hierarchy separate
+  provable facts, agent-internal context, and sensitive credentials.
+- **A boundary for requests.** Policy components evaluate actor, predicate,
+  and context; return permit, deny, or anomaly decisions; and support audit.
+- **A smaller disclosure.** Proof and credential components support selective
+  disclosure. Exact-context capability verification checks issuer, domain,
+  purpose, validity, and requested financial constraints.
+- **An integration surface.** A local CLI, MCP server, and Rust SDK give
+  personal-agent builders components to evaluate and connect.
 
-### Install from source
+For example, an agent could recommend a stay using private preferences, prove an
+age threshold without sharing a birth date, or stop before using a payment
+credential. These are integration scenarios, not shipped travel, identity, or
+payment services. No named platform integration or endorsement is claimed.
 
-```bash
+## What works, and what remains
+
+This repository contains nine Rust crates covering vault, policy, credential,
+proof, notification, MCP, SDK, shared types, and CLI components. It is a preserved research prototype, not a production custody service.
+
+The distinction between components and connected product behavior matters:
+
+| Surface | Current boundary |
+|---|---|
+| Authenticated authority core | Versioned rule mutations, owner-signed exact approvals, atomic single-use grants, executor reservations, and receipt-backed baselines. Raw signed protocol and MCP relay; passkey owner app and signed HTTP adapter. Isolated deployment and merchant adapters still required. See [authority service](docs/authority-service.md). |
+| Native rings/owner | Versioned rule/asset bindings, bounded task scopes and native JSON CAS with passkey state. Service-level synthetic tests pass; native UI/HTTP/concurrency review and readable requirement binding remain. [Status](docs/prototype-status.md). |
+| Controlled browser/Jev | Agreed design only: pause actions, classify, evaluate permission, execute exact grants. No browser gate, classifier integration or universal checkout claim. |
+| Read-only agent preview | `preview-serve` supports local MCP discovery and hypothetical purchase/rule-change evaluation, with no authority or persistence. |
+| Local CLI storage | Initialize a development vault, store/list synthetic data, inspect status and audit entrypoints. |
+| MCP `get_proof` | Returns deterministic placeholder bytes; **not a cryptographic proof**. |
+| MCP `query` | Tier 1 and Tier 2 responses are scaffolding, not real vault reasoning. |
+| Policy enforcement | An authenticated pipeline exists; direct JSON-RPC dispatch has separate paths. Review transport wiring. |
+| Capability requests | MCP/SDK/CLI issuance fails closed; verified issuer wiring remains to be implemented. |
+| One-time generic capabilities | Issuance and acceptance disabled pending a consumption ledger. |
+| Personal-agent platforms | Signed authority MCP relay and read-only preview tested locally. Local passkey owner authentication and HTTP/MCP transport are implemented. Protected deployment, vendor OAuth/session binding, host review, merchant adapters and connection tests remain. |
+
+See the [source-linked integration status](docs/integration.md#implementation-status)
+and [security policy](SECURITY.md) before using sensitive workloads.
+
+## Start here
+
+Requires Rust 1.88+ and Git. Install the vault CLI from this repository:
+
+```sh
 cargo install --locked --git https://github.com/jmcentire/signet.git signet
+signet --help
 ```
 
-### Or clone and build
+The new read-only MCP preview is available from this source checkout:
 
-```bash
-git clone https://github.com/jmcentire/signet.git
-cd signet
-cargo build --release
+```sh
+cargo build --locked -p signet
+./target/debug/signet preview-serve
 ```
 
-### Initialize and run
+It evaluates hypothetical purchase/rule-change inputs, never loads a vault, and
+never authorizes execution. See [agent preview](docs/agent-preview.md). It is not
+available from the remote install until this revision is published.
 
-```bash
-# Create vault and default config
-signet init
+For the persistent authority core, run `cargo run --locked -p signet --example authority_walkthrough`. It exercises synthetic signed identities, durable rule state and replay rejection without buying anything. Read the [authority contract and deployment gates](docs/authority-service.md) before wiring a real signer. Preview the credential-free owner experience with `./target/debug/signet owner-preview --port 4322`, then open `http://localhost:4322`. The [passkey owner app](docs/owner-approval.md) has real WebAuthn verification and isolated signing interfaces, tested with synthetic authenticators. No live credentials were provisioned.
 
-# Check vault status
-signet vault-status
+Follow the [isolated local walkthrough](docs/getting-started.md) to create a
+separate development vault and connect an MCP client with synthetic data.
+`cargo install signet` is not the installation command for this project.
 
-# Start MCP server (stdio transport)
-signet serve
+## Find your way
 
-# View audit log
-signet audit
-```
+- **Evaluating the idea:** [signet.tools](https://signet.tools/)
+- **Using the CLI or connecting an agent:** [Getting started](docs/getting-started.md)
+- **Building a personal-agent platform:** [Integration guide](docs/integration.md)
+- **Navigating as a human or agent:** [Documentation index](docs/README.md)
+- **Contributing:** [CONTRIBUTING.md](CONTRIBUTING.md), [CHANGELOG.md](CHANGELOG.md)
 
-## Security Model: BlindDB
+The canonical website lives in
+[jmcentire/Signet-Tools](https://github.com/jmcentire/Signet-Tools). This repository
+owns the Rust stack and technical documentation; its HTML files retain redirects
+for old GitHub Pages links.
 
-Signet's storage layer implements the BlindDB pattern from *The Ephemeral Internet* (McEntire, 2026). The server stores only opaque record IDs and encrypted blobs. It never sees plaintext, labels, or relationships between records.
+[Signet Eval](https://github.com/wandercom/signet-eval) is the separate tool-call
+policy engine maintained by Wander. It has its own installation and runtime;
+it is not the Signet vault.
 
-**Five defense layers:**
+## Development and license
 
-1. **Relational opacity** -- Destroy relationships between records. The server cannot tell which records belong to the same user, which form a collection, or what any record contains.
-2. **Signatures** -- Tamper evidence via hash-chained audit log.
-3. **Hash chains** -- Provenance and ordering guarantees.
-4. **Encryption** -- AES-256-GCM per-record envelope encryption for data with independent value.
-5. **Seed data** -- Plausible deniability through indistinguishable fake records.
-
-### What the server sees
-
-After storing data for three users (emails, addresses, payment cards, medical records, watch histories):
-
-```
-record_id (SHA-256 hash)                                   data (AES-256-GCM ciphertext)
------------------------------------------------------------------------------------------------
-0a3f...7c21                                                [encrypted blob]
-1b8e...9d44                                                [encrypted blob]
-2c7a...4f88                                                [encrypted blob]
-3d1f...8e22                                                [encrypted blob]
-...13 more records...
-```
-
-**Questions the attacker cannot answer:**
-- Which records belong to Alice? Bob? Carol?
-- Which email goes with which address?
-- Who has the credit card? The SSN? The medical record?
-- How many users are there?
-- Which records form a collection?
-- Are any of these records fake (seed data)?
-
-Run `make demo` to exercise the storage demonstration with generated test
-material after credential scanning. Local tests do not establish production
-custody readiness.
-
-## Standards
-
-| Layer | Standard | Purpose |
-|-------|----------|---------|
-| Identity | Ed25519 public key fingerprint | Self-certifying, no DID, no registry |
-| Credentials (interop) | SD-JWT VC (RFC 9901) | IETF standard, EU wallet compatible |
-| Credentials (privacy) | BBS+ Signatures | Unlinkable selective disclosure |
-| Range proofs | Bulletproofs | No trusted setup, audited |
-| Agent protocol | MCP | Native Claude/AI integration |
-| Capability tokens | Signet envelope v1 (current) | Ed25519 verification required; issuance fails closed without a configured issuer |
-| Crypto backend | Selected Rust crypto crates | Compliance validation required before certification claims |
-| Key derivation | BIP39 + SLIP-0010 | Deterministic Ed25519 from mnemonic |
-
-## Architecture
-
-```
-                          +-------------------+
-                          |   signet (CLI)    |
-                          +---------+---------+
-                                    |
-                          +---------+---------+
-                          |   signet-mcp      |
-                          | (MCP server +     |
-                          |  middleware)       |
-                          +-+---+---+---+---+-+
-                            |   |   |   |   |
-              +-------------+   |   |   |   +-------------+
-              |                 |   |   |                 |
-     +--------+--+    +--------+--+  +--+--------+    +--+--------+
-     | signet-   |    | signet-   |  | signet-   |    | signet-   |
-     | cred      |    | proof     |  | policy    |    | notify    |
-     +-----+-----+    +-----+----+  +-----+-----+    +-----+-----+
-           |               |              |                 |
-           +-------+-------+--------------+-----------------+
-                   |
-          +--------+--------+          +-----------+
-          |  signet-vault   |          | signet-sdk |
-          | (root of trust) |          | (verifier) |
-          +--------+--------+          +-----------+
-                   |
-          +--------+--------+
-          |  signet-core    |
-          | (shared types)  |
-          +-----------------+
-```
-
-## Development
-
-```bash
-# Install Gitleaks, then scan credentials, build, lint, format-check, and test.
+```sh
 make check
-
-# Individual targets
-make build
-make clippy
-make fmt
 ```
 
-Production credentials are forbidden; generated test keys and documented
-test-only vectors are permitted. See
-[CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines and
-[docs/no-key-test-quarantine.md](docs/no-key-test-quarantine.md) for the
-incident record and inventory.
+This runs the credential scan, build, lint, formatting check, and tests. Generated
+test keys and documented test vectors are permitted; production credentials and
+real vaults are forbidden in tests. See the [test policy](docs/no-key-test-quarantine.md).
 
-## License
-
-Licensed under either of
-
-- [MIT license](LICENSE-MIT)
-- [Apache License, Version 2.0](LICENSE-APACHE)
-
-at your option.
-
-## Privacy Stack
-
-Signet is one layer of a larger privacy architecture. Each component addresses a different failure mode.
-
-| Component | What It Does | Link |
-|-----------|-------------|------|
-| **Signet** | Cryptographic vault. Three-tier data model, ZK proofs, Ed25519 root of trust. | *(this project)* |
-| **Agent-Safe (SPL)** | Authorization policy in the token. Local eval in ~2 us. No policy server. | [jmcentire.github.io/agent-safe](https://jmcentire.github.io/agent-safe/) |
-| **Tessera** | Self-validating documents. Hash chain, Ed25519 signatures, embedded validators. | [jmcentire.github.io/tessera](https://jmcentire.github.io/tessera/) |
-| **BlindDB** | Storage the operator can't read. Client-side encryption, opaque record IDs. | [jmcentire.github.io/BlindDB](https://jmcentire.github.io/BlindDB/) |
-| **HermesP2P** | Ephemeral P2P messaging. No servers, no metadata, no persistence. | [hp2p.net](https://hp2p.net) |
-
-## Links
-
-- [Contributing Guide](CONTRIBUTING.md)
-- [Security Policy](SECURITY.md)
-- [Changelog](CHANGELOG.md)
-- [Architecture](docs/architecture.md)
+Created by Jeremy McEntire. Licensed under [MIT](LICENSE-MIT) or
+[Apache-2.0](LICENSE-APACHE), at your option. The source and history provide a
+concrete record of the project; no exclusivity, certification, or outside
+endorsement is implied.

@@ -16,3 +16,6 @@ pub mod storage;
 pub mod passkey;
 
 pub use error::*;
+
+/// User-held asset keys are independent from account authentication.
+pub mod asset_cipher;

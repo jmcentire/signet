@@ -36,7 +36,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        rust: [stable, "1.85"]
+        rust: [stable, "1.88"]
     steps:
       - uses: actions/checkout@v6
         with:
@@ -87,3 +87,21 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo install cargo-audit --version 0.22.2 --locked
       - run: cargo audit
+
+  cloud-bridge:
+    name: Cloud bridge contract tests
+    needs: credentials
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: deployment/cloud-bridge/package-lock.json
+      - run: npm ci
+        working-directory: deployment/cloud-bridge
+      - run: npm test
+        working-directory: deployment/cloud-bridge

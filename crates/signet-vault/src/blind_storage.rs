@@ -237,9 +237,15 @@ impl<S: StorageBackend> BlindStorageWrapper<S> {
         }
 
         let encrypted = self.encrypt_data(&opaque, data)?;
-        self.inner
-            .put(&opaque, &encrypted)
-            .map_err(|e| VaultError::Storage(format!("insert failed: {}", e)))
+        if self
+            .inner
+            .compare_and_swap(&opaque, None, &encrypted)
+            .map_err(|e| VaultError::Storage(format!("insert failed: {}", e)))?
+        {
+            Ok(())
+        } else {
+            Err(VaultError::Collision("opaque ID already occupied".into()))
+        }
     }
 
     /// Get a reference to the inner backend (for testing/inspection).
@@ -284,9 +290,10 @@ impl<S: StorageBackend> StorageBackend for BlindStorageWrapper<S> {
         let opaque = self.blind_id(record_id);
 
         // Read + decrypt current value for comparison
-        let current_plaintext = match self.inner.get(&opaque)? {
+        let current_ciphertext = self.inner.get(&opaque)?;
+        let current_plaintext = match &current_ciphertext {
             Some(encrypted) => {
-                let pt = self.decrypt_data(&opaque, &encrypted).map_err(|e| {
+                let pt = self.decrypt_data(&opaque, encrypted).map_err(|e| {
                     signet_core::SignetError::Storage(format!("blind CAS decrypt failed: {}", e))
                 })?;
                 Some(pt)
@@ -305,8 +312,9 @@ impl<S: StorageBackend> StorageBackend for BlindStorageWrapper<S> {
             let encrypted = self.encrypt_data(&opaque, new_value).map_err(|e| {
                 signet_core::SignetError::Storage(format!("blind CAS encrypt failed: {}", e))
             })?;
-            self.inner.put(&opaque, &encrypted)?;
-            Ok(true)
+            // Preserve the backing store's atomicity over the exact ciphertext read.
+            self.inner
+                .compare_and_swap(&opaque, current_ciphertext.as_deref(), &encrypted)
         } else {
             Ok(false)
         }
@@ -737,5 +745,65 @@ mod tests {
 
         assert_eq!(videos.len().unwrap(), 2);
         assert_eq!(articles.len().unwrap(), 1);
+    }
+    #[test]
+    fn blind_cas_keeps_atomicity_when_both_read_the_same_ciphertext() {
+        use std::sync::{Arc, Barrier};
+        struct Racing {
+            inner: InMemoryBackend,
+            barrier: Barrier,
+        }
+        impl StorageBackend for Racing {
+            fn get(&self, id: &RecordId) -> SignetResult<Option<Vec<u8>>> {
+                let value = self.inner.get(id)?;
+                self.barrier.wait();
+                Ok(value)
+            }
+            fn put(&self, id: &RecordId, value: &[u8]) -> SignetResult<()> {
+                self.inner.put(id, value)
+            }
+            fn delete(&self, id: &RecordId) -> SignetResult<bool> {
+                self.inner.delete(id)
+            }
+            fn exists(&self, id: &RecordId) -> SignetResult<bool> {
+                self.inner.exists(id)
+            }
+            fn compare_and_swap(
+                &self,
+                id: &RecordId,
+                old: Option<&[u8]>,
+                new: &[u8],
+            ) -> SignetResult<bool> {
+                self.inner.compare_and_swap(id, old, new)
+            }
+        }
+        let blind = Arc::new(BlindStorageWrapper::new(
+            Racing {
+                inner: InMemoryBackend::new(),
+                barrier: Barrier::new(2),
+            },
+            Zeroizing::new([1; 32]),
+            Zeroizing::new([2; 32]),
+        ));
+        let record = RecordId::new("synthetic-atomic-record");
+        blind.put(&record, b"unspent").unwrap();
+        let handles: Vec<_> = (0..2)
+            .map(|_| {
+                let blind = blind.clone();
+                let record = record.clone();
+                std::thread::spawn(move || {
+                    blind
+                        .compare_and_swap(&record, Some(b"unspent"), b"spent")
+                        .unwrap()
+                })
+            })
+            .collect();
+        assert_eq!(
+            handles
+                .into_iter()
+                .map(|h| u32::from(h.join().unwrap()))
+                .sum::<u32>(),
+            1
+        );
     }
 }
