@@ -863,6 +863,74 @@ fn pairing_needs_the_ticket() {
 }
 
 #[test]
+fn both_devices_must_have_read_the_same_relay_address() {
+    let computer = SoftwareIdentity::generate();
+    let phone = SoftwareIdentity::generate();
+    let offer = issue_ticket(&computer, "Laptop", Role::Requester, NOW)
+        .unwrap()
+        .with_relay("https://relay.example/")
+        .unwrap();
+    assert_eq!(
+        offer.ticket().relay.as_deref(),
+        Some("https://relay.example")
+    );
+
+    // The honest path: the relay named on the ticket is recorded on both sides.
+    let (phone_side, reply) = accept_ticket(
+        &offer.ticket().encode(),
+        &phone,
+        "Phone",
+        Role::Authenticator,
+        NOW,
+    )
+    .unwrap();
+    assert_eq!(phone_side.relay.as_deref(), Some("https://relay.example"));
+
+    // A ticket altered on its way to the phone, pointing at another relay.
+    // The phone's reply no longer matches what the computer issued.
+    let mut altered = offer.ticket().clone();
+    altered.relay = Some("https://relay.attacker.example".into());
+    let (_, altered_reply) =
+        accept_ticket(&altered.encode(), &phone, "Phone", Role::Authenticator, NOW).unwrap();
+    let again = issue_ticket(&computer, "Laptop", Role::Requester, NOW)
+        .unwrap()
+        .with_relay("https://relay.example")
+        .unwrap();
+    // (A fresh offer cannot accept either reply: each is bound to its ticket.)
+    assert!(again.complete(&reply, NOW).is_err());
+    assert_eq!(
+        offer.complete(&altered_reply, NOW),
+        Err(PasskeyError::Pairing("reply was not made from this ticket"))
+    );
+}
+
+#[test]
+fn a_ticket_cannot_name_a_relay_reached_without_tls() {
+    let computer = SoftwareIdentity::generate();
+    for bad in [
+        "http://relay.example",
+        "ftp://relay.example",
+        "relay.example",
+    ] {
+        assert!(issue_ticket(&computer, "Laptop", Role::Requester, NOW)
+            .unwrap()
+            .with_relay(bad)
+            .is_err());
+    }
+    // Nor can a hand-made ticket slip one past the phone.
+    let offer = issue_ticket(&computer, "Laptop", Role::Requester, NOW).unwrap();
+    let mut forged = offer.ticket().clone();
+    forged.relay = Some("http://relay.example".into());
+    let phone = SoftwareIdentity::generate();
+    assert!(accept_ticket(&forged.encode(), &phone, "Phone", Role::Authenticator, NOW).is_err());
+    // A relay on this same machine may use plain HTTP; that is how tests run.
+    assert!(issue_ticket(&computer, "Laptop", Role::Requester, NOW)
+        .unwrap()
+        .with_relay("http://127.0.0.1:8787")
+        .is_ok());
+}
+
+#[test]
 fn a_confirmation_code_exposes_a_device_that_paired_in_the_owner_s_place() {
     let computer = SoftwareIdentity::generate();
     let phone = SoftwareIdentity::generate();

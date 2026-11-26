@@ -1,13 +1,22 @@
 # Remote passkey approval: the phone signs, the computer relays
 
-Status: design plus a first tested slice, November 26, 2026. Created by
-[Jeremy McEntire](https://perardua.dev). Build resumed **for this slice only**, at
-Jeremy's direction; everything else in [open work](open-work.md) stays paused.
-The `signet-passkey` crate implements the protocol core described here. Its 37
-tests pass, including full create and sign-in ceremonies verified by an
-independent WebAuthn implementation (webauthn-rs), all with keys generated at
-test time. There is no phone app, desktop integration or relay yet. No real
-passkey was enrolled and nothing was deployed.
+Status: design plus three tested slices, November 26, 2026. Created by
+[Jeremy McEntire](https://perardua.dev). Build resumed **for this subsystem
+only**, at Jeremy's direction; everything else in [open work](open-work.md)
+stays paused.
+
+What exists: the protocol (`signet-passkey`), a relay (`signet-passkey-relay`),
+the computer side with its command line and browser host
+(`signet-passkey-desktop`), and a Chromium extension
+(`extensions/passkey-chromium`). A passkey has been created and used from a
+page in real Chrome, through the extension, the local program and the relay,
+with the site's side verified by an independent WebAuthn implementation
+(webauthn-rs).
+
+What does not exist: the phone app. In every test a simulator stands in for
+the phone, with keys in ordinary memory. The computer side reaches a relay on
+the same machine only, because its TLS client is not built. Nothing was
+deployed and no real passkey was enrolled.
 
 ## The problem
 
@@ -88,6 +97,9 @@ using? These checks answer it without distance.
 | A phishing page on a paired machine asks for the real site's passkey | The site identifier must match the page's origin. The browser or OS enforces that in the provider path. In the extension path Signet enforces it itself, using the public-suffix list and the origin reported by the browser, never one supplied by the page. The phone repeats the check when it is given the origin. |
 | The relay, or anyone on the network, reads, alters, replays or swaps messages | Messages are signed, then sealed to the recipient's key (HPKE, RFC 9180). The relay cannot read or forge them. Requests expire in two minutes and are accepted once. A response is bound to the digest of the exact request it answers. |
 | The relay substitutes its own key while a new passkey is created | The response must be signed by the paired phone. The computer discards anything else before the site ever sees it. |
+| A stranger fills the phone's mailbox, or reads it | Every relay request is signed by a device key. A mailbox accepts messages only from senders its owner has listed, and only its owner can read it. This limits nuisance; secrecy and authenticity never depend on the relay. |
+| A page floods the phone with prompts | Sign-ins reach the phone only for sites that have a passkey there. Creating one requires that the person has interacted with the page. One page origin may send six requests a minute; the rest fail on the computer. |
+| A page lies about which site it is | In the extension path the origin comes from the browser, through the extension's service worker. The script that runs inside the page is never asked. |
 | A stored passkey is used for a different site | The phone signs only when the request's site identifier equals the one the passkey was created for. |
 | Someone who glimpses a pairing ticket pairs in the owner's place | After pairing, both devices show a six-digit code derived from the two devices' keys. If another device answered the ticket, the codes differ and the owner revokes the pairing. |
 
@@ -96,7 +108,10 @@ using? These checks answer it without distance.
 - **A compromised paired machine** can ask for any site. The phone shows the site
   and the machine, and the owner can decline, but a tired owner may not. Requests
   from an agent should say so, and a short code shown on both ends is a candidate
-  addition.
+  addition. In the extension path "the machine" means anything running as the
+  owner's account: the machine key is a file that account can read, and any
+  program can start the local process and name any origin. The operating-system
+  provider path narrows this, because there the system states the site.
 - **What happens after sign-in.** A session cookie on a compromised machine is
   outside this design, as it is for every passkey.
 - **A lost or compromised phone.** See Keys, below.
@@ -175,38 +190,157 @@ the site requires verification and the owner approved without it. Otherwise it
 asks the owner. The computer rejects a response unless it is signed by the
 paired phone and matches one pending request, which it then consumes.
 
-Pairing uses a one-time ticket carrying a 256-bit secret and the issuer's public
-keys, shown as a QR code or a string. It is done once per machine, in person or
+Pairing uses a one-time ticket carrying a 256-bit secret, the issuer's public
+keys and the relay's address, shown as a QR code or a string. The address is
+part of what the reply authenticates, so both devices must have read the same
+one. It is done once per machine, in person or
 over a channel the owner already trusts, and ends with the owner comparing the
 confirmation code on both devices. Either side can revoke a pairing.
 
-The crate keeps pairings, passkey records and the replay window in memory.
-Storing them durably is the job of the phone app and the local process, and is
-not built.
+The protocol crate keeps pairings, passkey records and the replay window in
+memory. The local program stores the computer's pairings durably. Storing the
+phone's passkeys is the phone app's job, and is not built.
+
+## The relay
+
+A mailbox, and nothing more. It holds sealed envelopes for a few minutes and
+hands each to the device it is addressed to. It keeps everything in memory.
+
+| Request | Who may make it | Purpose |
+|---|---|---|
+| `POST /v1/mailbox/{fingerprint}/poll` | The device with that fingerprint | Read its mailbox, acknowledge earlier messages, restate which senders it accepts. Waits up to 30 seconds for a message. |
+| `POST /v1/mailbox/{fingerprint}/messages` | A sender that device has listed | Leave one sealed envelope, optionally in a named slot, for up to 330 seconds. |
+| `PUT` / `GET /v1/rendezvous/{id}` | Anyone who read the pairing ticket | Leave, and collect once, the reply to a ticket. The id is derived from the ticket's secret. |
+| `GET /v1/health` | Anyone | Liveness. |
+
+- **A device is its key.** A mailbox is named by the fingerprint of a device's
+  public keys. Each request carries those keys and a signature over the relay's
+  address, the method, the path, the body, a timestamp and a nonce. The relay
+  recomputes the fingerprint, so there are no accounts to create and none to
+  take over. A repeated nonce is refused.
+- **Senders are listed by the recipient.** A device names its paired devices on
+  every read. The relay refuses anyone else, and gives the same answer whether
+  the mailbox exists or not. Because the list arrives with every read, a relay
+  that restarts relearns it and stores nothing on disk.
+- **Answers go to slots.** A computer may have several requests waiting, each
+  in its own process. The phone leaves each response in a slot derived from the
+  request envelope, and each waiter reads only its slot.
+- **Messages are offered until acknowledged.** A reader that loses a reply gets
+  the message again. Both devices already refuse duplicates.
+- **What the relay learns:** which fingerprints exchange messages, when, and how
+  large they are. It cannot read, alter or forge a message.
+
+**Where it runs.** Decided November 26, 2026: with Herald, as its own set of
+routes inside the Herald server, not on Herald's customer accounts. Herald is
+axum on tokio, as this relay is, so the relay's router mounts under a path
+prefix. A device signs the path below that prefix, and the relay's address,
+prefix included, is the audience in every signature. Whoever hosts it must
+terminate TLS in front and limit requests per network address there: pairing
+replies and first contact from a new device are the two things the relay
+cannot attribute to a known key. Not done yet; see the build order.
+
+## The computer side
+
+`signet-passkey` is one program with two faces: a command line for the owner,
+and the native-messaging host the browser starts for each passkey call.
+
+```
+signet-passkey init --name "Work laptop" --relay https://...
+signet-passkey pair                  # shows a ticket, then asks for the code on the phone
+signet-passkey status
+signet-passkey sites add example.com # for a passkey created from another computer
+signet-passkey new-passkeys off      # leave creation to the browser
+signet-passkey browser install --extension-id <id>
+```
+
+Pairing ends with the owner typing the six digits the phone shows. The pairing
+is saved only if they match what the computer computed, so a device that
+answered the ticket in the owner's place is never recorded.
+
+The extension has three parts. A script in the page's own world stands in front
+of `navigator.credentials.create` and `.get` in the top-level document. A second
+script, in the extension's isolated world, passes each call to the service
+worker and shows a small notice while the phone is being asked. The service
+worker attaches the page's origin as the browser reports it, starts the local
+program, and returns its answer.
+
+For each call the local program decides between the phone and the browser:
+
+- **Creating a passkey** goes to the phone when the computer is paired and new
+  passkeys are switched on, unless the site asked for a roaming security key or
+  does not accept ES256.
+- **Signing in** goes to the phone for sites recorded as having a passkey there.
+  A site is recorded when a passkey is created for it through this computer, or
+  by hand.
+- **Everything else** is handed back, and the extension calls the browser's own
+  implementation with the page's original arguments: sign-in through the
+  autofill list, calls inside frames, options it cannot read, a page that has
+  not been interacted with.
+
+A denial, a timeout or an unreachable phone reaches the page as the same
+`NotAllowedError` a dismissed browser prompt produces. A sign-in the phone has
+no passkey for is handed back to the browser, so a passkey kept elsewhere still
+works.
+
+Known limits of this slice:
+
+- The machine key is a file readable by the owner's account (mode 0600), not a
+  key in the operating system's key store.
+- The relay client speaks plain HTTP to a relay on the same machine. It refuses
+  any other address until TLS is built.
+- Cancelling on the computer does not reach the phone; the request there simply
+  expires. The protocol has no cancel message yet.
+- Requests go to the first paired phone. There is no chooser for several.
+- The browser host is installed for macOS and Linux. Windows uses the registry
+  and is not automated. Only Chrome for Testing 153 has been exercised.
+- The extension is loaded unpacked; it is not packaged or published.
+
+## Trying it on one machine
+
+Everything below is local and uses the phone simulator, whose keys are in
+memory and vanish when it exits. Do not register it with an account that
+matters.
+
+```
+cargo build -p signet-passkey-relay -p signet-passkey-desktop --bins --examples
+node scripts/passkey_browser_e2e.mjs          # the whole chain in Chrome, unattended
+```
+
+By hand: start `signet-passkey-relay`, run `signet-passkey init` and `pair`,
+give the ticket to `target/debug/examples/phone_sim --ticket ...`, type the
+code it prints, load `extensions/passkey-chromium` unpacked, and run
+`signet-passkey browser install --extension-id <id>`.
+`target/debug/examples/test_site` is a site to try it on.
 
 ## Build order
 
-| Slice | Contents | Needs |
+| Slice | Contents | State |
 |---|---|---|
-| 1. Protocol core (done, this change) | `signet-passkey`: messages, sealing, pairing, reference authenticator and requester, site-binding check, WebAuthn encoding. Tested end to end against webauthn-rs, plus 24 attack cases. | Nothing external. |
-| 2. Relay and local process | Store-and-forward relay; `signet passkey` commands; native-messaging host. | A decision on where the relay runs. No deployment without approval. |
-| 3. Browser extension | Chromium extension; end-to-end test in Chrome against a local test site, with the reference authenticator standing in for the phone. | Slice 2. |
-| 4. Phone app | iOS app: Secure Enclave keys, Face ID, push, request screen, pairing. | Xcode, an Apple developer account, a push key. Cannot be built or signed from a Linux host. |
-| 5. OS providers and import | macOS provider extension, Windows plugin, credential import on iOS. | Slice 4; Apple's credential-provider entitlement. |
+| 1. Protocol core | `signet-passkey`: messages, sealing, pairing, reference authenticator and requester, site-binding check, WebAuthn encoding, and what both devices say to the relay. | Done. |
+| 2. Relay and local program | `signet-passkey-relay`; `signet-passkey` commands, settings and native-messaging host. | Done as a reference, tested over real HTTP on one machine. |
+| 3. Browser extension | Chromium extension; end-to-end test in Chrome against a local site, with the simulator standing in for the phone. | Done; passes in Chrome for Testing 153. |
+| 3a. Reach a real relay | TLS in the relay client. Mount the relay's routes in Herald. Machine key in the OS key store. | Next. Herald change waits on this work merging; deployment needs Jeremy's approval. |
+| 4. Phone app | iOS app: Secure Enclave keys, Face ID, push, request screen, pairing by QR code. | Needs Xcode, an Apple developer account and a push key. Cannot be built or signed from a Linux host. The relay will also need to send the push. |
+| 5. OS providers and import | macOS provider extension, Windows plugin, credential import on iOS. | Needs slice 4 and Apple's credential-provider entitlement. |
 
 ## Decisions for Jeremy
 
+Settled:
+
+- **First desktop integration:** the browser extension. Built.
+- **Where the relay runs:** Herald, as its own routes (November 26, 2026).
+
+Open:
+
 1. **Default key class for new passkeys.** Proposed: hardware-bound, with a
    prompt to enroll a second authenticator.
-2. **First desktop integration.** Proposed: the browser extension, because it
-   covers agent-driven browsers on every operating system and needs no Apple
-   entitlement. The macOS provider adds Safari and native apps later.
-3. **Where the relay runs.** A standalone Signet relay, or Herald's Worker, which
-   already hosts the Dash approval surface.
-4. **P-256 in this subsystem** instead of Ed25519. Built that way; reversible
+2. **P-256 in this subsystem** instead of Ed25519. Built that way; reversible
    until a phone app ships.
-5. **Who builds the phone app,** and whether it goes through a Chiron run on a
+3. **Who builds the phone app,** and whether it goes through a Chiron run on a
    Mac.
+4. **The authenticator model identifier (AAGUID).** A provisional value is in
+   the code. Sites record it when a passkey is created, so it must be fixed
+   before the first real one.
 
 One risk to test before relying on the macOS provider: an Apple engineer has
 stated that credentials returned by a provider extension are, by Apple's
@@ -216,35 +350,49 @@ browser-extension path involves no Apple interface at all, but the Mac provider
 returning a signature from a hardware-bound phone key should be confirmed on a
 device.
 
-## How slice 1 was checked
+## How it was checked
 
-The same author wrote the code and its tests, so three outside checks were added.
+The same author wrote the code and its tests, so four outside checks were added.
 
-- **An independent verifier.** webauthn-rs plays the site in the end-to-end
-  tests. It issues the challenges and verifies the results with its own code, so
-  a misunderstanding shared by the phone and computer sides cannot pass.
+- **An independent verifier.** webauthn-rs plays the site wherever a passkey is
+  created or used: in the protocol tests, in the computer-side tests that run
+  against a real relay over HTTP, and behind the test site the browser visits.
+  It issues the challenges and verifies the results with its own code, so a
+  misunderstanding shared by the phone and computer sides cannot pass.
+- **A real browser.** `scripts/passkey_browser_e2e.mjs` starts the relay, the
+  test site, the phone simulator and Chrome with the extension, pairs by ticket
+  and typed code, and has the page call the standard API. It checks that the
+  site verified a registration and a sign-in approved on the phone, that the
+  page received objects of the standard types, that a denial arrives as
+  `NotAllowedError`, and that calls not meant for the phone still reach the
+  browser's own authenticator. It needs a browser, so it is not part of
+  `make check`; run it with `make passkey-e2e`.
 - **Disabled checks must break a test.** `scripts/passkey_mutation_check.py`
-  switches off each of 26 security checks in turn, in a temporary copy of the
-  workspace, and runs the tests. 25 cause a test to fail. The one that does not
-  is the sender fingerprint in the HPKE context, a second barrier behind the
-  signature with no test of its own. The script fails if a check stops being
-  covered or its pattern stops matching the source.
-
+  switches off each of 50 security checks in turn, across the three crates, in
+  a temporary copy of the workspace, and runs the tests. 49 cause a test to
+  fail. The one that does not is the sender fingerprint in the HPKE context, a
+  second barrier behind the signature with no test of its own. The script fails
+  if a check stops being covered or its pattern stops matching the source.
 - **Dependencies checked against their sources.**
   `scripts/dependency_provenance_check.py` looks up every package in
   `Cargo.lock` in OSV, which carries the RustSec database, GitHub advisories and
-  the OpenSSF malicious-packages list. For packages this work added it also
-  confirms that each published file is identical to the public repository at the
-  commit the package records, that the registry and local checksums match the
-  lockfile, and that the release is at least 14 days old. None of the 48 added
-  packages runs code at build time. Three releases under a week old were pinned
+  the OpenSSF malicious-packages list. For packages added since `main`, or for
+  all of them with `--all`, it also confirms that each published file is
+  identical to the public repository at the commit the package records, that
+  the registry and local checksums match the lockfile, and that the release is
+  at least 14 days old. Run with `--all` on November 26, 2026: of 348 packages,
+  318 matched their source exactly, and the other 30 were examined by hand and
+  recorded, with what was found, in
+  `scripts/dependency_provenance_reviewed.json`. None of the packages this work
+  added runs code at build time. Three releases under a week old were pinned
   back to aged ones (hpke 0.15.1, sha2 0.11.1, psl 2.1.252); url 2.5.9 and
   form_urlencoded 1.2.3 are kept despite their age because they fix an advisory,
   with the reason recorded in `scripts/dependency_age_exceptions.json`.
 
-None of this replaces an independent review or a separate tester, and the software
-key stores prove nothing about hardware custody. `make check` passes, and the
-workspace tests pass on both stable Rust and the 1.88 minimum.
+None of this replaces an independent review or a separate tester. The
+simulator proves nothing about hardware custody or about what a person will
+approve when tired. `make check` passes, and the workspace tests pass on both
+stable Rust and the 1.88 minimum.
 
 ## Sources
 

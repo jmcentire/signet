@@ -26,4 +26,6 @@ pub enum PasskeyError {
     Pairing(&'static str),
     #[error("unsupported: {0}")]
     Unsupported(&'static str),
+    #[error("relay request rejected: {0}")]
+    Relay(&'static str),
 }

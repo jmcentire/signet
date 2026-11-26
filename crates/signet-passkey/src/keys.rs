@@ -112,6 +112,30 @@ impl SoftwareIdentity {
             sealing_public,
         }
     }
+
+    /// The two private keys, 64 bytes, for a caller that must keep a software
+    /// identity across runs. Whoever holds these bytes is this device.
+    pub fn to_secret_bytes(&self) -> zeroize::Zeroizing<Vec<u8>> {
+        let mut bytes = zeroize::Zeroizing::new(Vec::with_capacity(64));
+        bytes.extend_from_slice(&self.signing.to_bytes());
+        bytes.extend_from_slice(&self.sealing.to_bytes());
+        bytes
+    }
+
+    /// Rebuild an identity from [`SoftwareIdentity::to_secret_bytes`].
+    pub fn from_secret_bytes(bytes: &[u8]) -> Result<Self, PasskeyError> {
+        if bytes.len() != 64 {
+            return Err(PasskeyError::Key);
+        }
+        let signing = SigningKey::from_slice(&bytes[..32]).map_err(|_| PasskeyError::Key)?;
+        let sealing = KemPrivate::from_bytes(&bytes[32..]).map_err(|_| PasskeyError::Key)?;
+        let sealing_public = <Kem as hpke::Kem>::sk_to_pk(&sealing);
+        Ok(Self {
+            signing,
+            sealing,
+            sealing_public,
+        })
+    }
 }
 
 impl IdentityKeys for SoftwareIdentity {

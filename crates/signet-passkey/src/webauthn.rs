@@ -81,6 +81,22 @@ pub fn cose_es256_key(public_sec1: &[u8]) -> Result<Vec<u8>, PasskeyError> {
     Ok(out)
 }
 
+/// DER SubjectPublicKeyInfo for a P-256 public key in SEC1 uncompressed form:
+/// what a page gets from `getPublicKey()`. `None` if the point is not 65 bytes
+/// starting with `0x04`.
+pub fn spki_p256(public_sec1: &[u8]) -> Option<Vec<u8>> {
+    if public_sec1.len() != 65 || public_sec1[0] != 0x04 {
+        return None;
+    }
+    // SEQUENCE { SEQUENCE { id-ecPublicKey, prime256v1 }, BIT STRING { point } }
+    let mut out = vec![
+        0x30, 0x59, 0x30, 0x13, 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01, 0x06, 0x08,
+        0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07, 0x03, 0x42, 0x00,
+    ];
+    out.extend_from_slice(public_sec1);
+    Some(out)
+}
+
 /// A new credential's identifier and public key, as carried in authenticator
 /// data when a passkey is created.
 pub struct AttestedCredential<'a> {

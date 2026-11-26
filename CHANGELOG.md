@@ -17,8 +17,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `docs/open-work.md`.
 - Add `scripts/dependency_provenance_check.py`: advisory and malicious-package
   lookup for every locked package, plus source-match, checksum and release-age
-  checks for added ones. Pin hpke, sha2 and psl to releases at least 14 days
-  old.
+  checks for added ones, or for all with `--all`. Pin hpke, sha2 and psl to
+  releases at least 14 days old. Record the hand review of the 30 packages whose
+  published files do not match their repository byte for byte.
+- Add `signet-passkey-relay`, a store-and-forward mailbox for sealed passkey
+  requests and responses. Requests are signed by device keys, senders are listed
+  by the recipient, and nothing is kept on disk. Not deployed.
+- Add `signet-passkey-desktop` and its `signet-passkey` program: setup, pairing
+  with a typed confirmation code, per-site routing, and the Chrome
+  native-messaging host. Reaches a relay on the same machine only; TLS is not
+  built.
+- Add `extensions/passkey-chromium`, a Chromium extension that sends a page's
+  passkey calls to the phone or hands them back to the browser, and
+  `make passkey-e2e`, which exercises the whole chain in Chrome with a phone
+  simulator.
+- Pairing tickets carry the relay's address, and the pairing reply authenticates
+  it.
 
 - Restore cryptographic test execution under the maintainer's production-secret
   prohibition. Gitleaks scans repository content; generated test keys remain

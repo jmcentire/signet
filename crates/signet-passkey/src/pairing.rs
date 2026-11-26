@@ -51,6 +51,9 @@ pub struct Pairing {
     pub peer_role: Role,
     pub created_at: i64,
     pub revoked: bool,
+    /// The relay both devices agreed to use when they paired, if any.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub relay: Option<String>,
 }
 
 impl Pairing {
@@ -90,6 +93,10 @@ pub struct PairingTicket {
     pub issuer_name: String,
     pub issuer_role: Role,
     pub expires_at: i64,
+    /// Where the reply, and later traffic, should be sent. The relay is not
+    /// trusted with content; see [`crate::relay`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub relay: Option<String>,
 }
 
 impl PairingTicket {
@@ -109,7 +116,21 @@ impl PairingTicket {
         if ticket.v != PROTOCOL_VERSION {
             return Err(PasskeyError::Unsupported("protocol version"));
         }
+        if let Some(relay) = &ticket.relay {
+            if crate::relay::normalize_relay_url(relay)? != *relay {
+                return Err(PasskeyError::Pairing("relay address"));
+            }
+        }
         Ok(ticket)
+    }
+
+    /// Where on the relay the reply to this ticket is left. Derived from the
+    /// one-time secret, so only a device that read the ticket can find it.
+    pub fn rendezvous_id(&self) -> Result<String, PasskeyError> {
+        let mut secret = unb64(&self.secret)?;
+        let id = crate::relay::rendezvous_id(&secret);
+        secret.zeroize();
+        Ok(id)
     }
 }
 
@@ -153,6 +174,7 @@ fn accept_transcript(
     acceptor: &PublicIdentity,
     acceptor_role: Role,
     acceptor_name: &str,
+    relay: Option<&str>,
 ) -> Vec<u8> {
     transcript(&[
         b"signet.passkey.pairing.v1",
@@ -164,6 +186,8 @@ fn accept_transcript(
         acceptor.sealing.as_bytes(),
         acceptor_role.as_str().as_bytes(),
         acceptor_name.as_bytes(),
+        // Both devices must have read the same relay address from the ticket.
+        relay.unwrap_or("").as_bytes(),
     ])
 }
 
@@ -193,6 +217,7 @@ pub fn issue_ticket(
             issuer_name: name.to_owned(),
             issuer_role: role,
             expires_at: now + PAIRING_TTL_SECS,
+            relay: None,
         },
         secret,
     })
@@ -236,6 +261,7 @@ pub fn accept_ticket(
         &acceptor,
         role,
         name,
+        ticket.relay.as_deref(),
     );
     let accept = PairingAccept {
         v: PROTOCOL_VERSION,
@@ -256,6 +282,7 @@ pub fn accept_ticket(
             peer_role: ticket.issuer_role,
             created_at: now,
             revoked: false,
+            relay: ticket.relay,
         },
         reply,
     ))
@@ -265,6 +292,13 @@ impl PairingOffer {
     /// The ticket to show the other device.
     pub fn ticket(&self) -> &PairingTicket {
         &self.ticket
+    }
+
+    /// Name the relay the two devices will use. The address is checked and
+    /// stored in its normal form.
+    pub fn with_relay(mut self, relay: &str) -> Result<Self, PasskeyError> {
+        self.ticket.relay = Some(crate::relay::normalize_relay_url(relay)?);
+        Ok(self)
     }
 
     /// Finish pairing with the other device's reply. Consumes the offer whether
@@ -297,6 +331,7 @@ impl PairingOffer {
             &accept.acceptor,
             accept.acceptor_role,
             &accept.acceptor_name,
+            self.ticket.relay.as_deref(),
         );
         let expected = mac(&self.secret, &message);
         let supplied = hex::decode(&accept.mac).map_err(|_| PasskeyError::Pairing("reply"))?;
@@ -314,6 +349,7 @@ impl PairingOffer {
             peer_role: accept.acceptor_role,
             created_at: now,
             revoked: false,
+            relay: self.ticket.relay.clone(),
         })
     }
 }

@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
-"""Switch off each security check in signet-passkey and confirm a test fails.
+"""Switch off each security check in the remote-passkey crates and confirm a
+test fails.
 
 A passing test suite shows the checks work when present. It does not show the
 tests would notice if a check were removed. This script removes each check in
-turn, in a temporary copy of the workspace, and runs the crate's tests. A
-mutation that no test catches is reported as SURVIVED.
+turn, in a temporary copy of the workspace, and runs the tests of the crate the
+check lives in. A mutation that no test catches is reported as SURVIVED.
+
+Covers signet-passkey (the protocol), signet-passkey-relay and
+signet-passkey-desktop (the computer side).
 
 The working tree is never modified. Run from anywhere:
 
@@ -26,10 +30,13 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-CRATE = Path("crates/signet-passkey/src")
+CRATES = Path("crates")
+DEFAULT_CRATE = "signet-passkey"
 
 # (what is switched off, file, text to find, replacement, test expected to fail)
-# An expected test of None marks a known survivor, with the reason alongside.
+# A bare file name is in signet-passkey/src; otherwise the path starts with the
+# crate's folder. An expected test of None marks a known survivor, with the
+# reason alongside.
 MUTATIONS = [
     ("passkey signs only for its own site", "authenticator.rs",
      ".filter(|c| c.rp_id == request.rp_id)", ".filter(|_| true)",
@@ -122,37 +129,128 @@ MUTATIONS = [
      "        sender.fingerprint().as_bytes(),\n        to.fingerprint().as_bytes(),\n    ])\n}\n\nfn aad",
      "        to.fingerprint().as_bytes(),\n    ])\n}\n\nfn aad",
      None),
+
+    # Pairing and relay addressing (signet-passkey).
+    ("relay address bound into the pairing reply", "pairing.rs",
+     'relay.unwrap_or("").as_bytes(),', 'b"",',
+     "both_devices_must_have_read_the_same_relay_address"),
+    ("ticket names only an acceptable relay", "pairing.rs",
+     "if crate::relay::normalize_relay_url(relay)? != *relay {", "if false {",
+     "a_ticket_cannot_name_a_relay_reached_without_tls"),
+    ("plain http only for a relay on this machine", "relay.rs",
+     '"http" if is_loopback(&host) => {}', '"http" => {}',
+     "relay_addresses_are_normalized_and_restricted"),
+    ("relay request signature", "relay.rs",
+     "if !accepted {", "if false {",
+     "a_signed_request_verifies_only_as_sent"),
+    ("relay request freshness", "relay.rs",
+     "if (now - self.timestamp).abs() > AUTH_WINDOW_SECS {", "if false {",
+     "a_signed_request_verifies_only_as_sent"),
+
+    # The relay's own rules (signet-passkey-relay).
+    ("only listed senders may leave messages", "signet-passkey-relay/src/lib.rs",
+     "if !mailbox.peers.contains(&caller.fingerprint) {", "if false {",
+     "only_listed_senders_can_leave_messages"),
+    ("only the owner reads a mailbox", "signet-passkey-relay/src/lib.rs",
+     "if caller.fingerprint != owner {", "if false {",
+     "only_the_owner_reads_a_mailbox"),
+    ("replayed relay request", "signet-passkey-relay/src/lib.rs",
+     "if inner.nonces.contains_key(&key) {", "if false {",
+     "unsigned_altered_stale_and_replayed_requests_are_refused"),
+    ("one device's request rate", "signet-passkey-relay/src/lib.rs",
+     "if rate.1 > self.config.requests_per_minute {", "if false {",
+     "one_device_cannot_flood_the_relay"),
+    ("mailbox bounds", "signet-passkey-relay/src/lib.rs",
+     "if from_sender >= shared.config.max_per_sender\n        || mailbox.queue.len() >= shared.config.max_per_mailbox\n    {",
+     "if false {",
+     "messages_expire_and_sizes_and_counts_are_bounded"),
+    ("message size bound", "signet-passkey-relay/src/lib.rs",
+     "if body.len() > shared.config.max_message_bytes {", "if false {",
+     "messages_expire_and_sizes_and_counts_are_bounded"),
+    ("message expiry", "signet-passkey-relay/src/lib.rs",
+     ".retain(|message| message.expires_at > now && peers.contains(&message.from));",
+     ".retain(|message| peers.contains(&message.from));",
+     "messages_expire_and_sizes_and_counts_are_bounded"),
+    ("a removed sender's queued messages are dropped", "signet-passkey-relay/src/lib.rs",
+     ".retain(|message| message.expires_at > now && peers.contains(&message.from));",
+     ".retain(|message| message.expires_at > now);",
+     "a_sender_taken_off_the_list_loses_its_queued_messages"),
+    ("a pairing reply cannot be replaced", "signet-passkey-relay/src/lib.rs",
+     "if inner.rendezvous.contains_key(&id) {", "if false {",
+     "a_pairing_reply_is_left_once_and_collected_once"),
+    ("slot and address shape", "signet-passkey-relay/src/lib.rs",
+     "if !is_id(&recipient) || query.slot.as_deref().is_some_and(|slot| !is_id(slot)) {", "if false {",
+     "slots_keep_answers_for_different_waiters_apart"),
+
+    # The computer side (signet-passkey-desktop).
+    ("sign-ins go to the phone only for listed sites", "signet-passkey-desktop/src/flow.rs",
+     "} else if !state.sites.contains(&rp_id) {", "} else if false {",
+     "calls_that_are_not_for_the_phone_stay_with_the_browser"),
+    ("autofill sign-in stays with the browser", "signet-passkey-desktop/src/flow.rs",
+     'if request.mediation.as_deref() == Some("conditional") {', "if false {",
+     "a_passkey_is_created_and_used_through_the_relay"),
+    ("a request for a security key stays with the browser", "signet-passkey-desktop/src/flow.rs",
+     "if create.wants_security_key {", "if false {",
+     "calls_that_are_not_for_the_phone_stay_with_the_browser"),
+    ("new passkeys switched off", "signet-passkey-desktop/src/flow.rs",
+     "if !state.new_passkeys {", "if false {",
+     "calls_that_are_not_for_the_phone_stay_with_the_browser"),
+    ("one page's request rate", "signet-passkey-desktop/src/flow.rs",
+     "if count >= MAX_PER_MINUTE {", "if false {",
+     "one_page_cannot_flood_the_phone"),
+    ("pairing saved only with the code on the phone", "signet-passkey-desktop/src/pair.rs",
+     "if typed != expected {", "if false {",
+     "a_wrong_code_saves_nothing"),
+    ("machine key file is private", "signet-passkey-desktop/src/store.rs",
+     "options.mode(0o600);", "options.mode(0o644);",
+     "the_machine_key_is_readable_by_its_owner_only"),
+    ("the machine key is never replaced", "signet-passkey-desktop/src/store.rs",
+     "if self.dir.join(KEY_FILE).exists() {", "if false {",
+     "a_store_keeps_one_identity_and_refuses_to_replace_it"),
+    ("only one extension may start the program", "signet-passkey-desktop/src/browser.rs",
+     "if !is_extension_id(extension_id) {", "if false {",
+     "malformed_ids_and_relative_paths_are_refused"),
 ]
 
 
 def main() -> int:
     with tempfile.TemporaryDirectory(prefix="signet-passkey-mutation-") as scratch:
         copy = Path(scratch) / "signet"
-        shutil.copytree(ROOT, copy, ignore=shutil.ignore_patterns("target", ".git"))
+        # Copied without modification times, so every file is newer than
+        # anything in the shared build folder. Otherwise cargo can reuse an
+        # artifact a previous run built from a mutated file.
+        shutil.copytree(ROOT, copy, ignore=shutil.ignore_patterns("target", ".git"),
+                        copy_function=shutil.copy)
         env = dict(os.environ, CARGO_TARGET_DIR=str(ROOT / "target" / "mutation"))
-        command = ["cargo", "test", "--locked", "-p", "signet-passkey"]
 
-        def failing_tests() -> set[str] | None:
+        def locate(file: str) -> tuple[str, Path]:
+            if "/" not in file:
+                return DEFAULT_CRATE, copy / CRATES / DEFAULT_CRATE / "src" / file
+            return file.split("/", 1)[0], copy / CRATES / file
+
+        def failing_tests(crate: str) -> set[str] | None:
+            command = ["cargo", "test", "--locked", "-p", crate]
             result = subprocess.run(command, cwd=copy, env=env, capture_output=True, text=True)
             output = result.stdout + result.stderr
             if "could not compile" in output:
                 return None
             return {name.split("::")[-1] for name in re.findall(r"^test (\S+) \.\.\. FAILED", output, re.M)}
 
-        if failing_tests() != set():
-            print("The unmodified crate does not pass its tests; nothing to measure.", file=sys.stderr)
-            return 1
+        for crate in sorted({locate(m[1])[0] for m in MUTATIONS}):
+            if failing_tests(crate) != set():
+                print(f"{crate} does not pass its tests unmodified; nothing to measure.", file=sys.stderr)
+                return 1
 
         unexpected = 0
         for name, file, old, new, expected in MUTATIONS:
-            path = copy / CRATE / file
+            crate, path = locate(file)
             original = path.read_text()
             if original.count(old) != 1:
                 print(f"ERROR     {name}: pattern matches {original.count(old)} times in {file}")
                 unexpected += 1
                 continue
             path.write_text(original.replace(old, new))
-            failed = failing_tests()
+            failed = failing_tests(crate)
             path.write_text(original)
             if failed is None:
                 print(f"ERROR     {name}: mutated source does not compile")

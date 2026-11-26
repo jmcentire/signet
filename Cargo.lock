@@ -1264,6 +1264,7 @@ dependencies = [
  "pin-utils",
  "smallvec",
  "tokio",
+ "want",
 ]
 
 [[package]]
@@ -2446,6 +2447,45 @@ dependencies = [
 ]
 
 [[package]]
+name = "signet-passkey-desktop"
+version = "0.3.0"
+dependencies = [
+ "axum",
+ "clap",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
+ "serde",
+ "serde_json",
+ "signet-passkey",
+ "signet-passkey-relay",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "url",
+ "webauthn-rs",
+ "zeroize",
+]
+
+[[package]]
+name = "signet-passkey-relay"
+version = "0.3.0"
+dependencies = [
+ "axum",
+ "clap",
+ "hex",
+ "http-body-util",
+ "rand 0.8.8",
+ "serde",
+ "serde_json",
+ "signet-passkey",
+ "tokio",
+ "tower",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "signet-policy"
 version = "0.3.0"
 dependencies = [
@@ -2937,6 +2977,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "try-lock"
+version = "0.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
+
+[[package]]
 name = "typenum"
 version = "1.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3037,6 +3083,15 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
+
+[[package]]
+name = "want"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ec4cdd0dd910afe868b7ef477227d8d538b46b3075031afee8a9f2acb0a2ed0b"
+dependencies = [
+ "try-lock",
+]
 
 [[package]]
 name = "wasi"

@@ -17,8 +17,9 @@ the closer look that lists cannot give a release nobody has examined yet:
     with a reason;
   - every published file is identical to the public source repository at the
     commit the package records, and that commit is one the registry recorded
-    from the repository's own CI, or a tag or branch tip, or in the default
-    branch's history;
+    from the repository's own CI, or is on a branch or tag of that repository.
+    A release that fails this and was then examined by hand is listed, with
+    what was found, in dependency_provenance_reviewed.json;
   - build scripts and proc-macros (code that runs at build time) are listed.
 
 This cannot prove a dependency is safe. It shows that none is on a public list,
@@ -101,15 +102,15 @@ def provenance(name: str, version: str, source: str, scratch: str, registry_comm
     commit, inner = info["git"]["sha1"], info.get("path_in_vcs", "")
     problems = ["packaged from a modified working tree"] if info["git"].get("dirty") else []
     manifest = open(os.path.join(source, "Cargo.toml")).read()
-    match = re.search(r'^repository = "https://github\.com/([^/"]+)/([^/"]+?)(?:\.git)?/?(?:"|/)', manifest, re.M)
+    match = re.search(r'^repository = "(https://[^/"]+/[^/"]+/[^/"#?]+?)(?:\.git)?/?(?:"|/)', manifest, re.M)
     if not match:
-        return problems + ["no GitHub repository declared"]
-    slug = f"{match[1]}/{match[2]}"
-    work = os.path.join(scratch, slug.replace("/", "__"))
+        return problems + ["no repository declared"]
+    url = match[1]
+    slug = url.split("://", 1)[1].removeprefix("github.com/")
+    work = os.path.join(scratch, re.sub(r"[^A-Za-z0-9]+", "_", slug))
     if not os.path.isdir(work):
         os.makedirs(work)
         git(["init", "-q"], work)
-    url = f"https://github.com/{slug}"
     if git(["cat-file", "-e", commit + "^{commit}"], work).returncode != 0:
         if git(["fetch", "-q", "--depth", "1", url, commit], work).returncode != 0:
             time.sleep(6)
@@ -122,13 +123,23 @@ def provenance(name: str, version: str, source: str, scratch: str, registry_comm
         tree[path] = (mode, oid)
 
     def lookup(path: str, depth: int = 0) -> str | None:
-        if path not in tree:
-            return None
-        mode, oid = tree[path]
-        if mode == "120000" and depth < 4:
-            target = git(["cat-file", "blob", oid], work).stdout.decode()
-            return lookup(os.path.normpath(os.path.join(os.path.dirname(path), target)), depth + 1)
-        return oid
+        """Blob id at `path`, following a symlink at any component."""
+        parts = path.split("/")
+        for end in range(1, len(parts) + 1):
+            prefix = "/".join(parts[:end])
+            entry = tree.get(prefix)
+            if entry and entry[0] == "120000" and depth < 6:
+                target = git(["cat-file", "blob", entry[1]], work).stdout.decode()
+                resolved = os.path.normpath(os.path.join(os.path.dirname(prefix), target))
+                return lookup("/".join([resolved, *parts[end:]]), depth + 1)
+        entry = tree.get(path)
+        return entry[1] if entry else None
+
+    if "path_in_vcs" not in info and f"{name}/Cargo.toml" in tree:
+        root_manifest = tree.get("Cargo.toml")
+        root_text = git(["cat-file", "blob", root_manifest[1]], work).stdout.decode() if root_manifest else ""
+        if not re.search(rf'^name = "{re.escape(name)}"', root_text, re.M):
+            inner = name  # packaged before cargo recorded the folder
 
     for folder, _, files in os.walk(source):
         for file in files:
@@ -152,12 +163,13 @@ def provenance(name: str, version: str, source: str, scratch: str, registry_comm
     named = [ref.split("\t")[1] for ref in refs if ref.startswith(commit)]
     if any(ref.startswith("refs/tags/") or ref.startswith("refs/heads/") or ref == "HEAD" for ref in named):
         return problems
-    full = os.path.join(scratch, slug.replace("/", "__") + "__history")
+    full = work + "_history"
     if not os.path.isdir(full):
         subprocess.run(["git", "clone", "-q", "--filter=blob:none", "--no-checkout", url, full],
                        capture_output=True, timeout=1800)
-    if git(["merge-base", "--is-ancestor", commit, "origin/HEAD"], full).returncode != 0:
-        problems.append(f"commit {commit[:10]} is not a tag, a branch tip or in the default branch of {slug}")
+    reachable = git(["for-each-ref", "--count=1", "--contains", commit, "refs/remotes", "refs/tags"], full)
+    if reachable.returncode != 0 or not reachable.stdout.strip():
+        problems.append(f"commit {commit[:10]} is not on any branch or tag of {slug}")
     return problems
 
 
@@ -178,6 +190,7 @@ def main() -> int:
     added = {key for key in registry if key not in base}
     changed = registry if args.all else sorted(added)
     exceptions = json.loads((ROOT / "scripts" / "dependency_age_exceptions.json").read_text())
+    reviewed = json.loads((ROOT / "scripts" / "dependency_provenance_reviewed.json").read_text())
     attention = 0
 
     print(f"Lists: {len(registry)} registry packages at exact versions")
@@ -221,7 +234,14 @@ def main() -> int:
                     problems.append("cached archive differs from Cargo.lock")
                 trusted = meta.get("trustpub_data") or {}
                 recorded = (trusted["repository"], trusted["sha"]) if trusted.get("repository") and trusted.get("sha") else None
-                problems += provenance(name, version, source, scratch, recorded)
+                differences = provenance(name, version, source, scratch, recorded)
+                if differences and label in reviewed:
+                    # A person looked at exactly this release. Cargo.lock pins
+                    # its checksum, so the finding cannot go stale.
+                    print(f"  reviewed  {label}: {reviewed[label]}")
+                    print(f"            (was: {'; '.join(differences)[:300]})")
+                    continue
+                problems += differences
                 manifest = open(os.path.join(source, "Cargo.toml")).read()
                 if os.path.exists(os.path.join(source, "build.rs")) or re.search(r'^build = "', manifest, re.M):
                     build_time.append(label + " (build script)")

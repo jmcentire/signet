@@ -111,8 +111,8 @@ impl Completed {
                 credential_id,
                 attestation_object,
                 authenticator_data,
+                public_key,
                 client_data_json: Some(client_data),
-                ..
             } => Some(serde_json::json!({
                 "id": credential_id,
                 "rawId": credential_id,
@@ -122,6 +122,10 @@ impl Completed {
                     "clientDataJSON": b64(client_data),
                     "attestationObject": attestation_object,
                     "authenticatorData": authenticator_data,
+                    "publicKey": unb64(public_key)
+                        .ok()
+                        .and_then(|point| crate::webauthn::spki_p256(&point))
+                        .map(|spki| b64(&spki)),
                     "publicKeyAlgorithm": crate::webauthn::ES256,
                     "transports": ["internal"],
                 },

@@ -14,8 +14,9 @@
 //! - the site-binding check a WebAuthn client must perform ([`rp`]);
 //! - WebAuthn byte encodings ([`webauthn`]).
 //!
-//! It does **not** contain a phone app, a browser or operating-system
-//! integration, or a relay. [`SoftwareIdentity`] and [`SoftwareCredentialKeys`]
+//! It also defines what both ends say to the store-and-forward relay
+//! ([`relay`]). It does **not** contain a phone app, a browser or
+//! operating-system integration, or the relay itself. [`SoftwareIdentity`] and [`SoftwareCredentialKeys`]
 //! keep keys in process memory. They exist so the protocol can be exercised and
 //! tested; they provide no hardware binding. A phone implementation supplies the
 //! [`IdentityKeys`] and [`CredentialKeys`] traits from its secure hardware.
@@ -29,6 +30,7 @@ mod error;
 pub mod keys;
 pub mod message;
 pub mod pairing;
+pub mod relay;
 pub mod requester;
 pub mod rp;
 pub mod seal;

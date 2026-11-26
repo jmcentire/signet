@@ -56,10 +56,21 @@ No implementation should resume merely because an item appears here.
 
 ## Resumed: remote passkey approval
 
-On November 26, 2026 Jeremy resumed build for one slice: approving a passkey
+On November 26, 2026 Jeremy resumed build for one subsystem: approving a passkey
 request from a phone when the computer that asked is somewhere else. The design,
-the tested protocol core and the decisions still open are in
+what is built and tested, and the decisions still open are in
 [remote passkey approval](remote-passkey.md). Nothing else on this page resumed.
+
+Still to do there, in order:
+
+1. TLS in the relay client, so the computer can reach a relay that is not on
+   the same machine.
+2. Mount the relay's routes in Herald. Decided November 26, 2026; needs this
+   work merged first, and Jeremy's approval to deploy.
+3. Keep the machine key in the operating system's key store.
+4. A cancel message, so dismissing a request on the computer clears it on the
+   phone.
+5. The phone app, and with it the push the relay must send to wake it.
 
 ## Proposed: rules for dealing with other parties' agents
 
