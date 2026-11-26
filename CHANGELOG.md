@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Add `signet-passkey`, the protocol core for approving a passkey request from a
+  phone when the computer that asked is elsewhere: signed and HPKE-sealed
+  request/response, one-time pairing with a confirmation code, the WebAuthn
+  site-binding check, and reference phone and computer sides. Verified end to
+  end against webauthn-rs. Software keys only; no phone app, relay or browser
+  integration yet. Design in `docs/remote-passkey.md`.
+- Record the proposed rules for dealing with other parties' agents in
+  `docs/open-work.md`.
+
 - Restore cryptographic test execution under the maintainer's production-secret
   prohibition. Gitleaks scans repository content; generated test keys remain
   permitted, and denial probes exercise the local execution gate.

@@ -1,7 +1,8 @@
 # Preserved prototype status
 
-Checkpoint: October 11, 2026. Development is paused. This inventory describes the
-preserved source in this repository.
+Checkpoint: October 11, 2026. Development is paused, except the remote passkey
+slice resumed on November 26, 2026. This inventory describes the preserved source
+in this repository.
 “Implemented” means code exists, not that deployment or operational safety is proven.
 
 | Surface | Implemented and tested locally | Still missing |
@@ -15,6 +16,7 @@ preserved source in this repository.
 | Client asset cipher | AES-256-GCM with asset/epoch binding, current-key rotation and zeroized buffers; synthetic tests. | Enrollment, strong-auth wiring, client broker and reviewed custody protocol. |
 | Browser/Jev | Agreed conceptual flow and documented threat model. | No controlled browser, Jev calls, classification evaluation or universal enforcement. |
 | Escalation | Exact one-time approval exists in the SQLite path. | Structured “$5 more this month” proposals, bounded monthly grants and anti-stacking semantics. |
+| Remote passkey approval (resumed November 26, 2026, this slice only) | `signet-passkey` protocol core: signed and sealed request/response, pairing with confirmation code, site-binding check, reference phone and computer sides. Create and sign-in verified by webauthn-rs; 24 attack cases; a mutation check confirms the tests notice a removed safeguard. | Phone app, secure-hardware key stores, durable state, relay, browser extension, OS providers, passkey import. Software keys only; no real passkey enrolled. See [remote passkey approval](remote-passkey.md). |
 | Legacy proof/capability surfaces | Nine Rust crates; inspect individual contracts. | MCP proof bytes/query answers include placeholders; generic one-time capability issuance remains disabled. Native rings do not enable that separate path. |
 
 ## Verification boundary

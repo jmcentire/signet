@@ -9,6 +9,7 @@ members = [
     "crates/signet-proof",
     "crates/signet-sdk",
     "crates/signet-mcp",
+    "crates/signet-passkey",
     "crates/signet",
 ]
 
@@ -33,6 +34,7 @@ signet-cred = { path = "crates/signet-cred" }
 signet-proof = { path = "crates/signet-proof" }
 signet-sdk = { path = "crates/signet-sdk" }
 signet-mcp = { path = "crates/signet-mcp" }
+signet-passkey = { path = "crates/signet-passkey" }
 
 # Serialization
 serde = { version = "1", features = ["derive"] }

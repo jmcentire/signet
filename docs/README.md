@@ -18,6 +18,7 @@ settled direction from tested code and unresolved integration.
 | Evaluate rules through a local agent | [Read-only MCP preview](agent-preview.md) |
 | Understand rings and asset bindings | [Rings, rules and assets](rings-and-assets.md) |
 | Review native persistence | [R2 and recovery](r2-persistence.md) |
+| Approve a passkey request from far away | [Remote passkey approval](remote-passkey.md) |
 | Review custody and proposed handshake | [Client asset custody](client-asset-custody.md) |
 | Inspect personal cloud checkpoint | [GCP deployment gates](gcp-deployment.md) |
 | Check vendor integration routes | [Platform readiness](platform-readiness.md) |
