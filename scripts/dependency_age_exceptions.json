@@ -1,0 +1,4 @@
+{
+  "url@2.5.9": "Fixes RUSTSEC-2026-0592, which affects 2.5.8. Diff against 2.5.8 read on 2026-11-26: origin of blob URLs narrowed to http, https and file; a quadratic path-parsing case removed; percent-encode sets aligned with the URL Standard. No new dependencies, no build script.",
+  "form_urlencoded@1.2.3": "Required by url 2.5.9. Diff against 1.2.2 read on 2026-11-26: one panic replaced by a clamp; percent-encoding requirement raised to 2.3.2. No build script."
+}

@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   integration yet. Design in `docs/remote-passkey.md`.
 - Record the proposed rules for dealing with other parties' agents in
   `docs/open-work.md`.
+- Add `scripts/dependency_provenance_check.py`: advisory and malicious-package
+  lookup for every locked package, plus source-match, checksum and release-age
+  checks for added ones. Pin hpke, sha2 and psl to releases at least 14 days
+  old.
 
 - Restore cryptographic test execution under the maintainer's production-secret
   prohibition. Gitleaks scans repository content; generated test keys remain

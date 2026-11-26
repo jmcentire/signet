@@ -18,7 +18,7 @@ rand = { workspace = true }
 subtle = { workspace = true }
 zeroize = { workspace = true }
 p256 = { version = "0.14", default-features = false, features = ["std", "ecdsa", "pkcs8"] }
-hpke = { version = "0.15.2", default-features = false, features = ["alloc", "getrandom", "nistp", "aes"] }
+hpke = { version = "0.15.1", default-features = false, features = ["alloc", "getrandom", "nistp", "aes"] }
 # Not used directly. aes 0.9.3 and later need Rust 1.89, above this workspace's
 # 1.88 minimum; this bound keeps hpke's AES-GCM on a version that builds there.
 aes = ">=0.9.1, <0.9.3"

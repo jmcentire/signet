@@ -1171,9 +1171,9 @@ dependencies = [
 
 [[package]]
 name = "hpke"
-version = "0.15.2"
+version = "0.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "34d620bb85b79e01a3447fa82ac496a7b8e1c4e63d961c18593f0a80f2f4741b"
+checksum = "8f512e325a1a71bf3273fb9b7fc9e5d96dac136fb4a95d0e6637001b12ea3e09"
 dependencies = [
  "aead 0.6.1",
  "aes-gcm 0.11.1",
@@ -1184,7 +1184,7 @@ dependencies = [
  "p384",
  "p521",
  "rand_core 0.10.1",
- "sha2 0.11.2",
+ "sha2 0.11.1",
  "subtle",
  "zeroize",
 ]
@@ -1726,7 +1726,7 @@ dependencies = [
  "elliptic-curve",
  "primefield",
  "primeorder",
- "sha2 0.11.2",
+ "sha2 0.11.1",
 ]
 
 [[package]]
@@ -1921,9 +1921,9 @@ dependencies = [
 
 [[package]]
 name = "psl"
-version = "2.1.264"
+version = "2.1.252"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8782e35cade255f17d5ad527b899ea5b4e6bef29dcdc3502965a7d8d2f3fc3f5"
+checksum = "efefe9aafbc2e8fd9157db7eb16c61a86cbf0ead714adf510a7ae662470fe369"
 dependencies = [
  "psl-types",
 ]
@@ -2251,9 +2251,9 @@ dependencies = [
 
 [[package]]
 name = "sha2"
-version = "0.11.2"
+version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5b0e5c7d67bc53f435386b2130fdc900488c5703770f6d8a4633060e34288a27"
+checksum = "47d7069beb7d6ac7b9acd1039986e73443f24234f41074da099d6f994ac9ad19"
 dependencies = [
  "cfg-if",
  "cpufeatures 0.3.1",
@@ -2642,7 +2642,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "82a72c767771b47409d2345987fda8628641887d5466101319899796367354a0"
 dependencies = [
  "fastrand",
- "getrandom 0.4.1",
+ "getrandom 0.3.4",
  "once_cell",
  "rustix",
  "windows-sys 0.61.2",

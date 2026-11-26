@@ -218,7 +218,7 @@ device.
 
 ## How slice 1 was checked
 
-The same author wrote the code and its tests, so two outside checks were added.
+The same author wrote the code and its tests, so three outside checks were added.
 
 - **An independent verifier.** webauthn-rs plays the site in the end-to-end
   tests. It issues the challenges and verifies the results with its own code, so
@@ -230,7 +230,19 @@ The same author wrote the code and its tests, so two outside checks were added.
   signature with no test of its own. The script fails if a check stops being
   covered or its pattern stops matching the source.
 
-Neither replaces an independent review or a separate tester, and the software
+- **Dependencies checked against their sources.**
+  `scripts/dependency_provenance_check.py` looks up every package in
+  `Cargo.lock` in OSV, which carries the RustSec database, GitHub advisories and
+  the OpenSSF malicious-packages list. For packages this work added it also
+  confirms that each published file is identical to the public repository at the
+  commit the package records, that the registry and local checksums match the
+  lockfile, and that the release is at least 14 days old. None of the 48 added
+  packages runs code at build time. Three releases under a week old were pinned
+  back to aged ones (hpke 0.15.1, sha2 0.11.1, psl 2.1.252); url 2.5.9 and
+  form_urlencoded 1.2.3 are kept despite their age because they fix an advisory,
+  with the reason recorded in `scripts/dependency_age_exceptions.json`.
+
+None of this replaces an independent review or a separate tester, and the software
 key stores prove nothing about hardware custody. `make check` passes, and the
 workspace tests pass on both stable Rust and the 1.88 minimum.
 
