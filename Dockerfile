@@ -21,18 +21,27 @@ COPY crates/signet-cred/Cargo.toml crates/signet-cred/
 COPY crates/signet-proof/Cargo.toml crates/signet-proof/
 COPY crates/signet-sdk/Cargo.toml crates/signet-sdk/
 COPY crates/signet-mcp/Cargo.toml crates/signet-mcp/
+COPY crates/signet-passkey/Cargo.toml crates/signet-passkey/
+COPY crates/signet-passkey-relay/Cargo.toml crates/signet-passkey-relay/
+COPY crates/signet-passkey-desktop/Cargo.toml crates/signet-passkey-desktop/
 COPY crates/signet/Cargo.toml crates/signet/
 
 # Create stub source files for dependency caching
-RUN for d in signet-core signet-vault signet-policy signet-notify signet-cred signet-proof signet-sdk signet-mcp; do \
+RUN for d in signet-core signet-vault signet-policy signet-notify signet-cred signet-proof signet-sdk signet-mcp \
+             signet-passkey signet-passkey-relay signet-passkey-desktop; do \
         mkdir -p crates/$d/src && echo "// stub" > crates/$d/src/lib.rs; \
+    done && \
+    for d in signet-passkey-relay signet-passkey-desktop; do \
+        echo "fn main() {}" > crates/$d/src/main.rs; \
     done && \
     mkdir -p crates/signet/src && \
     echo "fn main() {}" > crates/signet/src/main.rs && \
     echo "// stub" > crates/signet/src/lib.rs
 
-# Build dependencies only (cache layer)
-RUN cargo build --release 2>/dev/null || true
+# Build dependencies only (cache layer). Every workspace member's manifest must
+# be present for cargo to load the workspace; only the signet binary's
+# dependencies are built.
+RUN cargo build --release --bin signet 2>/dev/null || true
 
 # Copy actual source
 COPY crates/ crates/

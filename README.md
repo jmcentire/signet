@@ -77,8 +77,9 @@ payment services. No named platform integration or endorsement is claimed.
 
 ## What works, and what remains
 
-This repository contains nine Rust crates covering vault, policy, credential,
-proof, notification, MCP, SDK, shared types, and CLI components. It is a preserved research prototype, not a production custody service.
+This repository contains twelve Rust crates covering vault, policy, credential,
+proof, notification, MCP, SDK, shared types, CLI, and remote passkey approval
+(protocol, relay and the computer side) components, plus a Chromium extension. It is a preserved research prototype, not a production custody service.
 
 The distinction between components and connected product behavior matters:
 

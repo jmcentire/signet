@@ -1,0 +1,29 @@
+[package]
+name = "signet-passkey"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Remote passkey approval for Signet: the phone signs, the computer relays"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+sha2 = { workspace = true }
+hmac = { workspace = true }
+base64 = { workspace = true }
+hex = { workspace = true }
+rand = { workspace = true }
+subtle = { workspace = true }
+zeroize = { workspace = true }
+p256 = { version = "0.14", default-features = false, features = ["std", "ecdsa", "pkcs8"] }
+hpke = { version = "0.15.1", default-features = false, features = ["alloc", "getrandom", "nistp", "aes"] }
+# Not used directly. aes 0.9.3 and later need Rust 1.89, above this workspace's
+# 1.88 minimum; this bound keeps hpke's AES-GCM on a version that builds there.
+aes = ">=0.9.1, <0.9.3"
+psl = "2"
+url = "2.5.9"
+
+[dev-dependencies]
+webauthn-rs = { version = "=0.5.5", default-features = false }

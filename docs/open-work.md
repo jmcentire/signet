@@ -54,6 +54,46 @@ No implementation should resume merely because an item appears here.
    app, new cloud resources, billing or IAM. Source attribution and dated history
    record contribution; they do not prove exclusivity or endorsement.
 
+## Resumed: remote passkey approval
+
+On November 26, 2026 Jeremy resumed build for one subsystem: approving a passkey
+request from a phone when the computer that asked is somewhere else. The design,
+what is built and tested, and the decisions still open are in
+[remote passkey approval](remote-passkey.md). Nothing else on this page resumed.
+
+Still to do there, in order:
+
+1. TLS in the relay client, so the computer can reach a relay that is not on
+   the same machine.
+2. Mount the relay's routes in Herald. Decided November 26, 2026; needs this
+   work merged first, and Jeremy's approval to deploy.
+3. Keep the machine key in the operating system's key store.
+4. A cancel message, so dismissing a request on the computer clears it on the
+   phone.
+5. The phone app, and with it the push the relay must send to wake it.
+
+## Proposed: rules for dealing with other parties' agents
+
+Proposed by Jeremy on November 26, 2026. Not designed, not built.
+
+Signet's rules so far govern what the owner's agent may spend, disclose and use.
+These would govern what it accepts from the agent on the other side of a
+conversation, for example an airline's:
+
+- **Require disclosure** of certain things before continuing, such as who else
+  pays the other agent.
+- **Decline every up-sell and cross-sell.**
+- **Opt out of everything** optional: marketing, data sharing, enrollment.
+- **Invoke the right to be forgotten** when the task ends.
+
+Three of these are actions the owner's agent takes and can be enforced on the
+owner's side alone. Required disclosure is different: the agent can refuse to
+continue without a signed statement, but cannot verify that the statement is
+true. The signed statement is then evidence. Erasure is a request whose force
+depends on the law that applies. These fit the agent-to-agent protocol and the
+small shared vocabulary of defaults, with signed tokens carrying only the
+bounds that differ.
+
 ## Smallest coherent demonstration
 
 The existing fictional website and owner preview explain the value. The tested
